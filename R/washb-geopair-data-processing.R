@@ -31,6 +31,9 @@ d_anth <- read_csv(here("data","washb-bangladesh-anthro-public.csv"))
 # follow-up visits 1 and 2
 d_diar <- read_csv(here("data","washb-bangladesh-diar-public.csv"))
 
+# child protozoan infection measured
+# at follow-up visit 2
+d_prot <- read_csv(here("data","washb-bangladesh-protozoa-public.csv"))
 
 #----------------------------------
 # merge on treatment assignments
@@ -49,7 +52,7 @@ d_anth2 <- d_anth %>%
   left_join(d_tr, by = "clusterid") %>%
   filter(svy==2) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
-  mutate(tr2 = ifelse(tr == "Control","Control","Intervention"),
+  mutate(tr2 = ifelse(tr == "Control","Control","Nutrition"),
          tr2 = factor(tr2)) %>%
   select(-tr,-svy) %>%
   rename(tr=tr2)
@@ -59,9 +62,17 @@ d_diar2 <- d_diar %>%
   left_join(d_tr, by = "clusterid") %>%
   filter(svy > 0) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
-  mutate(tr2 = ifelse(tr == "Control","Control","Intervention"),
+  mutate(tr2 = ifelse(tr == "Control","Control","Nutrition"),
          tr2 = factor(tr2)) %>%
   select(-tr,-svy) %>%
+  rename(tr=tr2)
+
+d_prot2 <- d_prot %>%
+  select(dataid,clusterid,personid,block,tr,posgi) %>%
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  mutate(tr2 = ifelse(tr == "Control","Control","Nutrition"),
+         tr2 = factor(tr2)) %>%
+  select(-tr) %>%
   rename(tr=tr2)
 
 
@@ -70,6 +81,7 @@ d_diar2 <- d_diar %>%
 #----------------------------------
 write_rds(d_anth2,path = here("data","bangl_analysis_anthro.rds"))
 write_rds(d_diar2,path = here("data","bangl_analysis_diar.rds"))
+write_rds(d_prot2,path = here("data","bangl_analysis_parasite.rds"))
 
 
 
