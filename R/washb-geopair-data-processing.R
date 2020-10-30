@@ -68,11 +68,13 @@ d_diar2 <- d_diar %>%
   rename(tr=tr2)
 
 d_prot2 <- d_prot %>%
-  select(dataid,clusterid,personid,block,tr,posgi) %>%
+  select(dataid,clusterid,personid,block,tr,posgi, delta_prot) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  # exclude missing values
+  filter(delta_prot == "Observed") %>%
   mutate(tr2 = ifelse(tr == "Control","Control","Nutrition"),
          tr2 = factor(tr2)) %>%
-  select(-tr) %>%
+  select(-tr,-delta_prot) %>%
   rename(tr=tr2)
 
 
