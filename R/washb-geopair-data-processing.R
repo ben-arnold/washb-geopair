@@ -35,6 +35,10 @@ d_diar <- read_csv(here("data","washb-bangladesh-diar-public.csv"))
 # at follow-up visit 2
 d_prot <- read_csv(here("data","washb-bangladesh-protozoa-public.csv"))
 
+# child helminth infection measured
+# at follow-up visit 2
+d_sth <- read_csv(here("data","washb-bangladesh-sth-public.csv"))
+
 #----------------------------------
 # merge on treatment assignments
 #
@@ -77,13 +81,28 @@ d_prot2 <- d_prot %>%
   select(-tr,-delta_prot) %>%
   rename(tr=tr2)
 
+d_sth2 <- d_sth %>%
+  select(dataid,clusterid,personid,block,tr,al,tt,hw,sth) %>%
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  # exclude missing values
+  filter(!is.na(al)) %>%
+  mutate(tr2 = ifelse(tr == "Control","Control","Nutrition"),
+         tr2 = factor(tr2)) %>%
+  select(-tr) %>%
+  rename(tr=tr2)
+
+# merge giardia and STH datasets
+# there were 3 children with giardia measures but no STH measures,
+# and 137 children with STH measrues but no giardia measures
+d_parasite <- d_sth2 %>%
+  full_join(d_prot2,by=c("dataid","clusterid","personid","block","tr"))
 
 #----------------------------------
 # save analysis files
 #----------------------------------
 write_rds(d_anth2,path = here("data","bangl_analysis_anthro.rds"))
 write_rds(d_diar2,path = here("data","bangl_analysis_diar.rds"))
-write_rds(d_prot2,path = here("data","bangl_analysis_parasite.rds"))
+write_rds(d_parasite,path = here("data","bangl_analysis_parasite.rds"))
 
 
 
