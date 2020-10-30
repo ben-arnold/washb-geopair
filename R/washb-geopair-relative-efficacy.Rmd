@@ -1,0 +1,248 @@
+---
+title: "Relative efficiency of geographic pair matching in the WASH Benefits trials"
+subtitle: ""
+author: "Ben Arnold ben.arnold@ucsf.edu"
+date: "updated: `r Sys.time()`"
+output: 
+  html_document:
+    theme: default
+    highlight: haddock
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+# Summary
+
+Summary here: **TBD**
+
+Details of original citations and data sources here: **TBD**
+
+
+# Preamble
+
+```{r preamble}
+library(here)
+here()
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","washb-geopair-Config.R"))
+
+```
+
+
+
+# Bangladesh
+
+## Data prep
+
+```{r load bangladesh anthro data}
+#-------------------------------
+# load the formatted analysis
+# data created by
+# washb-geopair-data-processing.R
+#-------------------------------
+
+# anthropometry data
+danth <- read_rds(here("data","bangl_analysis_anthro.rds")) %>%
+  mutate(blockf = factor(block))
+
+# diarrhea data
+ddiar <- read_rds(here("data","bangl_analysis_diar.rds")) %>%
+  mutate(blockf = factor(block))
+
+
+```
+
+```{r bangladesh cluster level means, warning = FALSE, error = FALSE}
+#-------------------------------
+# calculate geographic pair-matched
+# group means - anthropometry
+#-------------------------------
+danth_cl <- danth %>%
+  select(-dataid,-childid,-tchild,-clusterid) %>%
+  group_by(block,tr) %>%
+  summarize_all(function(x) mean(x,na.rm=TRUE))
+
+#-------------------------------
+# calculate geographic pair-matched
+# group means - diarrhea
+#-------------------------------
+ddiar_cl <- ddiar %>%
+  select(-dataid,-childid,-tchild,-clusterid) %>%
+  filter(!is.na(diar7d)) %>%
+  group_by(block,tr) %>%
+  mutate(nobs = n(),
+         npos = sum(diar7d, na.rm = TRUE)) %>%
+  slice(1) %>%
+  # if there were no diarrhea cases in the pair-treatment arm, 
+  # then add 0.5 to avoid -Inf with a log transformation
+  mutate(diarprev = ifelse(npos>0,npos/nobs,0.5/nobs)) %>%
+  mutate(logdiarprev = log(diarprev))
+
+```
+
+## Pairwise correlation 
+
+For each outcome, estimate the correlation between paired means
+
+```{r bangladesh pairwise correlation}
+#-------------------------------
+# LAZ
+#-------------------------------
+b_block_laz <- danth_cl %>%
+  select(block,tr,laz) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = laz)
+b_cor_laz <- cor(b_block_laz$Control,b_block_laz$Intervention)
+
+
+#-------------------------------
+# WAZ
+#-------------------------------
+b_block_waz <- danth_cl %>%
+  select(block,tr,waz) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = waz)
+b_cor_waz <- cor(b_block_waz$Control,b_block_waz$Intervention)
+
+
+#-------------------------------
+# WHZ
+#-------------------------------
+b_block_whz <- danth_cl %>%
+  select(block,tr,whz) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = whz)
+b_cor_whz <- cor(b_block_whz$Control,b_block_whz$Intervention)
+
+
+#-------------------------------
+# HCZ
+#-------------------------------
+b_block_hcz <- danth_cl %>%
+  select(block,tr,hcz) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = hcz)
+b_cor_hcz <- cor(b_block_hcz$Control,b_block_hcz$Intervention)
+
+#-------------------------------
+# Diarrhea
+#-------------------------------
+b_block_diar <- ddiar_cl %>%
+  select(block,tr,logdiarprev) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = logdiarprev)
+b_cor_diar <- cor(b_block_diar$Control,b_block_diar$Intervention)
+
+
+```
+
+## Pairwise ICC
+
+Estimate outcome ICC within each pair among the control arm observations.
+
+```{r bangladesh pairwise ICC, warning = FALSE, error = FALSE}
+library(rptR)
+set.seed(9124)
+
+#-------------------------------
+# Pair-wise (block level) ICC
+# anthropometry outcomes
+#-------------------------------
+danth_control <- danth %>%
+  filter(tr == "Control")
+icc_laz <- rptGaussian(laz ~ 1 + (1|blockf), grname = "blockf", data = danth_control, nboot = 1000)
+icc_waz <- rptGaussian(waz ~ 1 + (1|blockf), grname = "blockf", data = danth_control, nboot = 1000)
+icc_whz <- rptGaussian(whz ~ 1 + (1|blockf), grname = "blockf", data = danth_control, nboot = 1000)
+icc_hcz <- rptGaussian(hcz ~ 1 + (1|blockf), grname = "blockf", data = danth_control, nboot = 1000)
+
+#-------------------------------
+# Pair-wise (block level) ICC
+# Diarrhea
+#-------------------------------
+ddiar_control <- ddiar %>%
+  filter(tr == "Control")
+icc_diar <- rptBinary(diar7d ~ 1 + (1|blockf), grname = "blockf", data=ddiar_control, nboot = 1000)
+```
+
+```{r icc table}
+#-------------------------------
+# summarize the results 
+# in a table
+#-------------------------------
+iccs <- unlist( c(icc_laz$R,icc_waz$R, icc_whz$R, icc_hcz$R, icc_diar$R[1,1]))
+icc_lb <- unlist(c(icc_laz$CI_emp[1],icc_waz$CI_emp[1],icc_whz$CI_emp[1],icc_hcz$CI_emp[1],icc_diar$CI_emp[[1]][1]))
+icc_ub <- unlist(c(icc_laz$CI_emp[2],icc_waz$CI_emp[2],icc_whz$CI_emp[2],icc_hcz$CI_emp[2],icc_diar$CI_emp[[2]][2]))
+icc_tab <- data.frame(
+  outcome = c("LAZ","WAZ","WHZ","HCZ","Diarrhea"),
+  icc = iccs,
+  icc_min95 = icc_lb,
+  icc_max95 = icc_ub
+) %>%
+  mutate(icc_print = paste0(sprintf("%1.2f",icc)," (",sprintf("%1.2f",icc_min95),", ",sprintf("%1.2f",icc_max95),")"))
+
+knitr::kable(icc_tab %>% select(outcome,icc_print),
+             col.names = c("Outcome","ICC (95% CI)"),
+             caption = "Pair level ICC among control clusters, bootstrapped 95% confidence interval") %>%
+  kable_styling(bootstrap_options = "striped")
+
+
+```
+
+## Summary Table
+
+```{r summary table}
+
+sumtab <- icc_tab
+sumtab$cor = c(b_cor_laz,b_cor_waz,b_cor_whz,b_cor_hcz,b_cor_diar)
+sumtab <- sumtab %>%
+  select(outcome,icc_print,cor) %>%
+  mutate(releff = 1/(1-cor))
+
+knitr::kable(sumtab,
+             digits = c(0,0,2,1),
+             col.names = c("Outcome","ICC (95% CI)*","Pair-wise\ncorrelation†","Relative Efficacy‡"),
+             caption = "Summary of pair-wise outcome correlation and relative efficacy of geographic pair-matching") %>%
+  kable_styling(bootstrap_options = "striped") %>%
+  footnote(symbol = c("ICC: Intra-class correlation coefficient for outcomes in control arm clusters.", 
+                      "Correlation between geographically paired, cluster-level means.",
+                      "Relative efficacy of geographic pair-matching compared to an unmatched design, defined as 1/(1-r), where r is the correlation between paired outcomes. A relative efficacy of 1.5 means that a pair-matched study with 100 clusters per group has the same power as an unmatched study with 150 clusters per group."))
+
+```
+
+## Summary Figure
+
+```{r plot relative efficiency}
+d_reff <- data.frame(rho = seq(0,0.5,by=0.01)) %>%
+  mutate(reff = 1/(1-rho))
+
+sumtabplot <- sumtab %>%
+  mutate(outcome_lab = paste0(outcome," (",sprintf("%1.1f",releff),")"))
+
+pcols <- cbpal[c(2,3,4,6,7,8)]
+plot_reff <- ggplot(data=sumtabplot, aes(x = cor, y = releff)) +
+  # add function line
+  geom_line(data=d_reff,aes(x=rho,y=reff),alpha = 0.4, linetype = "dashed") +
+  # plot results
+  geom_text(aes(label = outcome_lab, color = outcome), hjust = 1, nudge_x = -0.01) +
+  geom_point(aes(color = outcome), size = 2) + 
+  # refine aesthetics
+  scale_color_manual(values = pcols) +
+  scale_y_continuous(breaks=seq(1,2,by=0.5))+
+  coord_cartesian(ylim=c(1,2),xlim = c(0,0.5)) +
+  labs(x=expression(paste("Correlation between paired outcomes (",italic(r),")")),y=expression(paste("Relative efficacy of pair-matching, 1/(1-",italic(r),")"))) +
+  theme_minimal() +
+  theme(
+    legend.position = "none"
+  )
+plot_reff
+
+ggsave(filename = here("output","washb-geopair-relative-efficacy.png"),plot_reff,device = "png", height=4,width=4)
+```
+
+# Session Info
+```{r session info}
+sessionInfo()
+```
+
+
