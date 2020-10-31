@@ -26,6 +26,7 @@ library(gridExtra)
 #----------------------------
 library(sandwich)
 library(lmtest)
+library(rptR)
 
 #----------------------------
 # set up for parallel computing
