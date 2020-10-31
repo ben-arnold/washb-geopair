@@ -55,6 +55,9 @@ danth <- read_rds(here("data","bangl_analysis_anthro.rds")) %>%
 ddiar <- read_rds(here("data","bangl_analysis_diar.rds")) %>%
   mutate(blockf = factor(block))
 
+# giardia data
+dpara <- read_rds(here("data","bangl_analysis_parasite.rds")) %>%
+  mutate(blockf = factor(block))
 
 ```
 
@@ -84,11 +87,72 @@ ddiar_cl <- ddiar %>%
   mutate(diarprev = ifelse(npos>0,npos/nobs,0.5/nobs)) %>%
   mutate(logdiarprev = log(diarprev))
 
+
+#-------------------------------
+# calculate geographic pair-matched
+# group means - giardia
+#-------------------------------
+dgiar_cl <- dpara %>% 
+  select(block,tr,posgi) %>%
+  filter(!is.na(posgi)) %>%
+  group_by(block,tr) %>%
+  mutate(nobs = n(),
+         npos = sum(posgi, na.rm = TRUE)) %>%
+  slice(1) %>%
+  mutate(giarprev = npos/nobs) 
+
+#-------------------------------
+# calculate geographic pair-matched
+# group means - Ascaris
+#-------------------------------
+dal_cl <- dpara %>% 
+  select(block,tr,al) %>%
+  filter(!is.na(al)) %>%
+  group_by(block,tr) %>%
+  mutate(nobs = n(),
+         npos = sum(al, na.rm = TRUE)) %>%
+  slice(1) %>%
+  mutate(alprev = npos/nobs) 
+
+#-------------------------------
+# calculate geographic pair-matched
+# group means - trichuris
+#-------------------------------
+dtt_cl <- dpara %>% 
+  select(block,tr,tt) %>%
+  filter(!is.na(tt)) %>%
+  group_by(block,tr) %>%
+  mutate(nobs = n(),
+         npos = sum(tt, na.rm = TRUE)) %>%
+  slice(1) %>%
+  # if there were no trichuris cases in the pair-treatment arm, 
+  # then add 0.5 to avoid -Inf with a log transformation
+  mutate(ttprev = ifelse(npos>0,npos/nobs,0.5/nobs)) %>%
+  mutate(logttprev = log(ttprev))
+
+#-------------------------------
+# calculate geographic pair-matched
+# group means - hookworm
+#-------------------------------
+dhw_cl <- dpara %>% 
+  select(block,tr,hw) %>%
+  filter(!is.na(hw)) %>%
+  group_by(block,tr) %>%
+  mutate(nobs = n(),
+         npos = sum(hw, na.rm = TRUE)) %>%
+  slice(1) %>%
+  # if there were no trichuris cases in the pair-treatment arm, 
+  # then add 0.5 to avoid -Inf with a log transformation
+  mutate(hwprev = ifelse(npos>0,npos/nobs,0.5/nobs)) %>%
+  mutate(loghwprev = log(hwprev))
+
 ```
 
 ## Pairwise correlation 
 
-For each outcome, estimate the correlation between paired means
+For each outcome, estimate the correlation between paired means.
+
+For more rare binary outcomes (diarrhea, trichuris, hookworm), use log-transformed outcomes because they are skewed. This ensures the distribution is symmetric, and means that we are testing for differences in the prevalence ratio (difference in log prevalences).  For more common binary outcomes (giardia, ascaris) use their untransformed prevalence values.
 
 ```{r bangladesh pairwise correlation}
 #-------------------------------
@@ -97,7 +161,7 @@ For each outcome, estimate the correlation between paired means
 b_block_laz <- danth_cl %>%
   select(block,tr,laz) %>%
   pivot_wider(id_cols = block, names_from = tr, values_from = laz)
-b_cor_laz <- cor(b_block_laz$Control,b_block_laz$Intervention)
+b_cor_laz <- cor(b_block_laz$Control,b_block_laz$Nutrition)
 
 
 #-------------------------------
@@ -106,7 +170,7 @@ b_cor_laz <- cor(b_block_laz$Control,b_block_laz$Intervention)
 b_block_waz <- danth_cl %>%
   select(block,tr,waz) %>%
   pivot_wider(id_cols = block, names_from = tr, values_from = waz)
-b_cor_waz <- cor(b_block_waz$Control,b_block_waz$Intervention)
+b_cor_waz <- cor(b_block_waz$Control,b_block_waz$Nutrition)
 
 
 #-------------------------------
@@ -115,7 +179,7 @@ b_cor_waz <- cor(b_block_waz$Control,b_block_waz$Intervention)
 b_block_whz <- danth_cl %>%
   select(block,tr,whz) %>%
   pivot_wider(id_cols = block, names_from = tr, values_from = whz)
-b_cor_whz <- cor(b_block_whz$Control,b_block_whz$Intervention)
+b_cor_whz <- cor(b_block_whz$Control,b_block_whz$Nutrition)
 
 
 #-------------------------------
@@ -124,7 +188,7 @@ b_cor_whz <- cor(b_block_whz$Control,b_block_whz$Intervention)
 b_block_hcz <- danth_cl %>%
   select(block,tr,hcz) %>%
   pivot_wider(id_cols = block, names_from = tr, values_from = hcz)
-b_cor_hcz <- cor(b_block_hcz$Control,b_block_hcz$Intervention)
+b_cor_hcz <- cor(b_block_hcz$Control,b_block_hcz$Nutrition)
 
 #-------------------------------
 # Diarrhea
@@ -132,8 +196,39 @@ b_cor_hcz <- cor(b_block_hcz$Control,b_block_hcz$Intervention)
 b_block_diar <- ddiar_cl %>%
   select(block,tr,logdiarprev) %>%
   pivot_wider(id_cols = block, names_from = tr, values_from = logdiarprev)
-b_cor_diar <- cor(b_block_diar$Control,b_block_diar$Intervention)
+b_cor_diar <- cor(b_block_diar$Control,b_block_diar$Nutrition)
 
+#-------------------------------
+# Giardia
+#-------------------------------
+b_block_giar <- dgiar_cl %>%
+  select(block,tr,giarprev) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = giarprev)
+b_cor_giar <- cor(b_block_giar$Control,b_block_giar$Nutrition)
+
+#-------------------------------
+# Ascaris
+#-------------------------------
+b_block_al <- dal_cl %>%
+  select(block,tr,alprev) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = alprev)
+b_cor_al <- cor(b_block_al$Control,b_block_al$Nutrition)
+
+#-------------------------------
+# Trichuris
+#-------------------------------
+b_block_tt <- dtt_cl %>%
+  select(block,tr,logttprev) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = logttprev)
+b_cor_tt <- cor(b_block_tt$Control,b_block_tt$Nutrition)
+
+#-------------------------------
+# Hookworm
+#-------------------------------
+b_block_hw <- dhw_cl %>%
+  select(block,tr,loghwprev) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = loghwprev)
+b_cor_hw <- cor(b_block_hw$Control,b_block_hw$Nutrition)
 
 ```
 
@@ -142,7 +237,7 @@ b_cor_diar <- cor(b_block_diar$Control,b_block_diar$Intervention)
 Estimate outcome ICC within each pair among the control arm observations.
 
 ```{r bangladesh pairwise ICC, warning = FALSE, error = FALSE}
-library(rptR)
+
 set.seed(9124)
 
 #-------------------------------
@@ -163,6 +258,19 @@ icc_hcz <- rptGaussian(hcz ~ 1 + (1|blockf), grname = "blockf", data = danth_con
 ddiar_control <- ddiar %>%
   filter(tr == "Control")
 icc_diar <- rptBinary(diar7d ~ 1 + (1|blockf), grname = "blockf", data=ddiar_control, nboot = 1000)
+
+#-------------------------------
+# Pair-wise (block level) ICC
+# Giardia, Ascaris, Trichuris, Hookworm
+#-------------------------------
+dpara_control <- dpara %>%
+  filter(tr == "Control")
+icc_giar <- rptBinary(posgi ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = 1000)
+icc_al   <- rptBinary(al ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = 1000)
+icc_tt   <- rptBinary(tt ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = 1000)
+icc_hw   <- rptBinary(hw ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = 1000)
+
+
 ```
 
 ```{r icc table}
@@ -170,11 +278,11 @@ icc_diar <- rptBinary(diar7d ~ 1 + (1|blockf), grname = "blockf", data=ddiar_con
 # summarize the results 
 # in a table
 #-------------------------------
-iccs <- unlist( c(icc_laz$R,icc_waz$R, icc_whz$R, icc_hcz$R, icc_diar$R[1,1]))
-icc_lb <- unlist(c(icc_laz$CI_emp[1],icc_waz$CI_emp[1],icc_whz$CI_emp[1],icc_hcz$CI_emp[1],icc_diar$CI_emp[[1]][1]))
-icc_ub <- unlist(c(icc_laz$CI_emp[2],icc_waz$CI_emp[2],icc_whz$CI_emp[2],icc_hcz$CI_emp[2],icc_diar$CI_emp[[2]][2]))
+iccs <- unlist( c(icc_laz$R,icc_waz$R, icc_whz$R, icc_hcz$R, icc_diar$R[1,1], icc_giar$R[1,1], icc_al$R[1,1], icc_tt$R[1,1], icc_hw$R[1,1]))
+icc_lb <- unlist(c(icc_laz$CI_emp[1],icc_waz$CI_emp[1],icc_whz$CI_emp[1],icc_hcz$CI_emp[1],icc_diar$CI_emp[[1]][1], icc_giar$CI_emp[[1]][1], icc_al$CI_emp[[1]][1], icc_tt$CI_emp[[1]][1], icc_hw$CI_emp[[1]][1]))
+icc_ub <- unlist(c(icc_laz$CI_emp[2],icc_waz$CI_emp[2],icc_whz$CI_emp[2],icc_hcz$CI_emp[2],icc_diar$CI_emp[[1]][2], icc_giar$CI_emp[[1]][2], icc_al$CI_emp[[1]][2], icc_tt$CI_emp[[1]][2], icc_hw$CI_emp[[1]][2]))
 icc_tab <- data.frame(
-  outcome = c("LAZ","WAZ","WHZ","HCZ","Diarrhea"),
+  outcome = c("LAZ","WAZ","WHZ","HCZ","Diarrhea","Giardia","Ascaris","Trichuris","Hookworm"),
   icc = iccs,
   icc_min95 = icc_lb,
   icc_max95 = icc_ub
@@ -194,7 +302,7 @@ knitr::kable(icc_tab %>% select(outcome,icc_print),
 ```{r summary table}
 
 sumtab <- icc_tab
-sumtab$cor = c(b_cor_laz,b_cor_waz,b_cor_whz,b_cor_hcz,b_cor_diar)
+sumtab$cor = c(b_cor_laz,b_cor_waz,b_cor_whz,b_cor_hcz,b_cor_diar,b_cor_giar,b_cor_al,b_cor_tt,b_cor_hw)
 sumtab <- sumtab %>%
   select(outcome,icc_print,cor) %>%
   mutate(releff = 1/(1-cor))
@@ -213,27 +321,31 @@ knitr::kable(sumtab,
 ## Summary Figure
 
 ```{r plot relative efficiency}
-d_reff <- data.frame(rho = seq(0,0.5,by=0.01)) %>%
+d_reff <- data.frame(rho = seq(0,0.8,by=0.01)) %>%
   mutate(reff = 1/(1-rho))
 
 sumtabplot <- sumtab %>%
-  mutate(outcome_lab = paste0(outcome," (",sprintf("%1.1f",releff),")"))
+  mutate(outcome_lab = paste0(outcome," (",sprintf("%1.2f",releff),")"))
 
-pcols <- cbpal[c(2,3,4,6,7,8)]
+pcols <- c("black",cbpal[c(1:4,6:8)],"black")
 plot_reff <- ggplot(data=sumtabplot, aes(x = cor, y = releff)) +
   # add function line
   geom_line(data=d_reff,aes(x=rho,y=reff),alpha = 0.4, linetype = "dashed") +
   # plot results
-  geom_text(aes(label = outcome_lab, color = outcome), hjust = 1, nudge_x = -0.01) +
-  geom_point(aes(color = outcome), size = 2) + 
+  geom_text(aes(label = outcome, color = releff), hjust = c(0,rep(1,8)), nudge_x = c(0.01,rep(-0.01,8)),size = 2.5) +
+  geom_point(aes(color = releff), size = 1.8) + 
+  geom_point(pch=21,bg=NA, size=1.8) +
   # refine aesthetics
-  scale_color_manual(values = pcols) +
-  scale_y_continuous(breaks=seq(1,2,by=0.5))+
-  coord_cartesian(ylim=c(1,2),xlim = c(0,0.5)) +
-  labs(x=expression(paste("Correlation between paired outcomes (",italic(r),")")),y=expression(paste("Relative efficacy of pair-matching, 1/(1-",italic(r),")"))) +
+  # scale_color_manual(values = pcols) +
+  scale_color_viridis_c(begin = 0, end = 0.8, direction = -1) +
+  scale_y_continuous(breaks=seq(1,2.4,by=0.2))+
+  scale_x_continuous(breaks=seq(0,0.6,by=0.1)) +
+  coord_cartesian(ylim=c(1,2.4),xlim = c(0,0.6)) +
+  labs(x=expression(paste("Correlation between paired outcomes, (",italic(r),")")),y=expression(paste("Relative efficacy of geographic pair-matching, (1-",italic(r),")")^-1)) +
   theme_minimal() +
   theme(
-    legend.position = "none"
+    legend.position = "none",
+    panel.grid.minor = element_blank()
   )
 plot_reff
 
