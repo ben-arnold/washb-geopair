@@ -15,10 +15,15 @@
 #----------------------------
 
 library(here)
-library(kableExtra)
 library(tidyverse)
 library(lubridate)
+library(haven)
+
+#----------------------------
+# display packages
+#----------------------------
 library(table1)
+library(kableExtra)
 library(gridExtra)
 
 #----------------------------
@@ -29,7 +34,7 @@ library(lmtest)
 library(rptR)
 
 #----------------------------
-# set up for parallel computing
+# parallel computing packages
 #----------------------------
 library(foreach)
 library(doParallel)
