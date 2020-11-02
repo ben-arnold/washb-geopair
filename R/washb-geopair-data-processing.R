@@ -72,7 +72,7 @@ d_diar2 <- d_diar %>%
   rename(tr=tr2)
 
 d_prot2 <- d_prot %>%
-  select(dataid,clusterid,personid,block,tr,posgi, delta_prot) %>%
+  select(dataid,clusterid,personid,block,tr,giar=posgi, delta_prot) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   # exclude missing values
   filter(delta_prot == "Observed") %>%
@@ -159,7 +159,7 @@ dk_para2 <- dk_para %>%
   mutate(tr2 = ifelse(tr == 1,"Control","Nutrition"),
          tr2 = factor(tr2)) %>%
   select(-tr) %>%
-  select(childidr2, hhidr2, block,tr=tr2, al = ascaris_yn, tt = trichuris_yn, hw = hook_yn, sth = sth_yn)
+  select(childidr2, hhidr2, block,tr=tr2, giar = giardia_yn, al = ascaris_yn, tt = trichuris_yn, hw = hook_yn, sth = sth_yn)
 
 #----------------------------------
 # save analysis files
