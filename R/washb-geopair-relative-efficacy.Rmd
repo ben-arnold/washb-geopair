@@ -232,74 +232,6 @@ b_cor_hw <- cor(b_block_hw$Control,b_block_hw$Nutrition)
 
 ```
 
-## Pairwise ICC
-
-Estimate outcome ICC within each pair among the control arm observations.
-
-```{r bangladesh pairwise ICC, warning = FALSE, error = FALSE}
-
-set.seed(9124)
-
-#-------------------------------
-# Pair-wise (block level) ICC
-# anthropometry outcomes
-#-------------------------------
-danth_control <- danth %>%
-  filter(tr == "Control")
-icc_laz <- rptGaussian(laz ~ 1 + (1|blockf), grname = "blockf", data = danth_control, nboot = 1000)
-icc_waz <- rptGaussian(waz ~ 1 + (1|blockf), grname = "blockf", data = danth_control, nboot = 1000)
-icc_whz <- rptGaussian(whz ~ 1 + (1|blockf), grname = "blockf", data = danth_control, nboot = 1000)
-icc_hcz <- rptGaussian(hcz ~ 1 + (1|blockf), grname = "blockf", data = danth_control, nboot = 1000)
-
-#-------------------------------
-# Pair-wise (block level) ICC
-# Diarrhea
-#-------------------------------
-ddiar_control <- ddiar %>%
-  filter(tr == "Control")
-icc_diar <- rptBinary(diar7d ~ 1 + (1|blockf), grname = "blockf", data=ddiar_control, nboot = 1000)
-
-#-------------------------------
-# Pair-wise (block level) ICC
-# Giardia, Ascaris, Trichuris, Hookworm
-#-------------------------------
-dpara_control <- dpara %>%
-  filter(tr == "Control")
-icc_giar <- rptBinary(giar ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = 1000)
-icc_al   <- rptBinary(al ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = 1000)
-icc_tt   <- rptBinary(tt ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = 1000)
-icc_hw   <- rptBinary(hw ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = 1000)
-
-
-```
-
-```{r icc table}
-#-------------------------------
-# summarize the results 
-# in a table
-#-------------------------------
-iccs <- unlist( c(icc_laz$R,icc_waz$R, icc_whz$R, icc_hcz$R, icc_diar$R[1,1], icc_giar$R[1,1], icc_al$R[1,1], icc_tt$R[1,1], icc_hw$R[1,1]))
-icc_lb <- unlist(c(icc_laz$CI_emp[1],icc_waz$CI_emp[1],icc_whz$CI_emp[1],icc_hcz$CI_emp[1],icc_diar$CI_emp[[1]][1], icc_giar$CI_emp[[1]][1], icc_al$CI_emp[[1]][1], icc_tt$CI_emp[[1]][1], icc_hw$CI_emp[[1]][1]))
-icc_ub <- unlist(c(icc_laz$CI_emp[2],icc_waz$CI_emp[2],icc_whz$CI_emp[2],icc_hcz$CI_emp[2],icc_diar$CI_emp[[1]][2], icc_giar$CI_emp[[1]][2], icc_al$CI_emp[[1]][2], icc_tt$CI_emp[[1]][2], icc_hw$CI_emp[[1]][2]))
-icc_tab <- data.frame(
-  outcome = c("LAZ","WAZ","WHZ","HCZ","Diarrhea","Giardia","Ascaris","Trichuris","Hookworm"),
-  icc = iccs,
-  icc_min95 = icc_lb,
-  icc_max95 = icc_ub
-) %>%
-  mutate(icc_print = paste0(sprintf("%1.2f",icc)," (",sprintf("%1.2f",icc_min95),", ",sprintf("%1.2f",icc_max95),")"))
-
-knitr::kable(icc_tab %>% select(outcome,icc_print),
-             col.names = c("Outcome","ICC (95% CI)"),
-             caption = "Pair level ICC among control clusters, bootstrapped 95% confidence interval") %>%
-  kable_styling(bootstrap_options = "striped")
-
-
-```
-
-
-
-
 # Kenya
 
 ## Data prep
@@ -381,7 +313,7 @@ dkal_cl <- dkpara %>%
   mutate(alprev = npos/nobs) 
 
 #-------------------------------
-# cTrichuris was too rare in 
+# Trichuris was too rare in 
 # Kenya for analysis
 #-------------------------------
 
@@ -403,48 +335,142 @@ dkhw_cl <- dkpara %>%
 
 ```
 
+## Pairwise correlation 
+
+For each outcome, estimate the correlation between paired means.
+
+For more rare binary outcomes (hookworm), use log-transformed outcomes because they are skewed. This ensures the distribution is symmetric, and means that we are testing for differences in the prevalence ratio (difference in log prevalences).  For more common binary outcomes (diarrhea, giardia, ascaris) use their untransformed prevalence values.
+
+```{r kenya pairwise correlation}
+#-------------------------------
+# LAZ
+#-------------------------------
+k_block_laz <- dkanth_cl %>%
+  select(block,tr,haz) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = haz)
+k_cor_laz <- cor(k_block_laz$Control,k_block_laz$Nutrition, use = "pairwise")
+
+
+#-------------------------------
+# WAZ
+#-------------------------------
+k_block_waz <- dkanth_cl %>%
+  select(block,tr,waz) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = waz)
+k_cor_waz <- cor(k_block_waz$Control,k_block_waz$Nutrition, use = "pairwise")
+
+
+#-------------------------------
+# WHZ
+#-------------------------------
+k_block_whz <- dkanth_cl %>%
+  select(block,tr,whz) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = whz)
+k_cor_whz <- cor(k_block_whz$Control,k_block_whz$Nutrition, use = "pairwise")
+
+
+#-------------------------------
+# HCZ
+#-------------------------------
+k_block_hcz <- dkanth_cl %>%
+  select(block,tr,hcz) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = hcz)
+k_cor_hcz <- cor(k_block_hcz$Control,k_block_hcz$Nutrition, use = "pairwise")
+
+#-------------------------------
+# Diarrhea
+#-------------------------------
+k_block_diar <- dkdiar_cl %>%
+  select(block,tr,diarprev) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = diarprev)
+k_cor_diar <- cor(k_block_diar$Control,k_block_diar$Nutrition, use = "pairwise")
+
+#-------------------------------
+# Giardia
+#-------------------------------
+k_block_giar <- dkgiar_cl %>%
+  select(block,tr,giarprev) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = giarprev)
+k_cor_giar <- cor(k_block_giar$Control,k_block_giar$Nutrition, use = "pairwise")
+
+#-------------------------------
+# Ascaris
+#-------------------------------
+k_block_al <- dkal_cl %>%
+  select(block,tr,alprev) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = alprev)
+k_cor_al <- cor(k_block_al$Control,k_block_al$Nutrition, use = "pairwise")
+
+#-------------------------------
+# Trichuris
+# (not estimated in Kenya -- too rare)
+#-------------------------------
+#-------------------------------
+# Hookworm
+#-------------------------------
+k_block_hw <- dkhw_cl %>%
+  select(block,tr,loghwprev) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = loghwprev)
+k_cor_hw <- cor(k_block_hw$Control,k_block_hw$Nutrition, use = "pairwise")
+
+```
+
 
 # Summary Table
 
 ```{r summary table}
+options(knitr.kable.NA = "‡")
 
-sumtab <- icc_tab
-sumtab$cor = c(b_cor_laz,b_cor_waz,b_cor_whz,b_cor_hcz,b_cor_diar,b_cor_giar,b_cor_al,b_cor_tt,b_cor_hw)
+sumtab <- data.frame(
+  outcome = c("LAZ","WAZ","WHZ","HCZ","Diarrhea","Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm"),
+  cor_b = c(b_cor_laz,b_cor_waz,b_cor_whz,b_cor_hcz,b_cor_diar,b_cor_giar,b_cor_al,b_cor_tt,b_cor_hw),
+  cor_k = c(k_cor_laz,k_cor_waz,k_cor_whz,k_cor_hcz,k_cor_diar,k_cor_giar,k_cor_al,NA,k_cor_hw)
+)
 sumtab <- sumtab %>%
-  select(outcome,icc_print,cor) %>%
-  mutate(releff = 1/(1-cor))
+  mutate(releff_b = 1/(1-cor_b),
+         releff_k = 1/(1-cor_k)) %>%
+  select(outcome,cor_b,releff_b,cor_k,releff_k)
 
 knitr::kable(sumtab,
-             digits = c(0,0,2,1),
-             col.names = c("Outcome","ICC (95% CI)*","Pair-wise\ncorrelation†","Relative Efficacy‡"),
+             digits = c(0,2,1,2,1),
+             col.names = c("Outcome","Pair-wise\ncorrelation*","Relative Efficacy†","Pair-wise\ncorrelation*","Relative Efficacy†"),
              caption = "Summary of pair-wise outcome correlation and relative efficacy of geographic pair-matching") %>%
   kable_styling(bootstrap_options = "striped") %>%
-  footnote(symbol = c("ICC: Intra-class correlation coefficient for outcomes in control arm clusters.", 
-                      "Correlation between geographically paired, cluster-level means.",
-                      "Relative efficacy of geographic pair-matching compared to an unmatched design, defined as 1/(1-r), where r is the correlation between paired outcomes. A relative efficacy of 1.5 means that a pair-matched study with 100 clusters per group has the same power as an unmatched study with 150 clusters per group."))
+  add_header_above(c(" " = 1, "Bangladesh" = 2, "Kenya" = 2)) %>%
+  footnote(symbol = c("Correlation between geographically paired, cluster-level means.",
+                      "Relative efficacy of geographic pair-matching compared to an unmatched design, defined as 1/(1-r), where r is the correlation between paired outcomes. A relative efficacy of 1.5 means that a pair-matched study with 100 clusters per group has the same power as an unmatched study with 150 clusters per group.","Trichuris sp. was too rare in Kenya to estimate."))
 
 ```
 
 # Summary Figure
 
 ```{r plot relative efficiency}
+# pivot the summary table longer to plot
+sumtabplot <- sumtab %>%
+  select(outcome,corr = cor_b, releff = releff_b) %>%
+  mutate(country = "Bangladesh") %>%
+  bind_rows(sumtab %>% select(outcome, corr = cor_k, releff = releff_k)) %>%
+  mutate(country = ifelse(is.na(country),"Kenya",country), 
+         country = factor(country))
+
+# data frame for function
 d_reff <- data.frame(rho = seq(0,0.8,by=0.01)) %>%
   mutate(reff = 1/(1-rho))
 
-sumtabplot <- sumtab %>%
-  mutate(outcome_lab = paste0(outcome," (",sprintf("%1.2f",releff),")"))
-
+# make plot
 pcols <- c("black",cbpal[c(1:4,6:8)],"black")
-plot_reff <- ggplot(data=sumtabplot, aes(x = cor, y = releff)) +
+plot_reff <- ggplot(data=sumtabplot, aes(x = corr, y = releff)) +
+  # facet over country
+  facet_grid(~country) +
   # add function line
   geom_line(data=d_reff,aes(x=rho,y=reff),alpha = 0.4, linetype = "dashed") +
   # plot results
-  geom_text(aes(label = outcome, color = releff), hjust = c(0,rep(1,8)), nudge_x = c(0.01,rep(-0.01,8)),size = 2.5) +
+  geom_text(aes(label = outcome, color = releff), hjust = c(0,rep(1,8),0,rep(1,8)), nudge_x = c(0.01,rep(-0.01,8),0.01,rep(-0.01,8)),size = 2.5) +
   geom_point(aes(color = releff), size = 1.8) + 
   geom_point(pch=21,bg=NA, size=1.8) +
   # refine aesthetics
   # scale_color_manual(values = pcols) +
-  scale_color_viridis_c(begin = 0, end = 0.8, direction = -1) +
+  scale_color_viridis_c(begin = 0, end = 0.7, direction = -1, option = "D") +
   scale_y_continuous(breaks=seq(1,2.4,by=0.2))+
   scale_x_continuous(breaks=seq(0,0.6,by=0.1)) +
   coord_cartesian(ylim=c(1,2.4),xlim = c(0,0.6)) +
@@ -456,7 +482,7 @@ plot_reff <- ggplot(data=sumtabplot, aes(x = cor, y = releff)) +
   )
 plot_reff
 
-ggsave(filename = here("output","washb-geopair-relative-efficacy.png"),plot_reff,device = "png", height=4,width=4)
+ggsave(filename = here("output","washb-geopair-relative-efficacy.png"),plot_reff,device = "png", height=4,width=7)
 ```
 
 # Session Info
