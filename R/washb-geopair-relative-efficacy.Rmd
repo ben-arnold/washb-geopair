@@ -40,7 +40,7 @@ source(here("R","washb-geopair-Config.R"))
 
 ## Data prep
 
-```{r load bangladesh anthro data}
+```{r load bangladesh data}
 #-------------------------------
 # load the formatted analysis
 # data created by
@@ -93,11 +93,11 @@ ddiar_cl <- ddiar %>%
 # group means - giardia
 #-------------------------------
 dgiar_cl <- dpara %>% 
-  select(block,tr,posgi) %>%
-  filter(!is.na(posgi)) %>%
+  select(block,tr,giar) %>%
+  filter(!is.na(giar)) %>%
   group_by(block,tr) %>%
   mutate(nobs = n(),
-         npos = sum(posgi, na.rm = TRUE)) %>%
+         npos = sum(giar, na.rm = TRUE)) %>%
   slice(1) %>%
   mutate(giarprev = npos/nobs) 
 
@@ -141,7 +141,7 @@ dhw_cl <- dpara %>%
   mutate(nobs = n(),
          npos = sum(hw, na.rm = TRUE)) %>%
   slice(1) %>%
-  # if there were no trichuris cases in the pair-treatment arm, 
+  # if there were no hookworm cases in the pair-treatment arm, 
   # then add 0.5 to avoid -Inf with a log transformation
   mutate(hwprev = ifelse(npos>0,npos/nobs,0.5/nobs)) %>%
   mutate(loghwprev = log(hwprev))
@@ -265,7 +265,7 @@ icc_diar <- rptBinary(diar7d ~ 1 + (1|blockf), grname = "blockf", data=ddiar_con
 #-------------------------------
 dpara_control <- dpara %>%
   filter(tr == "Control")
-icc_giar <- rptBinary(posgi ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = 1000)
+icc_giar <- rptBinary(giar ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = 1000)
 icc_al   <- rptBinary(al ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = 1000)
 icc_tt   <- rptBinary(tt ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = 1000)
 icc_hw   <- rptBinary(hw ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = 1000)
@@ -297,7 +297,114 @@ knitr::kable(icc_tab %>% select(outcome,icc_print),
 
 ```
 
-## Summary Table
+
+
+
+# Kenya
+
+## Data prep
+
+```{r load Kenya data}
+#-------------------------------
+# load the formatted analysis
+# data created by
+# washb-geopair-data-processing.R
+#-------------------------------
+
+# anthropometry data
+dkanth <- read_rds(here("data","kenya_analysis_anthro.rds")) %>%
+  mutate(blockf = factor(block))
+
+# diarrhea data
+dkdiar <- read_rds(here("data","kenya_analysis_diar.rds")) %>%
+  mutate(blockf = factor(block))
+
+# giardia data
+dkpara <- read_rds(here("data","kenya_analysis_parasite.rds")) %>%
+  mutate(blockf = factor(block))
+
+```
+
+
+
+```{r kenya cluster level means, warning = FALSE, error = FALSE}
+#-------------------------------
+# calculate geographic pair-matched
+# group means - anthropometry
+#-------------------------------
+dkanth_cl <- dkanth %>%
+  select(-clusterid,-compoundid,-childid,-targetchild) %>%
+  group_by(block,tr) %>%
+  summarize_all(function(x) mean(x,na.rm=TRUE))
+
+#-------------------------------
+# calculate geographic pair-matched
+# group means - diarrhea
+#-------------------------------
+dkdiar_cl <- dkdiar %>%
+  select(-clusterid,-compoundid,-childid,-targetchild) %>%
+  filter(!is.na(diarr7)) %>%
+  group_by(block,tr) %>%
+  mutate(nobs = n(),
+         npos = sum(diarr7, na.rm = TRUE)) %>%
+  slice(1) %>%
+  # if there were no diarrhea cases in the pair-treatment arm, 
+  # then add 0.5 to avoid -Inf with a log transformation
+  mutate(diarprev = ifelse(npos>0,npos/nobs,0.5/nobs)) %>%
+  mutate(logdiarprev = log(diarprev))
+
+
+#-------------------------------
+# calculate geographic pair-matched
+# group means - giardia
+#-------------------------------
+dkgiar_cl <- dkpara %>% 
+  select(block,tr,giar) %>%
+  filter(!is.na(giar)) %>%
+  group_by(block,tr) %>%
+  mutate(nobs = n(),
+         npos = sum(giar, na.rm = TRUE)) %>%
+  slice(1) %>%
+  mutate(giarprev = npos/nobs) 
+
+#-------------------------------
+# calculate geographic pair-matched
+# group means - Ascaris
+#-------------------------------
+dkal_cl <- dkpara %>% 
+  select(block,tr,al) %>%
+  filter(!is.na(al)) %>%
+  group_by(block,tr) %>%
+  mutate(nobs = n(),
+         npos = sum(al, na.rm = TRUE)) %>%
+  slice(1) %>%
+  mutate(alprev = npos/nobs) 
+
+#-------------------------------
+# cTrichuris was too rare in 
+# Kenya for analysis
+#-------------------------------
+
+#-------------------------------
+# calculate geographic pair-matched
+# group means - hookworm
+#-------------------------------
+dkhw_cl <- dkpara %>% 
+  select(block,tr,hw) %>%
+  filter(!is.na(hw)) %>%
+  group_by(block,tr) %>%
+  mutate(nobs = n(),
+         npos = sum(hw, na.rm = TRUE)) %>%
+  slice(1) %>%
+  # if there were no hookworm cases in the pair-treatment arm, 
+  # then add 0.5 to avoid -Inf with a log transformation
+  mutate(hwprev = ifelse(npos>0,npos/nobs,0.5/nobs)) %>%
+  mutate(loghwprev = log(hwprev))
+
+```
+
+
+# Summary Table
 
 ```{r summary table}
 
@@ -318,7 +425,7 @@ knitr::kable(sumtab,
 
 ```
 
-## Summary Figure
+# Summary Figure
 
 ```{r plot relative efficiency}
 d_reff <- data.frame(rho = seq(0,0.8,by=0.01)) %>%
