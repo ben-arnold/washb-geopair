@@ -105,4 +105,66 @@ write_rds(d_diar2,path = here("data","bangl_analysis_diar.rds"))
 write_rds(d_parasite,path = here("data","bangl_analysis_parasite.rds"))
 
 
+#----------------------------------
+# Kenya data
+#----------------------------------
+
+# child anthropometry measured at visit 2
+dk_anth <- read_csv(here("data","washb-kenya-endline-anthro-public.csv")) 
+
+
+# child diarrhea measured at baseline
+# and at visits 1 and 2
+dk_diar <- read_csv(here("data","washb-kenya-diar-public.csv"))
+
+
+# child giardia and STH infection
+# measured at visit 2
+# note: this file is not as well
+# documented as other data
+# use the replication script as
+# documentation: https://osf.io/fpxms/
+dk_para <- haven::read_dta(here("data","parasites_kenya_public_ca20171215.dta"))
+
+
+
+
+
+
+#----------------------------------
+# filter to the control and 
+# nutrition-containing intervention
+# arms
+# 
+# limit to relevant variables
+#----------------------------------
+dk_anth2 <- dk_anth %>%
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  mutate(tr2 = ifelse(tr == "Control","Control","Nutrition"),
+         tr2 = factor(tr2)) %>%
+  select(clusterid, compoundid, hhid, childid, block, tr=tr2, targetchild, haz, waz, whz, hcz, haz_who, waz_who, whz_who)
+
+dk_diar2 <- dk_diar %>%
+  filter(time > 0) %>%
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  mutate(tr2 = ifelse(tr == "Control","Control","Nutrition"),
+         tr2 = factor(tr2)) %>%
+  select(clusterid, compoundid, hhid, childid, block, tr=tr2, targetchild, diarr7)
+
+
+dk_para2 <- dk_para %>%
+  # restrict to control or nutrition arms
+  # 1 = control, 6 = N, 7 = N+WSH
+  filter(tr %in% c(1,6,7)) %>%
+  mutate(tr2 = ifelse(tr == 1,"Control","Nutrition"),
+         tr2 = factor(tr2)) %>%
+  select(-tr) %>%
+  select(childidr2, hhidr2, block,tr=tr2, al = ascaris_yn, tt = trichuris_yn, hw = hook_yn, sth = sth_yn)
+
+#----------------------------------
+# save analysis files
+#----------------------------------
+write_rds(dk_anth2,path = here("data","kenya_analysis_anthro.rds"))
+write_rds(dk_diar2,path = here("data","kenya_analysis_diar.rds"))
+write_rds(dk_para2,path = here("data","kenya_analysis_parasite.rds"))
 
