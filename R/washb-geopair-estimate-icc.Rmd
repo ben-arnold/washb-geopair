@@ -1,0 +1,240 @@
+---
+title: "Relative efficiency of geographic pair matching in the WASH Benefits trials"
+subtitle: "Estimate outcome ICCs"
+author: "Ben Arnold ben.arnold@ucsf.edu"
+date: "updated: `r Sys.time()`"
+output: 
+  html_document:
+    theme: default
+    highlight: haddock
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+# Summary
+
+Summary here: **TBD**
+
+Details of original citations and data sources here: **TBD**
+
+
+# Preamble
+
+```{r preamble}
+library(here)
+here()
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","washb-geopair-Config.R"))
+
+```
+
+
+
+# Bangladesh
+
+## Data prep
+
+```{r load bangladesh data}
+#-------------------------------
+# load the formatted analysis
+# data created by
+# washb-geopair-data-processing.R
+#-------------------------------
+
+# anthropometry data
+danth <- read_rds(here("data","bangl_analysis_anthro.rds")) %>%
+  mutate(blockf = factor(block))
+
+# diarrhea data
+ddiar <- read_rds(here("data","bangl_analysis_diar.rds")) %>%
+  mutate(blockf = factor(block))
+
+# giardia data
+dpara <- read_rds(here("data","bangl_analysis_parasite.rds")) %>%
+  mutate(blockf = factor(block))
+
+```
+
+## Pairwise ICC
+
+Estimate outcome ICC within each pair among the control arm observations.
+
+```{r bangladesh pairwise ICC, warning = FALSE, error = FALSE}
+
+set.seed(9124)
+
+#-------------------------------
+# Pair-wise (block level) ICC
+# anthropometry outcomes
+#-------------------------------
+danth_control <- danth %>%
+  filter(tr == "Control")
+icc_laz <- rptGaussian(laz ~ 1 + (1|blockf), grname = "blockf", data = danth_control, nboot = 1000)
+icc_waz <- rptGaussian(waz ~ 1 + (1|blockf), grname = "blockf", data = danth_control, nboot = 1000)
+icc_whz <- rptGaussian(whz ~ 1 + (1|blockf), grname = "blockf", data = danth_control, nboot = 1000)
+icc_hcz <- rptGaussian(hcz ~ 1 + (1|blockf), grname = "blockf", data = danth_control, nboot = 1000)
+
+#-------------------------------
+# Pair-wise (block level) ICC
+# Diarrhea
+#-------------------------------
+ddiar_control <- ddiar %>%
+  filter(tr == "Control")
+icc_diar <- rptBinary(diar7d ~ 1 + (1|blockf), grname = "blockf", data=ddiar_control, nboot = 1000)
+
+#-------------------------------
+# Pair-wise (block level) ICC
+# Giardia, Ascaris, Trichuris, Hookworm
+#-------------------------------
+dpara_control <- dpara %>%
+  filter(tr == "Control")
+icc_giar <- rptBinary(giar ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = 1000)
+icc_al   <- rptBinary(al ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = 1000)
+icc_tt   <- rptBinary(tt ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = 1000)
+icc_hw   <- rptBinary(hw ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = 1000)
+
+
+```
+
+```{r bangladesh icc table}
+#-------------------------------
+# summarize the results 
+# in a table
+#-------------------------------
+iccs <- unlist( c(icc_laz$R,icc_waz$R, icc_whz$R, icc_hcz$R, icc_diar$R[1,1], icc_giar$R[1,1], icc_al$R[1,1], icc_tt$R[1,1], icc_hw$R[1,1]))
+icc_lb <- unlist(c(icc_laz$CI_emp[1],icc_waz$CI_emp[1],icc_whz$CI_emp[1],icc_hcz$CI_emp[1],icc_diar$CI_emp[[1]][1], icc_giar$CI_emp[[1]][1], icc_al$CI_emp[[1]][1], icc_tt$CI_emp[[1]][1], icc_hw$CI_emp[[1]][1]))
+icc_ub <- unlist(c(icc_laz$CI_emp[2],icc_waz$CI_emp[2],icc_whz$CI_emp[2],icc_hcz$CI_emp[2],icc_diar$CI_emp[[1]][2], icc_giar$CI_emp[[1]][2], icc_al$CI_emp[[1]][2], icc_tt$CI_emp[[1]][2], icc_hw$CI_emp[[1]][2]))
+icc_tab <- data.frame(
+  outcome = c("LAZ","WAZ","WHZ","HCZ","Diarrhea","Giardia","Ascaris","Trichuris","Hookworm"),
+  icc = iccs,
+  icc_min95 = icc_lb,
+  icc_max95 = icc_ub
+) %>%
+  mutate(icc_print = paste0(sprintf("%1.2f",icc)," (",sprintf("%1.2f",icc_min95),", ",sprintf("%1.2f",icc_max95),")"))
+
+knitr::kable(icc_tab %>% select(outcome,icc_print),
+             col.names = c("Outcome","ICC (95% CI)"),
+             caption = "Bangladesh, outcome ICC among control clusters, grouped by geographically matched pairs, bootstrapped 95% confidence interval") %>%
+  kable_styling(bootstrap_options = "striped")
+
+```
+
+
+
+# Kenya
+
+## Data prep
+
+```{r load Kenya data}
+#-------------------------------
+# load the formatted analysis
+# data created by
+# washb-geopair-data-processing.R
+#-------------------------------
+
+# anthropometry data
+dkanth <- read_rds(here("data","kenya_analysis_anthro.rds")) %>%
+  mutate(blockf = factor(block))
+
+# diarrhea data
+dkdiar <- read_rds(here("data","kenya_analysis_diar.rds")) %>%
+  mutate(blockf = factor(block))
+
+# giardia data
+dkpara <- read_rds(here("data","kenya_analysis_parasite.rds")) %>%
+  mutate(blockf = factor(block))
+
+```
+
+## Pairwise ICC
+
+Estimate outcome ICC within each pair among the control arm observations.
+
+```{r kenya pairwise ICC, warning = FALSE, error = FALSE}
+
+set.seed(0928)
+
+#-------------------------------
+# Pair-wise (block level) ICC
+# anthropometry outcomes
+#-------------------------------
+dkanth_control <- dkanth %>%
+  filter(tr == "Control")
+kicc_laz <- rptGaussian(haz ~ 1 + (1|blockf), grname = "blockf", data = dkanth_control, nboot = 1000)
+kicc_waz <- rptGaussian(waz ~ 1 + (1|blockf), grname = "blockf", data = dkanth_control, nboot = 1000)
+kicc_whz <- rptGaussian(whz ~ 1 + (1|blockf), grname = "blockf", data = dkanth_control, nboot = 1000)
+kicc_hcz <- rptGaussian(hcz ~ 1 + (1|blockf), grname = "blockf", data = dkanth_control, nboot = 1000)
+
+#-------------------------------
+# Pair-wise (block level) ICC
+# Diarrhea
+#-------------------------------
+dkdiar_control <- dkdiar %>%
+  filter(tr == "Control")
+kicc_diar <- rptBinary(diarr7 ~ 1 + (1|blockf), grname = "blockf", data=dkdiar_control, nboot = 1000)
+
+#-------------------------------
+# Pair-wise (block level) ICC
+# Giardia, Ascaris, Hookworm
+# no analysis for Trichuris in Kenya (too rare)
+#-------------------------------
+dkpara_control <- dkpara %>%
+  filter(tr == "Control")
+kicc_giar <- rptBinary(giar ~ 1 + (1|blockf), grname = "blockf", data=dkpara_control, nboot = 1000)
+kicc_al   <- rptBinary(al ~ 1 + (1|blockf), grname = "blockf", data=dkpara_control, nboot = 1000)
+kicc_hw   <- rptBinary(hw ~ 1 + (1|blockf), grname = "blockf", data=dkpara_control, nboot = 1000)
+
+
+```
+
+
+```{r kenya icc table}
+#-------------------------------
+# summarize the results 
+# in a table
+#-------------------------------
+kiccs <- unlist( c(kicc_laz$R,kicc_waz$R, kicc_whz$R, kicc_hcz$R, kicc_diar$R[1,1], kicc_giar$R[1,1], kicc_al$R[1,1], kicc_hw$R[1,1]))
+kicc_lb <- unlist(c(kicc_laz$CI_emp[1],kicc_waz$CI_emp[1],kicc_whz$CI_emp[1],kicc_hcz$CI_emp[1],kicc_diar$CI_emp[[1]][1], kicc_giar$CI_emp[[1]][1], kicc_al$CI_emp[[1]][1], kicc_hw$CI_emp[[1]][1]))
+kicc_ub <- unlist(c(kicc_laz$CI_emp[2],kicc_waz$CI_emp[2],kicc_whz$CI_emp[2],kicc_hcz$CI_emp[2],kicc_diar$CI_emp[[1]][2], kicc_giar$CI_emp[[1]][2], kicc_al$CI_emp[[1]][2], kicc_hw$CI_emp[[1]][2]))
+kicc_tab <- data.frame(
+  outcome = c("LAZ","WAZ","WHZ","HCZ","Diarrhea","Giardia","Ascaris","Hookworm"),
+  icc = kiccs,
+  icc_min95 = kicc_lb,
+  icc_max95 = kicc_ub
+) %>%
+  mutate(icc_print = paste0(sprintf("%1.2f",icc)," (",sprintf("%1.2f",icc_min95),", ",sprintf("%1.2f",icc_max95),")"))
+
+knitr::kable(kicc_tab %>% select(outcome,icc_print),
+             col.names = c("Outcome","ICC (95% CI)"),
+             caption = "Kenya, outcome ICC among control clusters, grouped by geographically matched pairs, bootstrapped 95% confidence interval") %>%
+  kable_styling(bootstrap_options = "striped")
+
+```
+
+
+
+## Save estimates
+
+Save estimates for re-use in final tables or figures
+```{r save icc estimates}
+icc_tab_all <- icc_tab %>%
+  mutate(country = "Bangladesh") %>%
+  bind_rows(kicc_tab) %>%
+  mutate(country = ifelse(is.na(country),"Kenya",country))
+
+write_csv(icc_tab_all, path = here("data","washb-geopair-icc-estimates.csv") )
+
+```
+
+# Session Info
+```{r session info}
+sessionInfo()
+```
+
+
