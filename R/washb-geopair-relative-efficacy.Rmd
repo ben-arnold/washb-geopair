@@ -51,6 +51,10 @@ source(here("R","washb-geopair-Config.R"))
 danth <- read_rds(here("data","bangl_analysis_anthro.rds")) %>%
   mutate(blockf = factor(block))
 
+# child development data
+dchdev <- read_rds(here("data","bangl_analysis_chdev.rds")) %>%
+  mutate(blockf = factor(block))
+
 # diarrhea data
 ddiar <- read_rds(here("data","bangl_analysis_diar.rds")) %>%
   mutate(blockf = factor(block))
@@ -68,6 +72,33 @@ dpara <- read_rds(here("data","bangl_analysis_parasite.rds")) %>%
 #-------------------------------
 danth_cl <- danth %>%
   select(-dataid,-childid,-tchild,-clusterid) %>%
+  group_by(block,tr) %>%
+  summarize_all(function(x) mean(x,na.rm=TRUE))
+
+#-------------------------------
+# calculate geographic pair-matched
+# group means - EASQ communication
+#-------------------------------
+dcom_cl <- dchdev %>%
+  select(block,tr,z_easq_com) %>%
+  group_by(block,tr) %>%
+  summarize_all(function(x) mean(x,na.rm=TRUE))
+
+#-------------------------------
+# calculate geographic pair-matched
+# group means - EASQ motor
+#-------------------------------
+dmot_cl <- dchdev %>%
+  select(block,tr,z_easq_motor) %>%
+  group_by(block,tr) %>%
+  summarize_all(function(x) mean(x,na.rm=TRUE))
+
+#-------------------------------
+# calculate geographic pair-matched
+# group means - EASQ personal-social
+#-------------------------------
+dps_cl <- dchdev %>%
+  select(block,tr,z_easq_pers) %>%
   group_by(block,tr) %>%
   summarize_all(function(x) mean(x,na.rm=TRUE))
 
@@ -191,6 +222,30 @@ b_block_hcz <- danth_cl %>%
 b_cor_hcz <- cor(b_block_hcz$Control,b_block_hcz$Nutrition)
 
 #-------------------------------
+# EASQ Communication
+#-------------------------------
+b_block_com <- dcom_cl %>%
+  select(block,tr,z_easq_com) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = z_easq_com)
+b_cor_com <- cor(b_block_com$Control,b_block_com$Nutrition)
+
+#-------------------------------
+# EASQ Gross motor
+#-------------------------------
+b_block_mot <- dmot_cl %>%
+  select(block,tr,z_easq_motor) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = z_easq_motor)
+b_cor_mot <- cor(b_block_mot$Control,b_block_mot$Nutrition)
+
+#-------------------------------
+# EASQ Personal-social
+#-------------------------------
+b_block_ps <- dps_cl %>%
+  select(block,tr,z_easq_pers) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = z_easq_pers)
+b_cor_ps <- cor(b_block_ps$Control,b_block_ps$Nutrition)
+
+#-------------------------------
 # Diarrhea
 #-------------------------------
 b_block_diar <- ddiar_cl %>%
@@ -251,8 +306,12 @@ dkanth <- read_rds(here("data","kenya_analysis_anthro.rds")) %>%
 dkdiar <- read_rds(here("data","kenya_analysis_diar.rds")) %>%
   mutate(blockf = factor(block))
 
-# giardia data
+# parasite data
 dkpara <- read_rds(here("data","kenya_analysis_parasite.rds")) %>%
+  mutate(blockf = factor(block))
+
+# child development data
+dkchdev <- read_rds(here("data","kenya_analysis_chdev.rds")) %>%
   mutate(blockf = factor(block))
 
 ```
@@ -333,6 +392,38 @@ dkhw_cl <- dkpara %>%
   mutate(hwprev = ifelse(npos>0,npos/nobs,0.5/nobs)) %>%
   mutate(loghwprev = log(hwprev))
 
+
+#-------------------------------
+# calculate geographic pair-matched
+# group means - communication
+#-------------------------------
+dkcom_cl <- dkchdev %>%
+  select(block,tr,z_easq_com) %>%
+  filter(!is.na(z_easq_com)) %>%
+  group_by(block,tr) %>%
+  summarize_all(function(x) mean(x,na.rm=TRUE))
+
+#-------------------------------
+# calculate geographic pair-matched
+# group means - gross motor
+#-------------------------------
+dkmot_cl <- dkchdev %>%
+  select(block,tr,z_easq_motor) %>%
+  filter(!is.na(z_easq_motor)) %>%
+  group_by(block,tr) %>%
+  summarize_all(function(x) mean(x,na.rm=TRUE))
+
+
+#-------------------------------
+# calculate geographic pair-matched
+# group means - personal-social
+#-------------------------------
+dkps_cl <- dkchdev %>%
+  select(block,tr,z_easq_pers) %>%
+  filter(!is.na(z_easq_pers)) %>%
+  group_by(block,tr) %>%
+  summarize_all(function(x) mean(x,na.rm=TRUE))
+
 ```
 
 ## Pairwise correlation 
@@ -346,8 +437,8 @@ For more rare binary outcomes (hookworm), use log-transformed outcomes because t
 # LAZ
 #-------------------------------
 k_block_laz <- dkanth_cl %>%
-  select(block,tr,haz) %>%
-  pivot_wider(id_cols = block, names_from = tr, values_from = haz)
+  select(block,tr,laz) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = laz)
 k_cor_laz <- cor(k_block_laz$Control,k_block_laz$Nutrition, use = "pairwise")
 
 
@@ -376,6 +467,30 @@ k_block_hcz <- dkanth_cl %>%
   select(block,tr,hcz) %>%
   pivot_wider(id_cols = block, names_from = tr, values_from = hcz)
 k_cor_hcz <- cor(k_block_hcz$Control,k_block_hcz$Nutrition, use = "pairwise")
+
+#-------------------------------
+# EASQ Communication
+#-------------------------------
+k_block_com <- dkcom_cl %>%
+  select(block,tr,z_easq_com) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = z_easq_com)
+k_cor_com <- cor(k_block_com$Control,k_block_com$Nutrition, use = "pairwise")
+
+#-------------------------------
+# EASQ Gross motor
+#-------------------------------
+k_block_mot <- dkmot_cl %>%
+  select(block,tr,z_easq_motor) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = z_easq_motor)
+k_cor_mot <- cor(k_block_mot$Control,k_block_mot$Nutrition, use = "pairwise")
+
+#-------------------------------
+# EASQ Personal-social
+#-------------------------------
+k_block_ps <- dkps_cl %>%
+  select(block,tr,z_easq_pers) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = z_easq_pers)
+k_cor_ps <- cor(k_block_ps$Control,k_block_ps$Nutrition, use = "pairwise")
 
 #-------------------------------
 # Diarrhea
@@ -413,6 +528,7 @@ k_block_hw <- dkhw_cl %>%
   pivot_wider(id_cols = block, names_from = tr, values_from = loghwprev)
 k_cor_hw <- cor(k_block_hw$Control,k_block_hw$Nutrition, use = "pairwise")
 
+
 ```
 
 
@@ -422,20 +538,24 @@ k_cor_hw <- cor(k_block_hw$Control,k_block_hw$Nutrition, use = "pairwise")
 options(knitr.kable.NA = "‡")
 
 sumtab <- data.frame(
-  outcome = c("LAZ","WAZ","WHZ","HCZ","Diarrhea","Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm"),
-  cor_b = c(b_cor_laz,b_cor_waz,b_cor_whz,b_cor_hcz,b_cor_diar,b_cor_giar,b_cor_al,b_cor_tt,b_cor_hw),
-  cor_k = c(k_cor_laz,k_cor_waz,k_cor_whz,k_cor_hcz,k_cor_diar,k_cor_giar,k_cor_al,NA,k_cor_hw)
+  outcome_group = c(rep("Child growth",4),rep("Child development",3),rep("Infectious disease",5) ),
+  outcome = c("Length-for-age z-score","Weight-for-age z-score","Weight-for-height z-score","Head circumference z-score","EASQ Communication z-score","EASQ Gross motor z-score","EASQ Personal-social z-score","Diarrhea","Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm"),
+  cor_b = c(b_cor_laz,b_cor_waz,b_cor_whz,b_cor_hcz,b_cor_com,b_cor_mot,b_cor_ps,b_cor_diar,b_cor_giar,b_cor_al,b_cor_tt,b_cor_hw),
+  cor_k = c(k_cor_laz,k_cor_waz,k_cor_whz,k_cor_hcz,k_cor_com,k_cor_mot,k_cor_ps,k_cor_diar,k_cor_giar,k_cor_al,NA,k_cor_hw)
 )
 sumtab <- sumtab %>%
   mutate(releff_b = 1/(1-cor_b),
          releff_k = 1/(1-cor_k)) %>%
-  select(outcome,cor_b,releff_b,cor_k,releff_k)
+  select(outcome_group,outcome,cor_b,releff_b,cor_k,releff_k)
 
-knitr::kable(sumtab,
+knitr::kable(sumtab %>% select(-outcome_group),
              digits = c(0,2,1,2,1),
              col.names = c("Outcome","Pair-wise\ncorrelation*","Relative Efficacy†","Pair-wise\ncorrelation*","Relative Efficacy†"),
              caption = "Summary of pair-wise outcome correlation and relative efficacy of geographic pair-matching") %>%
   kable_styling(bootstrap_options = "striped") %>%
+  group_rows("Child growth",1,4) %>%
+  group_rows("Child development",5,7) %>%
+  group_rows("Infectious disease",8,12) %>%
   add_header_above(c(" " = 1, "Bangladesh" = 2, "Kenya" = 2)) %>%
   footnote(symbol = c("Correlation between geographically paired, cluster-level means.",
                       "Relative efficacy of geographic pair-matching compared to an unmatched design, defined as 1/(1-r), where r is the correlation between paired outcomes. A relative efficacy of 1.5 means that a pair-matched study with 100 clusters per group has the same power as an unmatched study with 150 clusters per group.","Trichuris sp. was too rare in Kenya to estimate."))
@@ -446,43 +566,49 @@ knitr::kable(sumtab,
 
 ```{r plot relative efficiency}
 # pivot the summary table longer to plot
-sumtabplot <- sumtab %>%
-  select(outcome,corr = cor_b, releff = releff_b) %>%
+sumtab2 <- sumtab %>%
+  mutate(outcome_lab = c("LAZ","WAZ","WHZ","HCZ","EASQ Communication","EASQ Gross motor","EASQ Personal-social","Diarrhea","Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm")
+         )
+sumtabplot <- sumtab2 %>%
+  select(outcome_group, outcome, outcome_lab ,corr = cor_b, releff = releff_b) %>%
   mutate(country = "Bangladesh") %>%
-  bind_rows(sumtab %>% select(outcome, corr = cor_k, releff = releff_k)) %>%
+  bind_rows(sumtab2 %>% select(outcome_group, outcome,outcome_lab, corr = cor_k, releff = releff_k)) %>%
   mutate(country = ifelse(is.na(country),"Kenya",country), 
-         country = factor(country))
+         country = factor(country),
+         outcome_group = factor(outcome_group)
+         )
 
 # data frame for function
 d_reff <- data.frame(rho = seq(0,0.8,by=0.01)) %>%
   mutate(reff = 1/(1-rho))
 
 # make plot
-pcols <- c("black",cbpal[c(1:4,6:8)],"black")
+pcols <- c("gray40",cbpal[c(3,2)])
 plot_reff <- ggplot(data=sumtabplot, aes(x = corr, y = releff)) +
   # facet over country
   facet_grid(~country) +
   # add function line
   geom_line(data=d_reff,aes(x=rho,y=reff),alpha = 0.4, linetype = "dashed") +
   # plot results
-  geom_text(aes(label = outcome, color = releff), hjust = c(0,rep(1,8),0,rep(1,8)), nudge_x = c(0.01,rep(-0.01,8),0.01,rep(-0.01,8)),size = 2.5) +
-  geom_point(aes(color = releff), size = 1.8) + 
-  geom_point(pch=21,bg=NA, size=1.8) +
+  # this offset is very idiosyncratic to optimize display -- fragile code!
+  geom_text(aes(label = outcome_lab, color = outcome_group), hjust = c(0,1,1,1,0,1,0,rep(1,5), 0,0,rep(1,10)), nudge_x = c(0.015,-0.01,-0.01,-0.01,0.015,-0.01,0.015,rep(-0.01,5),0.015,0.015,rep(-0.01,10)),size = 2.5) +
+  geom_point(aes(color = outcome_group), size = 1.8) + 
+  geom_point(pch=21,bg=NA, size=1.8, show.legend = FALSE) +
   # refine aesthetics
-  # scale_color_manual(values = pcols) +
-  scale_color_viridis_c(begin = 0, end = 0.7, direction = -1, option = "D") +
+  scale_color_manual(values = pcols, guide=guide_legend(title="Outcome group")) +
+  # scale_color_viridis_c(begin = 0, end = 0.7, direction = -1, option = "D") +
   scale_y_continuous(breaks=seq(1,2.4,by=0.2))+
   scale_x_continuous(breaks=seq(0,0.6,by=0.1)) +
   coord_cartesian(ylim=c(1,2.4),xlim = c(0,0.6)) +
   labs(x=expression(paste("Correlation between paired outcomes, (",italic(r),")")),y=expression(paste("Relative efficacy of geographic pair-matching, (1-",italic(r),")")^-1)) +
   theme_minimal() +
   theme(
-    legend.position = "none",
+    legend.position = "right",
     panel.grid.minor = element_blank()
   )
 plot_reff
 
-ggsave(filename = here("output","washb-geopair-relative-efficacy.png"),plot_reff,device = "png", height=4,width=7)
+ggsave(filename = here("output","washb-geopair-relative-efficacy.png"),plot_reff,device = "png", height=4,width=8.5)
 ```
 
 # Session Info
