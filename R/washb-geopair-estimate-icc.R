@@ -1,46 +1,19 @@
----
-title: "Relative efficiency of geographic pair matching in the WASH Benefits trials"
-subtitle: "Estimate outcome ICCs"
-author: "Ben Arnold ben.arnold@ucsf.edu"
-date: "updated: `r Sys.time()`"
-output: 
-  html_document:
-    theme: default
-    highlight: haddock
-    code_folding: hide
-    toc: true
-    toc_depth: 3
-    toc_float:
-      collapsed: true
-      smooth_scroll: true
----
-
-# Summary
-
-Summary here: **TBD**
-
-Details of original citations and data sources here: **TBD**
 
 
+#----------------------------
 # Preamble
-
-```{r preamble}
+#----------------------------
 library(here)
 here()
-#----------------------------
 # source the config file
-#----------------------------
 source(here("R","washb-geopair-Config.R"))
 
-```
 
 
+#-------------------------------
+# Bangladesh Estimates
+#-------------------------------
 
-# Bangladesh
-
-## Data prep
-
-```{r load bangladesh data}
 #-------------------------------
 # load the formatted analysis
 # data created by
@@ -63,14 +36,11 @@ ddiar <- read_rds(here("data","bangl_analysis_diar.rds")) %>%
 dpara <- read_rds(here("data","bangl_analysis_parasite.rds")) %>%
   mutate(blockf = factor(block))
 
-```
-
-## Pairwise ICC
-
-Estimate outcome ICC within each pair among the control arm observations.
-
-```{r bangladesh pairwise ICC, warning = FALSE, error = FALSE}
-
+#-------------------------------
+# Estimate outcome ICC within 
+# each pair among the 
+# control arm observations
+#-------------------------------
 set.seed(9124)
 
 #-------------------------------
@@ -116,9 +86,6 @@ icc_tt   <- rptBinary(tt ~ 1 + (1|blockf), grname = "blockf", data=dpara_control
 icc_hw   <- rptBinary(hw ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = 1000)
 
 
-```
-
-```{r bangladesh icc table}
 #-------------------------------
 # summarize the results 
 # in a table
@@ -142,23 +109,12 @@ icc_tab <- data.frame(
 ) %>%
   mutate(icc_print = paste0(sprintf("%1.2f",icc)," (",sprintf("%1.2f",icc_min95),", ",sprintf("%1.2f",icc_max95),")"))
 
-knitr::kable(icc_tab %>% select(outcome,icc_print),
-             col.names = c("Outcome","ICC (95% CI)"),
-             caption = "Bangladesh, outcome ICC among control clusters, grouped by geographically matched pairs, bootstrapped 95% confidence interval") %>%
-  kable_styling(bootstrap_options = "striped") %>%
-  group_rows("Child growth",1,4) %>%
-  group_rows("Child development",5,9) %>%
-  group_rows("Infectious disease",10,14)
-
-```
 
 
-
+#-------------------------------
 # Kenya
+#-------------------------------
 
-## Data prep
-
-```{r load Kenya data}
 #-------------------------------
 # load the formatted analysis
 # data created by
@@ -182,14 +138,11 @@ dkdiar <- read_rds(here("data","kenya_analysis_diar.rds")) %>%
 dkpara <- read_rds(here("data","kenya_analysis_parasite.rds")) %>%
   mutate(blockf = factor(block))
 
-```
-
-## Pairwise ICC
-
-Estimate outcome ICC within each pair among the control arm observations.
-
-```{r kenya pairwise ICC, warning = FALSE, error = FALSE}
-
+#-------------------------------
+# Estimate outcome ICC within 
+# each pair among the 
+# control arm observations
+#-------------------------------
 set.seed(0928)
 
 #-------------------------------
@@ -233,11 +186,6 @@ kicc_giar <- rptBinary(giar ~ 1 + (1|blockf), grname = "blockf", data=dkpara_con
 kicc_al   <- rptBinary(al ~ 1 + (1|blockf), grname = "blockf", data=dkpara_control, nboot = 1000)
 kicc_hw   <- rptBinary(hw ~ 1 + (1|blockf), grname = "blockf", data=dkpara_control, nboot = 1000)
 
-
-```
-
-
-```{r kenya icc table}
 #-------------------------------
 # summarize the results 
 # in a table
@@ -261,22 +209,11 @@ kicc_tab <- data.frame(
 ) %>%
   mutate(icc_print = paste0(sprintf("%1.2f",icc)," (",sprintf("%1.2f",icc_min95),", ",sprintf("%1.2f",icc_max95),")"))
 
-knitr::kable(kicc_tab %>% select(outcome,icc_print),
-             col.names = c("Outcome","ICC (95% CI)"),
-             caption = "Kenya, outcome ICC among control clusters, grouped by geographically matched pairs, bootstrapped 95% confidence interval") %>%
-  kable_styling(bootstrap_options = "striped") %>%
-  group_rows("Child growth",1,4) %>%
-  group_rows("Child development",5,7) %>%
-  group_rows("Infectious disease",8,11)
 
-```
-
-
-
-## Save estimates
-
-Save estimates for re-use in final tables or figures
-```{r save icc estimates}
+#-------------------------------
+# Save estimates for re-use
+# in tables or figures
+#-------------------------------
 icc_tab_all <- icc_tab %>%
   mutate(country = "Bangladesh") %>%
   bind_rows(kicc_tab) %>%
@@ -284,11 +221,12 @@ icc_tab_all <- icc_tab %>%
 
 write_csv(icc_tab_all, path = here("data","washb-geopair-icc-estimates.csv") )
 
-```
+
+print(icc_tab_all)
+
 
 # Session Info
-```{r session info}
 sessionInfo()
-```
+
 
 
