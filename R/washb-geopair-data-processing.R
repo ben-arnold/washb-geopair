@@ -26,6 +26,14 @@ d_tr <- read_csv(here("data","washb-bangladesh-tr-public.csv"))
 # follow-up visits 1 and 2
 d_anth <- read_csv(here("data","washb-bangladesh-anthro-public.csv"))
 
+
+# child development data
+# at follow-up visit 2
+# Extended Ages and Stages Questionnaire (EASQ)
+# and MacArthur-Bates Communicative Development Inventory (CDI)
+d_easq <- read_csv(here("data","washb-bangladesh-easq-year2.csv"))
+d_cdi  <- read_csv(here("data","washb-bangladesh-cdi-year2.csv"))
+
 # child diarrhea measured at 
 # baseline and at 
 # follow-up visits 1 and 2
@@ -60,7 +68,24 @@ d_anth2 <- d_anth %>%
          tr2 = factor(tr2)) %>%
   select(-tr,-svy) %>%
   rename(tr=tr2)
-  
+
+d_easq2 <- d_easq %>%
+  select(dataid,childid,clusterid,block,tchild,arm, z_com, z_motor, z_personal, z_combined) %>%
+  # coding: see codebook: 7=Control, 6=WSH+N, 4=Nutrition
+  filter(arm %in% c(7,6,4)) %>%
+  mutate(tr = ifelse(arm==7,"Control","Nutrition")) %>%
+  select(-arm)
+
+d_cdi2 <- d_cdi %>%
+  select(dataid,childid,clusterid,block,tchild,arm, z_cdi_comp = z_endline_CDI_understand, z_cdi_expr = z_endline_CDI_say) %>%
+  # coding: see codebook: 7=Control, 6=WSH+N, 4=Nutrition
+  filter(arm %in% c(7,6,4)) %>%
+  mutate(tr = ifelse(arm==7,"Control","Nutrition")) %>%
+  select(-arm)
+
+d_chd2 <- full_join(d_easq2, d_cdi2, by = c("dataid","childid","clusterid","block","tchild","tr")) %>%
+  select(dataid,childid,clusterid,tchild,block,tr,everything())
+
 d_diar2 <- d_diar %>%
   select(dataid,childid,tchild,clusterid,svy,diar7d) %>%
   left_join(d_tr, by = "clusterid") %>%
@@ -101,6 +126,7 @@ d_parasite <- d_sth2 %>%
 # save analysis files
 #----------------------------------
 write_rds(d_anth2,path = here("data","bangl_analysis_anthro.rds"))
+write_rds(d_chd2,path = here("data","bangl_analysis_chdev.rds"))
 write_rds(d_diar2,path = here("data","bangl_analysis_diar.rds"))
 write_rds(d_parasite,path = here("data","bangl_analysis_parasite.rds"))
 
@@ -111,6 +137,10 @@ write_rds(d_parasite,path = here("data","bangl_analysis_parasite.rds"))
 
 # child anthropometry measured at visit 2
 dk_anth <- read_csv(here("data","washb-kenya-endline-anthro-public.csv")) 
+
+# child development measures
+# at visit 2
+dk_chd <- read_csv(here("data","washk_dev_public_20180201.csv"))
 
 
 # child diarrhea measured at baseline
@@ -128,9 +158,6 @@ dk_para <- haven::read_dta(here("data","parasites_kenya_public_ca20171215.dta"))
 
 
 
-
-
-
 #----------------------------------
 # filter to the control and 
 # nutrition-containing intervention
@@ -143,6 +170,13 @@ dk_anth2 <- dk_anth %>%
   mutate(tr2 = ifelse(tr == "Control","Control","Nutrition"),
          tr2 = factor(tr2)) %>%
   select(clusterid, compoundid, hhid, childid, block, tr=tr2, targetchild, haz, waz, whz, hcz, haz_who, waz_who, whz_who)
+
+dk_chd2 <- dk_chd %>%
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  mutate(tr2 = ifelse(tr == "Control","Control","Nutrition"),
+         tr2 = factor(tr2)) %>%
+  select(childidr2, hhidr2, clusteridr2, block, tr=tr2, comtotz, mottotz, pstotz, globaltotz)
+
 
 dk_diar2 <- dk_diar %>%
   filter(time > 0) %>%
@@ -161,10 +195,12 @@ dk_para2 <- dk_para %>%
   select(-tr) %>%
   select(childidr2, hhidr2, block,tr=tr2, giar = giardia_yn, al = ascaris_yn, tt = trichuris_yn, hw = hook_yn, sth = sth_yn)
 
+
 #----------------------------------
 # save analysis files
 #----------------------------------
 write_rds(dk_anth2,path = here("data","kenya_analysis_anthro.rds"))
+write_rds(dk_chd2,path = here("data","kenya_analysis_chdev.rds"))
 write_rds(dk_diar2,path = here("data","kenya_analysis_diar.rds"))
 write_rds(dk_para2,path = here("data","kenya_analysis_parasite.rds"))
 
