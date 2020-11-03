@@ -70,7 +70,7 @@ d_anth2 <- d_anth %>%
   rename(tr=tr2)
 
 d_easq2 <- d_easq %>%
-  select(dataid,childid,clusterid,block,tchild,arm, z_com, z_motor, z_personal, z_combined) %>%
+  select(dataid,childid,clusterid,block,tchild,arm, z_easq_com = z_com, z_easq_motor = z_motor, z_easq_pers = z_personal, z_easq_total = z_combined) %>%
   # coding: see codebook: 7=Control, 6=WSH+N, 4=Nutrition
   filter(arm %in% c(7,6,4)) %>%
   mutate(tr = ifelse(arm==7,"Control","Nutrition")) %>%
@@ -175,7 +175,7 @@ dk_chd2 <- dk_chd %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr2 = ifelse(tr == "Control","Control","Nutrition"),
          tr2 = factor(tr2)) %>%
-  select(childidr2, hhidr2, clusteridr2, block, tr=tr2, comtotz, mottotz, pstotz, globaltotz)
+  select(childidr2, hhidr2, clusteridr2, block, tr=tr2, z_easq_com = comtotz, z_easq_motor = mottotz, z_easq_pers = pstotz, z_easq_total = globaltotz)
 
 
 dk_diar2 <- dk_diar %>%
