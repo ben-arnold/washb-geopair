@@ -169,7 +169,7 @@ dk_anth2 <- dk_anth %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr2 = ifelse(tr == "Control","Control","Nutrition"),
          tr2 = factor(tr2)) %>%
-  select(clusterid, compoundid, hhid, childid, block, tr=tr2, targetchild, haz, waz, whz, hcz, haz_who, waz_who, whz_who)
+  select(clusterid, compoundid, hhid, childid, block, tr=tr2, targetchild, laz=haz, waz, whz, hcz, haz_who, waz_who, whz_who)
 
 dk_chd2 <- dk_chd %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
