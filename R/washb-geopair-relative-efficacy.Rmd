@@ -104,6 +104,26 @@ dps_cl <- dchdev %>%
 
 #-------------------------------
 # calculate geographic pair-matched
+# group means - CDI comprehension
+#-------------------------------
+dcdicomp_cl <- dchdev %>%
+  select(block,tr,z_cdi_comp) %>%
+  group_by(block,tr) %>%
+  summarize_all(function(x) mean(x,na.rm=TRUE))
+
+
+#-------------------------------
+# calculate geographic pair-matched
+# group means - CDI expression
+#-------------------------------
+dcdiexpr_cl <- dchdev %>%
+  select(block,tr,z_cdi_expr) %>%
+  group_by(block,tr) %>%
+  summarize_all(function(x) mean(x,na.rm=TRUE))
+
+
+#-------------------------------
+# calculate geographic pair-matched
 # group means - diarrhea
 #-------------------------------
 ddiar_cl <- ddiar %>%
@@ -244,6 +264,23 @@ b_block_ps <- dps_cl %>%
   select(block,tr,z_easq_pers) %>%
   pivot_wider(id_cols = block, names_from = tr, values_from = z_easq_pers)
 b_cor_ps <- cor(b_block_ps$Control,b_block_ps$Nutrition)
+
+#-------------------------------
+# CDI comprehension
+#-------------------------------
+b_block_cdicomp <- dcdicomp_cl %>%
+  select(block,tr,z_cdi_comp) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = z_cdi_comp)
+b_cor_cdicomp <- cor(b_block_cdicomp$Control,b_block_cdicomp$Nutrition)
+
+#-------------------------------
+# CDI expression
+#-------------------------------
+b_block_cdiexpr <- dcdiexpr_cl %>%
+  select(block,tr,z_cdi_expr) %>%
+  pivot_wider(id_cols = block, names_from = tr, values_from = z_cdi_expr)
+b_cor_cdiexpr <- cor(b_block_cdiexpr$Control,b_block_cdiexpr$Nutrition)
+
 
 #-------------------------------
 # Diarrhea
@@ -538,10 +575,16 @@ k_cor_hw <- cor(k_block_hw$Control,k_block_hw$Nutrition, use = "pairwise")
 options(knitr.kable.NA = "‡")
 
 sumtab <- data.frame(
-  outcome_group = c(rep("Child growth",4),rep("Child development",3),rep("Infectious disease",5) ),
-  outcome = c("Length-for-age z-score","Weight-for-age z-score","Weight-for-height z-score","Head circumference z-score","EASQ Communication z-score","EASQ Gross motor z-score","EASQ Personal-social z-score","Diarrhea","Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm"),
-  cor_b = c(b_cor_laz,b_cor_waz,b_cor_whz,b_cor_hcz,b_cor_com,b_cor_mot,b_cor_ps,b_cor_diar,b_cor_giar,b_cor_al,b_cor_tt,b_cor_hw),
-  cor_k = c(k_cor_laz,k_cor_waz,k_cor_whz,k_cor_hcz,k_cor_com,k_cor_mot,k_cor_ps,k_cor_diar,k_cor_giar,k_cor_al,NA,k_cor_hw)
+  outcome_group = c(rep("Child growth",4),rep("Child development",5),rep("Infectious disease",5) ),
+  outcome = c("Length-for-age z-score","Weight-for-age z-score","Weight-for-height z-score","Head circumference z-score",
+              "EASQ Communication z-score","EASQ Gross motor z-score","EASQ Personal-social z-score", "CDI Comprehension z-score","CDI Expression z-score",
+              "Diarrhea","Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm"),
+  cor_b = c(b_cor_laz,b_cor_waz,b_cor_whz,b_cor_hcz,
+            b_cor_com,b_cor_mot,b_cor_ps,b_cor_cdicomp,b_cor_cdiexpr,
+            b_cor_diar,b_cor_giar,b_cor_al,b_cor_tt,b_cor_hw),
+  cor_k = c(k_cor_laz,k_cor_waz,k_cor_whz,k_cor_hcz,
+            k_cor_com,k_cor_mot,k_cor_ps,NA,NA,
+            k_cor_diar,k_cor_giar,k_cor_al,NA,k_cor_hw)
 )
 sumtab <- sumtab %>%
   mutate(releff_b = 1/(1-cor_b),
@@ -554,8 +597,8 @@ knitr::kable(sumtab %>% select(-outcome_group),
              caption = "Summary of pair-wise outcome correlation and relative efficacy of geographic pair-matching") %>%
   kable_styling(bootstrap_options = "striped") %>%
   group_rows("Child growth",1,4) %>%
-  group_rows("Child development",5,7) %>%
-  group_rows("Infectious disease",8,12) %>%
+  group_rows("Child development",5,9) %>%
+  group_rows("Infectious disease",10,14) %>%
   add_header_above(c(" " = 1, "Bangladesh" = 2, "Kenya" = 2)) %>%
   footnote(symbol = c("Correlation between geographically paired, cluster-level means.",
                       "Relative efficacy of geographic pair-matching compared to an unmatched design, defined as 1/(1-r), where r is the correlation between paired outcomes. A relative efficacy of 1.5 means that a pair-matched study with 100 clusters per group has the same power as an unmatched study with 150 clusters per group.","Trichuris sp. was too rare in Kenya to estimate."))
@@ -564,10 +607,10 @@ knitr::kable(sumtab %>% select(-outcome_group),
 
 # Summary Figure
 
-```{r plot relative efficiency}
+```{r plot relative efficiency, warning = FALSE}
 # pivot the summary table longer to plot
 sumtab2 <- sumtab %>%
-  mutate(outcome_lab = c("LAZ","WAZ","WHZ","HCZ","EASQ Communication","EASQ Gross motor","EASQ Personal-social","Diarrhea","Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm")
+  mutate(outcome_lab = c("LAZ","WAZ","WHZ","HCZ","EASQ Communication","EASQ Gross motor","EASQ Personal-social","CDI Comprehension","CDI Expression","Diarrhea","Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm")
          )
 sumtabplot <- sumtab2 %>%
   select(outcome_group, outcome, outcome_lab ,corr = cor_b, releff = releff_b) %>%
@@ -576,39 +619,61 @@ sumtabplot <- sumtab2 %>%
   mutate(country = ifelse(is.na(country),"Kenya",country), 
          country = factor(country),
          outcome_group = factor(outcome_group)
+         ) %>%
+  # tedious x and y nudge coordinates for labels to optimize display
+  mutate(lab_xnudge = case_when(
+           outcome_lab == "LAZ" ~ 0.015,
+           outcome_lab == "WAZ" & country == "Kenya" ~ 0.015,
+           outcome_lab %in% c("EASQ Communication","EASQ Personal-social","CDI Expression") & country == "Bangladesh" ~ 0.015,
+           TRUE ~ as.numeric(-0.015)
+         ),
+         lab_ynudge = case_when(
+           outcome_lab == "Hookworm" & country == "Bangladesh" ~ 0.03,
+           outcome_lab == "EASQ Personal-social" & country == "Bangladesh" ~ -0.02,
+           outcome_lab == "EASQ Personal-social" & country == "Kenya" ~ 0.02,
+           outcome_lab == "CDI Expression" & country == "Bangladesh" ~ -0.04,
+           TRUE ~ as.numeric(0)
+         ),
+         lab_hjust = ifelse(lab_xnudge < 0 , 1, 0)
          )
+
 
 # data frame for function
 d_reff <- data.frame(rho = seq(0,0.8,by=0.01)) %>%
   mutate(reff = 1/(1-rho))
 
 # make plot
-pcols <- c("gray40",cbpal[c(3,2)])
+# pcols <- c("gray40",cbpal[c(3,2)])
+pcols <- nytpal[c(1,4,7)]
 plot_reff <- ggplot(data=sumtabplot, aes(x = corr, y = releff)) +
   # facet over country
   facet_grid(~country) +
   # add function line
-  geom_line(data=d_reff,aes(x=rho,y=reff),alpha = 0.4, linetype = "dashed") +
+  geom_line(data=d_reff,aes(x=rho,y=reff),alpha = 0.4, linetype = "dashed", show.legend = FALSE) +
   # plot results
   # this offset is very idiosyncratic to optimize display -- fragile code!
-  geom_text(aes(label = outcome_lab, color = outcome_group), hjust = c(0,1,1,1,0,1,0,rep(1,5), 0,0,rep(1,10)), nudge_x = c(0.015,-0.01,-0.01,-0.01,0.015,-0.01,0.015,rep(-0.01,5),0.015,0.015,rep(-0.01,10)),size = 2.5) +
-  geom_point(aes(color = outcome_group), size = 1.8) + 
-  geom_point(pch=21,bg=NA, size=1.8, show.legend = FALSE) +
+  geom_text(aes(label = outcome_lab, color = outcome_group), 
+            hjust = sumtabplot$lab_hjust, 
+            nudge_x = sumtabplot$lab_xnudge,
+            nudge_y = sumtabplot$lab_ynudge,
+            size = 2.5, show.legend = FALSE) +
+  geom_point(aes(color = outcome_group), size = 1.8, alpha=1) + 
+  geom_point(pch=21,bg=NA, size=1.8, show.legend = TRUE) +
   # refine aesthetics
-  scale_color_manual(values = pcols, guide=guide_legend(title="Outcome group")) +
-  # scale_color_viridis_c(begin = 0, end = 0.7, direction = -1, option = "D") +
+  scale_color_manual(values = pcols, guide=guide_legend(title="Outcome group:")) +
+  # scale_color_viridis_d(begin = 0, end = 0.6, direction = -1, option = "D",  guide=guide_legend(title="Outcome group:")) +
   scale_y_continuous(breaks=seq(1,2.4,by=0.2))+
   scale_x_continuous(breaks=seq(0,0.6,by=0.1)) +
   coord_cartesian(ylim=c(1,2.4),xlim = c(0,0.6)) +
   labs(x=expression(paste("Correlation between paired outcomes, (",italic(r),")")),y=expression(paste("Relative efficacy of geographic pair-matching, (1-",italic(r),")")^-1)) +
   theme_minimal() +
   theme(
-    legend.position = "right",
+    legend.position = "bottom",
     panel.grid.minor = element_blank()
   )
 plot_reff
 
-ggsave(filename = here("output","washb-geopair-relative-efficacy.png"),plot_reff,device = "png", height=4,width=8.5)
+ggsave(filename = here("output","washb-geopair-relative-efficacy.png"),plot_reff,device = "png", height=4.7,width=7)
 ```
 
 # Session Info
