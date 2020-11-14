@@ -1,0 +1,258 @@
+---
+title: "Relative efficiency of geographic pair matching in the WASH Benefits trials"
+subtitle: ""
+author: "Ben Arnold ben.arnold@ucsf.edu"
+date: "updated: `r Sys.time()`"
+output: 
+  html_document:
+    theme: default
+    highlight: haddock
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+# Summary
+
+Summary here: **TBD**
+
+Relative efficacy based on non-parametric estimator from Imai, King, and Nall (2009)
+
+Details of original citations and data sources here: **TBD**
+
+
+# Preamble
+
+```{r preamble}
+library(here)
+here()
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","washb-geopair-Config.R"))
+
+```
+
+
+
+# Bangladesh
+
+## Data prep
+
+```{r load bangladesh data}
+#-------------------------------
+# load the formatted analysis
+# data created by
+# washb-geopair-data-processing.R
+#-------------------------------
+
+# anthropometry data
+danth <- read_rds(here("data","bangl_analysis_anthro.rds")) %>%
+  mutate(tr01 = ifelse(tr=="Nutrition",1,0)) 
+  
+
+# child development data
+dchdev <- read_rds(here("data","bangl_analysis_chdev.rds")) %>%
+  mutate(tr01 = ifelse(tr=="Nutrition",1,0))
+
+# diarrhea data
+ddiar <- read_rds(here("data","bangl_analysis_diar.rds")) %>%
+  mutate(tr01 = ifelse(tr=="Nutrition",1,0))
+
+# giardia data
+dpara <- read_rds(here("data","bangl_analysis_parasite.rds")) %>%
+  mutate(tr01 = ifelse(tr=="Nutrition",1,0))
+
+```
+
+## Estimate ATE and relative efficacy
+
+
+
+```{r estimate ATE using imai estimator}
+#-------------------------------
+# estimate_Imai_ATE
+# convenience wrapper to run the 
+# ATEcluster() function from the
+# experiment package 
+#
+# and return a matched-pair level 
+# data frame with key attributes. 
+#
+# It also calculates ATE 95% CIs
+# based on the arithmetic mean 
+# estimator from Imai et al. 2009
+#
+# It also estimates weighted
+# and unweighted pair-wise
+# outcome correlation, and 
+# corresponding relative efficiency 
+# of the matched pair design compared
+# with an unmatched design
+#
+# Arguments, from environment::ATEcluster()
+# @Y : outcome (vector)
+# @Z : binary indicator of treatmetn (0/1)
+# @grp : ID variable for clusters
+# @match : ID variable for matched pairs
+# @data : dataset that includes all these vars
+#
+# returns a list that includes:
+# est       : ATE estimate, Imai 2009 estimator
+# var       : Variance of ATE, Imai 2009 estimator
+# est_min95 : lower bound of the 95% CI for ATE
+# est_max95 : upper bound of the 95% CI for ATE
+# corr_w : pair-wise outcome correlation, weighted
+# corr_u : pair-wise outcome correlation, unweighted
+# eff_w  : relative efficiencey of pair-matched design to unmatched design, weighted
+# eff_u  : relative efficiencey of pair-matched design to unmatched design, unweighted
+# dcl    : a data-frame of pair-level estimates, including:
+#           Y1bar: mean in treatment clusters
+#           Y0bar: mean in control clusters
+#           diff: Y1bar-Y0bar
+#           n1:  number of observations in treatment clusters (also used as weights)
+#           n0:  number of observations in control clusters (also used as weights)
+#           w:  pair-level weight (arithmetic mean)
+#           w_dk:  pair-level weight (geometric mean, per Donner & Klar 1993)
+#-------------------------------
+library(experiment)
+
+estimate_Imai_ATE <- function(Y,Z,grp,match,data) {
+  
+  # estimate ATE and cluster-level means
+  estATE <- ATEcluster(Y=Y, Z=Z, grp=grp, match=match, data=data)
+  
+  # estimate 95% CIs based on the artimetic mean weighted variance
+  # from Imai et al. 2009
+  est_min95 <- estATE$est - 1.96*sqrt(estATE$var)
+  est_max95 <- estATE$est + 1.96*sqrt(estATE$var)
+  
+  # estimate weighted and unweighted correlation between outcomes
+  # see section 5.2 of Imai et al. 2009
+  wY1bar <- estATE$Y1bar*estATE$w
+  wY0bar <- estATE$Y0bar*estATE$w
+  corr_w <- 2*cov(wY1bar,wY0bar) / ( var(wY1bar) + var(wY0bar) )
+  corr_u <- cor(estATE$Y1bar,estATE$Y0bar)
+  
+  # estimate relative efficiency compared to an unmatched design
+  # with weighted and unweighted correlation
+  eff_w <- 1/(1-corr_w)
+  eff_u <- 1/(1-corr_u)
+  
+  # combine cluster level measures in a data.frame()
+  dcl <- data.frame(Y1bar=estATE$Y1bar,Y0bar=estATE$Y0bar,diff=estATE$diff,
+                    n1=estATE$n1,n0=estATE$n0,w=estATE$w, w_dk=estATE$w.dk)
+  
+  return(
+    list(est = estATE$est, var = estATE$var, est_min95=est_min95, est_max95=est_max95, corr_w=corr_w, corr_u=corr_u, eff_w= eff_w, eff_u=eff_u,  dcl=dcl)
+  )
+}
+
+```
+
+```{r estimate ATE and relative efficiency}
+#-------------------------------
+# the estimate_Imai_ATE function
+# does not allow for missing values
+# in the outcome, so subset each
+# dataset to non-missing values
+# before each estimation
+#-------------------------------
+
+#-------------------------------
+# LAZ
+#-------------------------------
+dlaz <- danth %>% filter(!is.na(laz))
+ate_laz <- estimate_Imai_ATE(Y=dlaz$laz,Z=dlaz$tr01,grp=dlaz$clusterid,match=dlaz$block,data=dlaz)
+
+#-------------------------------
+# WAZ
+#-------------------------------
+dwaz <- danth %>% filter(!is.na(waz))
+ate_waz <- estimate_Imai_ATE(Y=dwaz$waz,Z=dwaz$tr01,grp=dwaz$clusterid,match=dwaz$block,data=dwaz)
+
+#-------------------------------
+# WHZ
+#-------------------------------
+dwhz <- danth %>% filter(!is.na(whz))
+ate_whz <- estimate_Imai_ATE(Y=dwhz$whz,Z=dwhz$tr01,grp=dwhz$clusterid,match=dwhz$block,data=dwhz)
+
+#-------------------------------
+# HCZ
+#-------------------------------
+dhcz <- danth %>% filter(!is.na(hcz))
+ate_hcz <- estimate_Imai_ATE(Y=dhcz$hcz,Z=dhcz$tr01,grp=dhcz$clusterid,match=dhcz$block,data=dhcz)
+
+#-------------------------------
+# EASQ Communication
+#-------------------------------
+deasq_com <- dchdev %>% filter(!is.na(z_easq_com))
+ate_easq_com <- estimate_Imai_ATE(Y=deasq_com$z_easq_com,Z=deasq_com$tr01,grp=deasq_com$clusterid,match=deasq_com$block,data=deasq_com)
+
+#-------------------------------
+# EASQ Gross motor
+#-------------------------------
+deasq_mot <- dchdev %>% filter(!is.na(z_easq_motor))
+ate_easq_mot <- estimate_Imai_ATE(Y=deasq_mot$z_easq_motor,Z=deasq_mot$tr01,grp=deasq_mot$clusterid,match=deasq_mot$block,data=deasq_mot)
+
+#-------------------------------
+# EASQ Personal-social
+#-------------------------------
+deasq_ps <- dchdev %>% filter(!is.na(z_easq_pers))
+ate_easq_ps <- estimate_Imai_ATE(Y=deasq_ps$z_easq_pers,Z=deasq_ps$tr01,grp=deasq_ps$clusterid,match=deasq_ps$block,data=deasq_ps)
+
+#-------------------------------
+# CDI comprehension
+#-------------------------------
+dcdi_comp <- dchdev %>% filter(!is.na(z_cdi_comp))
+ate_cdi_comp <- estimate_Imai_ATE(Y=dcdi_comp$z_cdi_comp,Z=dcdi_comp$tr01,grp=dcdi_comp$clusterid,match=dcdi_comp$block,data=dcdi_comp)
+
+#-------------------------------
+# CDI expression
+#-------------------------------
+dcdi_expr <- dchdev %>% filter(!is.na(z_cdi_expr))
+ate_cdi_expr <- estimate_Imai_ATE(Y=dcdi_expr$z_cdi_expr,Z=dcdi_expr$tr01,grp=dcdi_expr$clusterid,match=dcdi_expr$block,data=dcdi_expr)
+
+#-------------------------------
+# Diarrhea
+#-------------------------------
+ddiar2 <- ddiar %>% filter(!is.na(diar7d))
+ate_diar <- estimate_Imai_ATE(Y=ddiar2$diar7d,Z=ddiar2$tr01,grp=ddiar2$clusterid,match=ddiar2$block,data=ddiar2)
+
+#-------------------------------
+# Giardia
+#-------------------------------
+dgiar <- dpara %>% filter(!is.na(giar))
+ate_giar <- estimate_Imai_ATE(Y=dgiar$giar,Z=dgiar$tr01,grp=dgiar$clusterid,match=dgiar$block,data=dgiar)
+
+#-------------------------------
+# Ascaris
+#-------------------------------
+dal <- dpara %>% filter(!is.na(al))
+ate_al <- estimate_Imai_ATE(Y=dal$al,Z=dal$tr01,grp=dal$clusterid,match=dal$block,data=dal)
+
+#-------------------------------
+# Trichuris
+#-------------------------------
+dtt <- dpara %>% filter(!is.na(tt))
+ate_tt <- estimate_Imai_ATE(Y=dtt$tt,Z=dtt$tr01,grp=dtt$clusterid,match=dtt$block,data=dtt)
+
+#-------------------------------
+# Hookworm
+#-------------------------------
+dhw <- dpara %>% filter(!is.na(hw))
+ate_hw <- estimate_Imai_ATE(Y=dhw$hw,Z=dhw$tr01,grp=dhw$clusterid,match=dhw$block,data=dhw)
+
+```
+
+
+
+# Session Info
+```{r session info}
+sessionInfo()
+```
+
+
