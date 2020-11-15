@@ -70,8 +70,6 @@ dpara <- read_rds(here("data","bangl_analysis_parasite.rds")) %>%
 
 ## Estimate ATE and relative efficacy
 
-
-
 ```{r estimate ATE using imai estimator}
 #-------------------------------
 # estimate_Imai_ATE
@@ -153,7 +151,7 @@ estimate_Imai_ATE <- function(Y,Z,grp,match,data) {
 
 ```
 
-```{r estimate ATE and relative efficiency}
+```{r estimate ATE and relative efficiency bangladesh}
 #-------------------------------
 # the estimate_Imai_ATE function
 # does not allow for missing values
@@ -165,91 +163,403 @@ estimate_Imai_ATE <- function(Y,Z,grp,match,data) {
 #-------------------------------
 # LAZ
 #-------------------------------
-dlaz <- danth %>% filter(!is.na(laz))
-ate_laz <- estimate_Imai_ATE(Y=dlaz$laz,Z=dlaz$tr01,grp=dlaz$clusterid,match=dlaz$block,data=dlaz)
+d <- danth %>% filter(!is.na(laz))
+ate_laz <- estimate_Imai_ATE(Y=d$laz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # WAZ
 #-------------------------------
-dwaz <- danth %>% filter(!is.na(waz))
-ate_waz <- estimate_Imai_ATE(Y=dwaz$waz,Z=dwaz$tr01,grp=dwaz$clusterid,match=dwaz$block,data=dwaz)
+d <- danth %>% filter(!is.na(waz))
+ate_waz <- estimate_Imai_ATE(Y=d$waz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # WHZ
 #-------------------------------
-dwhz <- danth %>% filter(!is.na(whz))
-ate_whz <- estimate_Imai_ATE(Y=dwhz$whz,Z=dwhz$tr01,grp=dwhz$clusterid,match=dwhz$block,data=dwhz)
+d <- danth %>% filter(!is.na(whz))
+ate_whz <- estimate_Imai_ATE(Y=d$whz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # HCZ
 #-------------------------------
-dhcz <- danth %>% filter(!is.na(hcz))
-ate_hcz <- estimate_Imai_ATE(Y=dhcz$hcz,Z=dhcz$tr01,grp=dhcz$clusterid,match=dhcz$block,data=dhcz)
+d <- danth %>% filter(!is.na(hcz))
+ate_hcz <- estimate_Imai_ATE(Y=d$hcz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # EASQ Communication
 #-------------------------------
-deasq_com <- dchdev %>% filter(!is.na(z_easq_com))
-ate_easq_com <- estimate_Imai_ATE(Y=deasq_com$z_easq_com,Z=deasq_com$tr01,grp=deasq_com$clusterid,match=deasq_com$block,data=deasq_com)
+d <- dchdev %>% filter(!is.na(z_easq_com))
+ate_easq_com <- estimate_Imai_ATE(Y=d$z_easq_com,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # EASQ Gross motor
 #-------------------------------
-deasq_mot <- dchdev %>% filter(!is.na(z_easq_motor))
-ate_easq_mot <- estimate_Imai_ATE(Y=deasq_mot$z_easq_motor,Z=deasq_mot$tr01,grp=deasq_mot$clusterid,match=deasq_mot$block,data=deasq_mot)
+d <- dchdev %>% filter(!is.na(z_easq_motor))
+ate_easq_mot <- estimate_Imai_ATE(Y=d$z_easq_motor,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # EASQ Personal-social
 #-------------------------------
-deasq_ps <- dchdev %>% filter(!is.na(z_easq_pers))
-ate_easq_ps <- estimate_Imai_ATE(Y=deasq_ps$z_easq_pers,Z=deasq_ps$tr01,grp=deasq_ps$clusterid,match=deasq_ps$block,data=deasq_ps)
+d <- dchdev %>% filter(!is.na(z_easq_pers))
+ate_easq_ps <- estimate_Imai_ATE(Y=d$z_easq_pers,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # CDI comprehension
 #-------------------------------
-dcdi_comp <- dchdev %>% filter(!is.na(z_cdi_comp))
-ate_cdi_comp <- estimate_Imai_ATE(Y=dcdi_comp$z_cdi_comp,Z=dcdi_comp$tr01,grp=dcdi_comp$clusterid,match=dcdi_comp$block,data=dcdi_comp)
+d <- dchdev %>% filter(!is.na(z_cdi_comp))
+ate_cdi_comp <- estimate_Imai_ATE(Y=d$z_cdi_comp,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # CDI expression
 #-------------------------------
-dcdi_expr <- dchdev %>% filter(!is.na(z_cdi_expr))
-ate_cdi_expr <- estimate_Imai_ATE(Y=dcdi_expr$z_cdi_expr,Z=dcdi_expr$tr01,grp=dcdi_expr$clusterid,match=dcdi_expr$block,data=dcdi_expr)
+d <- dchdev %>% filter(!is.na(z_cdi_expr))
+ate_cdi_expr <- estimate_Imai_ATE(Y=d$z_cdi_expr,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # Diarrhea
 #-------------------------------
-ddiar2 <- ddiar %>% filter(!is.na(diar7d))
-ate_diar <- estimate_Imai_ATE(Y=ddiar2$diar7d,Z=ddiar2$tr01,grp=ddiar2$clusterid,match=ddiar2$block,data=ddiar2)
+d <- ddiar %>% filter(!is.na(diar7d))
+ate_diar <- estimate_Imai_ATE(Y=d$diar7d,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # Giardia
 #-------------------------------
-dgiar <- dpara %>% filter(!is.na(giar))
-ate_giar <- estimate_Imai_ATE(Y=dgiar$giar,Z=dgiar$tr01,grp=dgiar$clusterid,match=dgiar$block,data=dgiar)
+d <- dpara %>% filter(!is.na(giar))
+ate_giar <- estimate_Imai_ATE(Y=d$giar,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # Ascaris
 #-------------------------------
-dal <- dpara %>% filter(!is.na(al))
-ate_al <- estimate_Imai_ATE(Y=dal$al,Z=dal$tr01,grp=dal$clusterid,match=dal$block,data=dal)
+d <- dpara %>% filter(!is.na(al))
+ate_al <- estimate_Imai_ATE(Y=d$al,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # Trichuris
 #-------------------------------
-dtt <- dpara %>% filter(!is.na(tt))
-ate_tt <- estimate_Imai_ATE(Y=dtt$tt,Z=dtt$tr01,grp=dtt$clusterid,match=dtt$block,data=dtt)
+d <- dpara %>% filter(!is.na(tt))
+ate_tt <- estimate_Imai_ATE(Y=d$tt,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # Hookworm
 #-------------------------------
-dhw <- dpara %>% filter(!is.na(hw))
-ate_hw <- estimate_Imai_ATE(Y=dhw$hw,Z=dhw$tr01,grp=dhw$clusterid,match=dhw$block,data=dhw)
+d <- dpara %>% filter(!is.na(hw))
+ate_hw <- estimate_Imai_ATE(Y=d$hw,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 ```
 
 
+```{r summarize relative efficacy bangladesh}
+#-------------------------------
+# Summarize relative efficacy
+#-------------------------------
+ate_list <- list(ate_laz,ate_waz,ate_whz,ate_hcz,
+                 ate_easq_com,ate_easq_mot,ate_easq_ps,ate_cdi_comp,ate_cdi_expr,
+                 ate_diar,ate_giar,ate_al,ate_tt,ate_hw)
+out_list <- c("length-for-age z",
+                         "weight-for-age z",
+                         "weight-for-height z",
+                         "head circumference z",
+                         "EASQ communication z",
+                         "EASQ gross motor z",
+                         "EASQ personal-social z",
+                         "CDI comprehension z",
+                         "CDI expression z",
+                         "Diarrhea",
+                         "Giardia sp.",
+                         "Ascaris sp.",
+                         "Trichuris sp.",
+                         "Hookworm")
 
+ate_res <- foreach(esti = 1:length(ate_list), .combine = rbind) %do% {
+  res <- data.frame(est = ate_list[[esti]]$est, var = ate_list[[esti]]$var,
+                    est_min95 = ate_list[[esti]]$est_min95, est_max95 = ate_list[[esti]]$est_max95,
+                    corr_w = ate_list[[esti]]$corr_w, corr_u = ate_list[[esti]]$corr_u,
+                    eff_w = ate_list[[esti]]$eff_w, eff_u = ate_list[[esti]]$eff_u)
+  res
+}
+ate_res$outcome_lab <- out_list
+ate_res <- ate_res %>%
+  mutate(outcome_lab = factor(outcome_lab, levels = out_list),
+         country = "Bangladesh") %>%
+  dplyr::select(country,outcome_lab, everything())
+
+```
+
+
+# Kenya
+
+## Data prep
+
+```{r load Kenya data}
+#-------------------------------
+# load the formatted analysis
+# data created by
+# washb-geopair-data-processing.R
+#
+# in each dataset, exclude 
+# the 9 matched blocks that do
+# not have treatment contrasts
+# for nutrition vs. control
+#-------------------------------
+
+# anthropometry data
+dkanth <- read_rds(here("data","kenya_analysis_anthro.rds")) %>%
+  mutate(tr01 = ifelse(tr=="Nutrition",1,0)) %>%
+  filter(!block %in% c(11,13,23,33,40,65,72,84,85))
+
+
+# diarrhea data
+dkdiar <- read_rds(here("data","kenya_analysis_diar.rds")) %>%
+  mutate(tr01 = ifelse(tr=="Nutrition",1,0)) %>%
+  filter(!block %in% c(11,13,23,33,40,65,72,84,85))
+
+# parasite data
+dkpara <- read_rds(here("data","kenya_analysis_parasite.rds")) %>%
+  mutate(tr01 = ifelse(tr=="Nutrition",1,0)) %>%
+  filter(!block %in% c(11,13,23,33,40,65,72,84,85))
+
+# child development data
+dkchdev <- read_rds(here("data","kenya_analysis_chdev.rds")) %>%
+  mutate(tr01 = ifelse(tr=="Nutrition",1,0)) %>%
+  filter(!block %in% c(11,13,23,33,40,65,72,84,85)) 
+
+```
+
+## Estimate ATE and relative efficiency
+```{r estimate ATE and relative efficiency kenya}
+#-------------------------------
+# the estimate_Imai_ATE function
+# does not allow for missing values
+# in the outcome, so subset each
+# dataset to non-missing values
+# before each estimation
+#-------------------------------
+
+#-------------------------------
+# LAZ
+#-------------------------------
+d <- dkanth %>% filter(!is.na(laz)) 
+k_ate_laz <- estimate_Imai_ATE(Y=d$laz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
+
+#-------------------------------
+# WAZ
+#-------------------------------
+d <- dkanth %>% filter(!is.na(waz))
+k_ate_waz <- estimate_Imai_ATE(Y=d$waz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
+
+#-------------------------------
+# WHZ
+#-------------------------------
+d <- dkanth %>% filter(!is.na(whz))
+k_ate_whz <- estimate_Imai_ATE(Y=d$whz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
+
+#-------------------------------
+# HCZ
+#-------------------------------
+d <- dkanth %>% filter(!is.na(hcz))
+k_ate_hcz <- estimate_Imai_ATE(Y=d$hcz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
+
+#-------------------------------
+# EASQ Communication
+#-------------------------------
+d <- dkchdev %>% filter(!is.na(z_easq_com))
+k_ate_easq_com <- estimate_Imai_ATE(Y=d$z_easq_com,Z=d$tr01,grp=d$clusteridr2,match=d$block,data=d)
+
+#-------------------------------
+# EASQ Gross motor
+#-------------------------------
+d <- dkchdev %>% filter(!is.na(z_easq_motor))
+k_ate_easq_mot <- estimate_Imai_ATE(Y=d$z_easq_motor,Z=d$tr01,grp=d$clusteridr2,match=d$block,data=d)
+
+#-------------------------------
+# EASQ Personal-social
+#-------------------------------
+d <- dkchdev %>% filter(!is.na(z_easq_pers))
+k_ate_easq_ps <- estimate_Imai_ATE(Y=d$z_easq_pers,Z=d$tr01,grp=d$clusteridr2,match=d$block,data=d)
+
+
+#-------------------------------
+# Diarrhea
+#-------------------------------
+d <- dkdiar %>% filter(!is.na(diar7d))
+k_ate_diar <- estimate_Imai_ATE(Y=d$diar7d,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
+
+#-------------------------------
+# Giardia
+#-------------------------------
+d <- dkpara %>% filter(!is.na(giar))
+k_ate_giar <- estimate_Imai_ATE(Y=d$giar,Z=d$tr01,grp=d$clusteridr2,match=d$block,data=d)
+
+#-------------------------------
+# Ascaris
+#-------------------------------
+d <- dkpara %>% filter(!is.na(al))
+k_ate_al <- estimate_Imai_ATE(Y=d$al,Z=d$tr01,grp=d$clusteridr2,match=d$block,data=d)
+
+#-------------------------------
+# Trichuris
+#-------------------------------
+d <- dkpara %>% filter(!is.na(tt))
+k_ate_tt <- estimate_Imai_ATE(Y=d$tt,Z=d$tr01,grp=d$clusteridr2,match=d$block,data=d)
+
+#-------------------------------
+# Hookworm
+#-------------------------------
+d <- dkpara %>% filter(!is.na(hw))
+k_ate_hw <- estimate_Imai_ATE(Y=d$hw,Z=d$tr01,grp=d$clusteridr2,match=d$block,data=d)
+
+#-------------------------------
+# detach experiment package
+# because it uses MASS, which
+# conflicts with dplyr::select()
+#-------------------------------
+detach("package:experiment", unload = TRUE)
+detach("package:MASS", unload = TRUE)
+
+```
+
+
+```{r summarize relative efficiency kenya}
+#-------------------------------
+# Summarize relative efficiency
+#-------------------------------
+k_ate_list <- list(k_ate_laz,k_ate_waz,k_ate_whz,k_ate_hcz,
+                 k_ate_easq_com,k_ate_easq_mot,k_ate_easq_ps,
+                 k_ate_diar,k_ate_giar,k_ate_al,k_ate_tt,k_ate_hw)
+k_out_list <- c("length-for-age z",
+                         "weight-for-age z",
+                         "weight-for-height z",
+                         "head circumference z",
+                         "EASQ communication z",
+                         "EASQ gross motor z",
+                         "EASQ personal-social z",
+                         "Diarrhea",
+                         "Giardia sp.",
+                         "Ascaris sp.",
+                         "Trichuris sp.",
+                         "Hookworm")
+
+k_ate_res <- foreach(esti = 1:length(k_ate_list), .combine = rbind) %do% {
+  res <- data.frame(est = k_ate_list[[esti]]$est, var = k_ate_list[[esti]]$var,
+                    est_min95 = k_ate_list[[esti]]$est_min95, est_max95 = k_ate_list[[esti]]$est_max95,
+                    corr_w = k_ate_list[[esti]]$corr_w, corr_u = k_ate_list[[esti]]$corr_u,
+                    eff_w = k_ate_list[[esti]]$eff_w, eff_u = k_ate_list[[esti]]$eff_u)
+  res
+}
+k_ate_res$outcome_lab <- k_out_list
+k_ate_res <- k_ate_res %>%
+  mutate(outcome_lab = factor(outcome_lab, levels = out_list),
+         country = "Kenya") %>%
+  dplyr::select(country,outcome_lab, everything())
+
+```
+
+
+# Relative Efficiency table
+
+```{r summary relative efficacy table}
+options(knitr.kable.NA = "‡")
+
+sumtab <- ate_res %>%
+  select(outcome_lab, bcorr_w = corr_w, beff_w = eff_w) %>%
+  left_join(k_ate_res, by = "outcome_lab") %>%
+  select(outcome_lab, bcorr_w, corr_w, beff_w, eff_w)
+
+# "Relative Efficacy†"
+# "Pair-wise\ncorrelation*"
+knitr::kable(sumtab,
+             digits = c(0,2,2,1,1),
+             align = c("lcccc"),
+             col.names = c("Outcome","Bangladesh","Kenya","Bangladesh","Kenya"),
+             caption = "Summary of pair-wise outcome correlation and relative efficacy of geographic pair-matching") %>%
+  kable_styling(bootstrap_options = "striped") %>%
+  pack_rows("Child growth",1,4) %>%
+  pack_rows("Child development",5,9) %>%
+  pack_rows("Infectious disease",10,14) %>%
+  add_header_above(c(" " = 1, "Pair-wise correlation*" = 2, "Relative Efficiency†" = 2)) %>%
+  footnote(symbol = c("Correlation between geographically paired, cluster-level means weighted by cluster sizes.",
+                      "Relative efficiency of geographic pair-matching compared to an unmatched design, defined as 1/(1-r), where r is the correlation between paired outcomes. A relative efficiency of 2 means that a pair-matched study with 30 clusters per group has the same power as an unmatched study with 60 clusters per group.","Communicative Development Inventory (CDI) measures were not collected in the Kenya trial."))
+
+```
+
+
+# Relative Efficiency Figure
+
+```{r plot relative efficiency, warning = FALSE}
+# pivot the summary table longer to plot
+dreffplot <- ate_res %>%
+  select(country, outcome_lab, corr_w, eff_w) %>%
+  bind_rows(k_ate_res %>% select(country, outcome_lab, corr_w, eff_w))
+# group outcomes for plot aesthetics
+dreffplot$outcome_group = c(rep("Child growth",4),rep("Child development",5),rep("Infectious disease",5) , rep("Child growth",4),rep("Child development",3),rep("Infectious disease",5))
+# make shorter outcome labels
+dreffplot$outcome_lab2 = c( c("LAZ","WAZ","WHZ","HCZ","EASQ Communication","EASQ Gross motor","EASQ Personal-social","CDI Comprehension","CDI Expression","Diarrhea","Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm"), c("LAZ","WAZ","WHZ","HCZ","EASQ Communication","EASQ Gross motor","EASQ Personal-social","Diarrhea","Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm"))
+
+dreffplot2 <- dreffplot %>%
+  mutate(outcome_group = factor(outcome_group),
+         country = factor(country)) %>%
+  # tedious x and y nudge coordinates for labels to optimize display
+  mutate(lab_xnudge = case_when(
+           outcome_lab2 == "LAZ" & country == "Bangladesh" ~ 0.015,
+           outcome_lab2 == "HCZ" & country == "Bangladesh" ~ 0.015,
+           outcome_lab2 == "Diarrhea" & country == "Bangladesh" ~ 0.015,
+           outcome_lab2 == "WHZ" & country == "Kenya" ~ 0.015,
+           outcome_lab2 %in% c("EASQ Communication","EASQ Personal-social","CDI Expression") & country == "Bangladesh" ~ 0.015,
+           TRUE ~ as.numeric(-0.015)
+         ),
+         lab_ynudge = case_when(
+           outcome_lab2 == "Hookworm" & country == "Kenya" ~ 0.02,
+           outcome_lab2 == "Trichuris sp." & country == "Kenya" ~ 0.02,
+           outcome_lab2 == "WHZ" & country == "Kenya" ~ -0.02,
+           outcome_lab2 == "EASQ Gross motor" & country == "Bangladesh" ~ 0.01,
+           outcome_lab2 == "EASQ Personal-social" & country == "Bangladesh" ~ -0.02,
+           outcome_lab2 == "EASQ Personal-social" & country == "Kenya" ~ 0.02,
+           outcome_lab2 == "CDI Comprehension" & country == "Bangladesh" ~ 0.02,
+           outcome_lab2 == "CDI Expression" & country == "Bangladesh" ~ -0.04,
+           TRUE ~ as.numeric(0)
+         ),
+         lab_hjust = ifelse(lab_xnudge < 0 , 1, 0)
+         )
+
+
+# data frame for function
+d_reff <- data.frame(rho = seq(0,0.8,by=0.01)) %>%
+  mutate(reff = 1/(1-rho))
+
+# make plot
+# pcols <- c("gray40",cbpal[c(3,2)])
+pcols <- nytpal[c(1,6,7)]
+plot_reff <- ggplot(data=dreffplot2, aes(x = corr_w, y = eff_w)) +
+  # facet over country
+  facet_grid(~country) +
+  # add function line
+  geom_line(data=d_reff,aes(x=rho,y=reff),alpha = 0.4, linetype = "dashed", show.legend = FALSE) +
+  # plot results
+  # this offset is very idiosyncratic to optimize display -- fragile code!
+  geom_text(aes(label = outcome_lab2, color = outcome_group), 
+            hjust = dreffplot2$lab_hjust, 
+            nudge_x = dreffplot2$lab_xnudge,
+            nudge_y = dreffplot2$lab_ynudge,
+            size = 2.5, show.legend = FALSE) +
+  geom_point(aes(color = outcome_group), size = 2.2, alpha=1) + 
+  geom_point(pch=21,bg=NA, size=2.2, show.legend = TRUE) +
+  # refine aesthetics
+  # scale_color_manual(values = pcols, guide=guide_legend(title="Outcome group:")) +
+  scale_color_brewer(palette = "Dark2", guide=guide_legend(title="Outcome group:")) +
+
+  # scale_color_viridis_d(begin = 0, end = 0.6, direction = -1, option = "D",  guide=guide_legend(title="Outcome group:")) +
+  scale_y_continuous(breaks=seq(1,3.2,by=0.2))+
+  scale_x_continuous(breaks=seq(0,0.7,by=0.1)) +
+  coord_cartesian(ylim=c(1,3.2),xlim = c(0,0.7)) +
+  labs(x=expression(paste("Correlation between paired outcomes, (",italic(r),")")),y=expression(paste("Relative efficiency of geographic pair-matching, (1-",italic(r),")")^-1)) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  )
+plot_reff
+
+ggsave(filename = here("output","washb-geopair-relative-efficiency.png"),plot_reff,device = "png", height=5,width=7)
+```
 # Session Info
 ```{r session info}
 sessionInfo()
