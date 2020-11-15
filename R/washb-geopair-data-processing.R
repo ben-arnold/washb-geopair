@@ -156,6 +156,16 @@ dk_diar <- read_csv(here("data","washb-kenya-diar-public.csv"))
 # documentation: https://osf.io/fpxms/
 dk_para <- haven::read_dta(here("data","parasites_kenya_public_ca20171215.dta"))
 
+# the Kenya public parasite dataset
+# does not include cluster IDs
+# create them since treatment 
+# and block uniquely clusters 
+# (except control, so pooled there)
+dk_para2 <- dk_para %>%
+  group_by(block,tr) %>%
+  mutate(clusteridr2 = cur_group_id() ) %>%
+  ungroup()
+
 
 
 #----------------------------------
@@ -183,18 +193,19 @@ dk_diar2 <- dk_diar %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr2 = ifelse(tr == "Control","Control","Nutrition"),
          tr2 = factor(tr2)) %>%
-  select(clusterid, compoundid, hhid, childid, block, tr=tr2, targetchild, diarr7)
+  select(clusterid, compoundid, hhid, childid, block, tr=tr2, targetchild, diar7d=diarr7) %>%
+  mutate(childidr2 = (childid+3252)*10,
+         clusteridr2 = (clusterid+3252)*10)
 
 
-dk_para2 <- dk_para %>%
+dk_para2 <- dk_para2 %>%
   # restrict to control or nutrition arms
   # 1 = control, 6 = N, 7 = N+WSH
   filter(tr %in% c(1,6,7)) %>%
   mutate(tr2 = ifelse(tr == 1,"Control","Nutrition"),
          tr2 = factor(tr2)) %>%
   select(-tr) %>%
-  select(childidr2, hhidr2, block,tr=tr2, giar = giardia_yn, al = ascaris_yn, tt = trichuris_yn, hw = hook_yn, sth = sth_yn)
-
+  select(childidr2, hhidr2, clusteridr2, block,tr=tr2, giar = giardia_yn, al = ascaris_yn, tt = trichuris_yn, hw = hook_yn, sth = sth_yn)
 
 #----------------------------------
 # save analysis files
