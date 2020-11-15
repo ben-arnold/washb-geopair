@@ -487,8 +487,8 @@ knitr::kable(sumtab,
 ```{r plot relative efficiency, warning = FALSE}
 # pivot the summary table longer to plot
 dreffplot <- ate_res %>%
-  select(country, outcome_lab, corr_w, eff_w) %>%
-  bind_rows(k_ate_res %>% select(country, outcome_lab, corr_w, eff_w))
+  select(country, outcome_lab, corr_u, eff_u, corr_w, eff_w) %>%
+  bind_rows(k_ate_res %>% select(country, outcome_lab, corr_u, eff_u,  corr_w, eff_w))
 # group outcomes for plot aesthetics
 dreffplot$outcome_group = c(rep("Child growth",4),rep("Child development",5),rep("Infectious disease",5) , rep("Child growth",4),rep("Child development",3),rep("Infectious disease",5))
 # make shorter outcome labels
@@ -559,7 +559,39 @@ plot_reff <- ggplot(data=dreffplot2, aes(x = corr_w, y = eff_w)) +
 plot_reff
 
 ggsave(filename = here("output","washb-geopair-relative-efficiency.png"),plot_reff,device = "png", height=5,width=7)
+
 ```
+
+# Correlation figure
+
+Compare weighted versus unweighted correlation
+
+```{r plot correlation}
+plot_corr <- ggplot(data = dreffplot, aes(x = corr_w, y = corr_u, color = outcome_group)) +
+  facet_grid(~country) +
+  geom_abline(intercept = 0, slope = 1, color="gray40") +
+  geom_point(size=2.5, alpha=0.7) +
+  geom_text(data = dreffplot %>% filter(corr_w - corr_u >0.2), 
+            aes(label = outcome_lab2, color = outcome_group),
+            size = 2.5, hjust=1, nudge_x = -0.02,show.legend = FALSE) +
+  scale_color_brewer(palette = "Dark2", guide=guide_legend(title="Outcome group:")) +
+  scale_x_continuous(breaks=seq(0,0.7,by=0.1))+
+  scale_y_continuous(breaks=seq(0,0.7,by=0.1))+
+  labs(x = "Weighted correlation", y = "Unweighted correlation") +
+  coord_cartesian(xlim=c(0,0.7),ylim = c(0,0.7)) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  )
+
+
+plot_corr
+
+ggsave(filename = here("output","washb-geopair-correlation-weight-v-unweight.png"),plot_corr,device = "png", height=4.5,width=7)
+  
+```
+
 # Session Info
 ```{r session info}
 sessionInfo()
