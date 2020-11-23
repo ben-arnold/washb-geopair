@@ -453,6 +453,50 @@ k_ate_res <- k_ate_res %>%
 
 ```
 
+# Save pair-level summary dataset
+
+Save a dataset that includes pair-level means and treatment effects. These estimates will be used in later analysis and plotting
+
+```{r assemble pair level data}
+#-------------------------------
+# get the pair-level estimates
+# Bangladesh
+#-------------------------------
+dcl_b <- foreach(i = 1:length(ate_list), .combine = rbind) %do% {
+  dcli <- ate_list[[i]]$dcl
+  dcli$block <- row.names(dcli)
+  dcli$outcome_lab <- out_list[i]
+  dcli$country = "Bangladesh"
+  dcli
+}
+#-------------------------------
+# get the pair-level estimates
+# Kenya
+#-------------------------------
+dcl_k <- foreach(i = 1:length(k_ate_list), .combine = rbind) %do% {
+  dcli <- k_ate_list[[i]]$dcl
+  dcli$block <- row.names(dcli)
+  dcli$outcome_lab <- k_out_list[i]
+  dcli$country = "Kenya"
+  dcli
+}
+
+#-------------------------------
+# stack the data and convert
+# some of the variables to 
+# factors
+#-------------------------------
+dcl <- bind_rows(dcl_b,dcl_k) %>%
+  mutate(outcome_lab=factor(outcome_lab, levels= out_list),
+         country = factor(country)) %>%
+  select(country,outcome_lab,block,everything()) %>%
+  arrange(country,outcome_lab,block)
+
+write_rds(dcl, path = here("data","washb_pair_level_summary_estimates.rds"))
+write_csv(dcl, path = here("data","washb_pair_level_summary_estimates.csv"))
+
+
+```
 
 # Relative Efficiency table
 
@@ -464,8 +508,7 @@ sumtab <- ate_res %>%
   left_join(k_ate_res, by = "outcome_lab") %>%
   select(outcome_lab, bcorr_w, corr_w, beff_w, eff_w)
 
-# "Relative Efficacy†"
-# "Pair-wise\ncorrelation*"
+
 knitr::kable(sumtab,
              digits = c(0,2,2,1,1),
              align = c("lcccc"),
