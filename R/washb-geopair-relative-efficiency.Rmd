@@ -569,8 +569,7 @@ d_reff <- data.frame(rho = seq(0,0.8,by=0.01)) %>%
   mutate(reff = 1/(1-rho))
 
 # make plot
-# pcols <- c("gray40",cbpal[c(3,2)])
-pcols <- nytpal[c(1,6,7)]
+pcols <- c("#D9B86A", "#9B9F7C", "#5986B0")
 plot_reff <- ggplot(data=dreffplot2, aes(x = corr_w, y = eff_w)) +
   # facet over country
   facet_grid(~country) +
@@ -586,8 +585,8 @@ plot_reff <- ggplot(data=dreffplot2, aes(x = corr_w, y = eff_w)) +
   geom_point(aes(color = outcome_group), size = 2.2, alpha=1) + 
   geom_point(pch=21,bg=NA, size=2.2, show.legend = TRUE) +
   # refine aesthetics
-  # scale_color_manual(values = pcols, guide=guide_legend(title="Outcome group:")) +
-  scale_color_brewer(palette = "Dark2", guide=guide_legend(title="Outcome group:")) +
+  scale_color_manual(values = pcols, guide=guide_legend(title="Outcome group:")) +
+  # scale_color_brewer(palette = "Dark2", guide=guide_legend(title="Outcome group:")) +
 
   # scale_color_viridis_d(begin = 0, end = 0.6, direction = -1, option = "D",  guide=guide_legend(title="Outcome group:")) +
   scale_y_continuous(breaks=seq(1,3.2,by=0.2))+
@@ -610,14 +609,18 @@ ggsave(filename = here("output","washb-geopair-relative-efficiency.png"),plot_re
 Compare weighted versus unweighted correlation
 
 ```{r plot correlation}
+pcols <- c("#D9B86A", "#9B9F7C", "#5986B0")
 plot_corr <- ggplot(data = dreffplot, aes(x = corr_w, y = corr_u, color = outcome_group)) +
   facet_grid(~country) +
   geom_abline(intercept = 0, slope = 1, color="gray40") +
-  geom_point(size=2.5, alpha=0.7) +
+  geom_point(size=2.5, alpha=0.9) +
+  geom_point(pch=21, bg=NA, size=2.5, show.legend = TRUE) +
   geom_text(data = dreffplot %>% filter(corr_w - corr_u >0.2), 
             aes(label = outcome_lab2, color = outcome_group),
             size = 2.5, hjust=1, nudge_x = -0.02,show.legend = FALSE) +
-  scale_color_brewer(palette = "Dark2", guide=guide_legend(title="Outcome group:")) +
+  scale_color_manual(values = pcols, guide=guide_legend(title="Outcome group:")) +
+  scale_fill_manual(values = pcols) +
+  # scale_color_brewer(palette = "Dark2", guide=guide_legend(title="Outcome group:")) +
   scale_x_continuous(breaks=seq(0,0.7,by=0.1))+
   scale_y_continuous(breaks=seq(0,0.7,by=0.1))+
   labs(x = "Weighted correlation", y = "Unweighted correlation") +
