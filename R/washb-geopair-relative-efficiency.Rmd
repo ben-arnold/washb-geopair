@@ -6,7 +6,7 @@ date: "updated: `r Sys.time()`"
 output: 
   html_document:
     theme: default
-    highlight: haddock
+    highlight: pygments
     code_folding: hide
     toc: true
     toc_depth: 3
@@ -51,20 +51,24 @@ source(here("R","washb-geopair-Config.R"))
 
 # anthropometry data
 danth <- read_rds(here("data","bangl_analysis_anthro.rds")) %>%
-  mutate(tr01 = ifelse(tr=="Nutrition",1,0)) 
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  mutate(tr01 = ifelse(tr=="Control",0,1)) 
   
 
 # child development data
 dchdev <- read_rds(here("data","bangl_analysis_chdev.rds")) %>%
-  mutate(tr01 = ifelse(tr=="Nutrition",1,0))
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  mutate(tr01 = ifelse(tr=="Control",0,1))
 
 # diarrhea data
 ddiar <- read_rds(here("data","bangl_analysis_diar.rds")) %>%
-  mutate(tr01 = ifelse(tr=="Nutrition",1,0))
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  mutate(tr01 = ifelse(tr=="Control",0,1))
 
 # giardia data
 dpara <- read_rds(here("data","bangl_analysis_parasite.rds")) %>%
-  mutate(tr01 = ifelse(tr=="Nutrition",1,0))
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  mutate(tr01 = ifelse(tr=="Control",0,1))
 
 ```
 
@@ -296,31 +300,35 @@ ate_res <- ate_res %>%
 # washb-geopair-data-processing.R
 #
 # in each dataset, exclude 
-# the 9 matched blocks that do
+# the 10 matched blocks that do
 # not have treatment contrasts
 # for nutrition vs. control
 #-------------------------------
 
 # anthropometry data
 dkanth <- read_rds(here("data","kenya_analysis_anthro.rds")) %>%
-  mutate(tr01 = ifelse(tr=="Nutrition",1,0)) %>%
-  filter(!block %in% c(11,13,23,33,40,65,72,84,85))
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  mutate(tr01 = ifelse(tr %in% c("Control","Passive Control"),0,1)) %>%
+  filter(!block %in% c(11,13,20,23,33,40,65,72,84,85))
 
 
 # diarrhea data
 dkdiar <- read_rds(here("data","kenya_analysis_diar.rds")) %>%
-  mutate(tr01 = ifelse(tr=="Nutrition",1,0)) %>%
-  filter(!block %in% c(11,13,23,33,40,65,72,84,85))
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  mutate(tr01 = ifelse(tr %in% c("Control"),0,1)) %>%
+  filter(!block %in% c(11,13,20,23,33,40,65,72,84,85))
 
 # parasite data
 dkpara <- read_rds(here("data","kenya_analysis_parasite.rds")) %>%
-  mutate(tr01 = ifelse(tr=="Nutrition",1,0)) %>%
-  filter(!block %in% c(11,13,23,33,40,65,72,84,85))
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  mutate(tr01 = ifelse(tr %in% c("Control"),0,1)) %>%
+  filter(!block %in% c(11,13,20,23,33,40,65,72,84,85))
 
 # child development data
 dkchdev <- read_rds(here("data","kenya_analysis_chdev.rds")) %>%
-  mutate(tr01 = ifelse(tr=="Nutrition",1,0)) %>%
-  filter(!block %in% c(11,13,23,33,40,65,72,84,85)) 
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  mutate(tr01 = ifelse(tr %in% c("Control"),0,1)) %>%
+  filter(!block %in% c(11,13,20,23,33,40,65,72,84,85))
 
 ```
 
@@ -343,7 +351,7 @@ k_ate_laz <- estimate_Imai_ATE(Y=d$laz,Z=d$tr01,grp=d$clusterid,match=d$block,da
 #-------------------------------
 # WAZ
 #-------------------------------
-d <- dkanth %>% filter(!is.na(waz))
+d <- dkanth %>% filter(!is.na(waz)) 
 k_ate_waz <- estimate_Imai_ATE(Y=d$waz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
@@ -565,7 +573,7 @@ dreffplot2 <- dreffplot %>%
 
 
 # data frame for function
-d_reff <- data.frame(rho = seq(0,0.8,by=0.01)) %>%
+d_reff <- data.frame(rho = seq(0,1,by=0.01)) %>%
   mutate(reff = 1/(1-rho))
 
 # make plot
@@ -609,20 +617,20 @@ Compare weighted versus unweighted correlation
 
 ```{r plot correlation}
 pcols <- c("#D9B86A", "#9B9F7C", "#5986B0")
-plot_corr <- ggplot(data = dreffplot, aes(x = corr_u, y = corr_w)) +
+plot_corr <- ggplot(data = dreffplot, aes(x = corr_w, y = corr_u)) +
   facet_grid(~country) +
   geom_abline(intercept = 0, slope = 1, color="gray40") +
   geom_point(aes(color = outcome_group),size=2.5, alpha=0.9) +
   geom_point(pch=21, bg=NA, size=2.5, show.legend = TRUE) +
   geom_text(data = dreffplot %>% filter(corr_w - corr_u >0.2), 
             aes(label = outcome_lab2, color = outcome_group),
-            size = 2.5, hjust=0, nudge_x = 0.02,show.legend = FALSE) +
+            size = 2.5, hjust=1, nudge_x = -0.02,show.legend = FALSE) +
   scale_color_manual(values = pcols, guide=guide_legend(title="Outcome group:")) +
   scale_fill_manual(values = pcols) +
   # scale_color_brewer(palette = "Dark2", guide=guide_legend(title="Outcome group:")) +
-  scale_x_continuous(breaks=seq(0,0.7,by=0.1))+
-  scale_y_continuous(breaks=seq(0,0.7,by=0.1))+
-  labs(x = "Unweighted correlation", y = "Weighted correlation") +
+  scale_x_continuous(breaks=seq(0,1,by=0.1))+
+  scale_y_continuous(breaks=seq(0,1,by=0.1))+
+  labs(x = "Weighted correlation", y = "Unweighted correlation") +
   coord_cartesian(xlim=c(0,0.7),ylim = c(0,0.7)) +
   theme_minimal() +
   theme(
