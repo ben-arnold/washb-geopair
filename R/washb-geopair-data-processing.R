@@ -63,25 +63,42 @@ d_anth2 <- d_anth %>%
   select(dataid,childid,tchild,clusterid,svy,waz,laz,whz,hcz) %>%
   left_join(d_tr, by = "clusterid") %>%
   filter(svy==2) %>%
-  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
-  mutate(tr2 = ifelse(tr == "Control","Control","Nutrition"),
-         tr2 = factor(tr2)) %>%
-  select(-tr,-svy) %>%
-  rename(tr=tr2)
+  mutate(tr = factor(tr, levels = c("Control","Water","Sanitation","Handwashing","WSH","Nutrition","Nutrition + WSH"))
+  ) %>%
+  select(-svy)
+  
 
 d_easq2 <- d_easq %>%
   select(dataid,childid,clusterid,block,tchild,arm, z_easq_com = z_com, z_easq_motor = z_motor, z_easq_pers = z_personal, z_easq_total = z_combined) %>%
-  # coding: see codebook: 7=Control, 6=WSH+N, 4=Nutrition
-  filter(arm %in% c(7,6,4)) %>%
-  mutate(tr = ifelse(arm==7,"Control","Nutrition")) %>%
+  mutate(tr = case_when(
+    arm == 1 ~ "Sanitation",
+    arm == 2 ~ "Handwashing",
+    arm == 3 ~ "Water",
+    arm == 4 ~ "Nutrition",
+    arm == 5 ~ "WSH",
+    arm == 6 ~ "Nutrition + WSH",
+    arm == 7 ~ "Control"
+  ), 
+  tr = factor(tr, levels = c("Control","Water","Sanitation","Handwashing","WSH","Nutrition","Nutrition + WSH"))
+  ) %>%
   select(-arm)
+  
 
 d_cdi2 <- d_cdi %>%
   select(dataid,childid,clusterid,block,tchild,arm, z_cdi_comp = z_endline_CDI_understand, z_cdi_expr = z_endline_CDI_say) %>%
-  # coding: see codebook: 7=Control, 6=WSH+N, 4=Nutrition
-  filter(arm %in% c(7,6,4)) %>%
-  mutate(tr = ifelse(arm==7,"Control","Nutrition")) %>%
+  mutate(tr = case_when(
+    arm == 1 ~ "Sanitation",
+    arm == 2 ~ "Handwashing",
+    arm == 3 ~ "Water",
+    arm == 4 ~ "Nutrition",
+    arm == 5 ~ "WSH",
+    arm == 6 ~ "Nutrition + WSH",
+    arm == 7 ~ "Control"
+  ), 
+  tr = factor(tr, levels = c("Control","Water","Sanitation","Handwashing","WSH","Nutrition","Nutrition + WSH"))
+  ) %>%
   select(-arm)
+  
 
 d_chd2 <- full_join(d_easq2, d_cdi2, by = c("dataid","childid","clusterid","block","tchild","tr")) %>%
   select(dataid,childid,clusterid,tchild,block,tr,everything())
@@ -90,31 +107,24 @@ d_diar2 <- d_diar %>%
   select(dataid,childid,tchild,clusterid,svy,diar7d) %>%
   left_join(d_tr, by = "clusterid") %>%
   filter(svy > 0) %>%
-  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
-  mutate(tr2 = ifelse(tr == "Control","Control","Nutrition"),
-         tr2 = factor(tr2)) %>%
-  select(-tr,-svy) %>%
-  rename(tr=tr2)
+  mutate(tr = factor(tr, levels = c("Control","Water","Sanitation","Handwashing","WSH","Nutrition","Nutrition + WSH"))
+  ) %>%
+  select(-svy)
+  
 
 d_prot2 <- d_prot %>%
   select(dataid,clusterid,personid,block,tr,giar=posgi, delta_prot) %>%
-  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   # exclude missing values
   filter(delta_prot == "Observed") %>%
-  mutate(tr2 = ifelse(tr == "Control","Control","Nutrition"),
-         tr2 = factor(tr2)) %>%
-  select(-tr,-delta_prot) %>%
-  rename(tr=tr2)
+  mutate(tr = factor(tr, levels = c("Control","Water","Sanitation","Handwashing","WSH","Nutrition","Nutrition + WSH"))
+  )
 
 d_sth2 <- d_sth %>%
   select(dataid,clusterid,personid,block,tr,al,tt,hw,sth) %>%
-  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   # exclude missing values
   filter(!is.na(al)) %>%
-  mutate(tr2 = ifelse(tr == "Control","Control","Nutrition"),
-         tr2 = factor(tr2)) %>%
-  select(-tr) %>%
-  rename(tr=tr2)
+  mutate(tr = factor(tr, levels = c("Control","Water","Sanitation","Handwashing","WSH","Nutrition","Nutrition + WSH"))
+  )
 
 # merge giardia and STH datasets
 # there were 3 children with giardia measures but no STH measures,
@@ -154,18 +164,7 @@ dk_diar <- read_csv(here("data","washb-kenya-diar-public.csv"))
 # documented as other data
 # use the replication script as
 # documentation: https://osf.io/fpxms/
-dk_para <- haven::read_dta(here("data","parasites_kenya_public_ca20171215.dta"))
-
-# the Kenya public parasite dataset
-# does not include cluster IDs
-# create them since treatment 
-# and block uniquely clusters 
-# (except control, so pooled there)
-dk_para2 <- dk_para %>%
-  group_by(block,tr) %>%
-  mutate(clusteridr2 = cur_group_id() ) %>%
-  ungroup()
-
+dk_para <- haven::read_dta(here("data","parasites_kenya_public_ca20201202.dta"))
 
 
 #----------------------------------
@@ -176,35 +175,31 @@ dk_para2 <- dk_para %>%
 # limit to relevant variables
 #----------------------------------
 dk_anth2 <- dk_anth %>%
-  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
-  mutate(tr2 = ifelse(tr == "Control","Control","Nutrition"),
-         tr2 = factor(tr2)) %>%
-  select(clusterid, compoundid, hhid, childid, block, tr=tr2, targetchild, laz=haz, waz, whz, hcz, haz_who, waz_who, whz_who)
+  select(clusterid, compoundid, hhid, childid, block, tr, targetchild, laz=haz, waz, whz, hcz, haz_who, waz_who, whz_who)
 
 dk_chd2 <- dk_chd %>%
-  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
-  mutate(tr2 = ifelse(tr == "Control","Control","Nutrition"),
-         tr2 = factor(tr2)) %>%
-  select(childidr2, hhidr2, clusteridr2, block, tr=tr2, z_easq_com = comtotz, z_easq_motor = mottotz, z_easq_pers = pstotz, z_easq_total = globaltotz)
+  select(childidr2, hhidr2, clusteridr2, block, tr, z_easq_com = comtotz, z_easq_motor = mottotz, z_easq_pers = pstotz, z_easq_total = globaltotz)
 
 
 dk_diar2 <- dk_diar %>%
   filter(time > 0) %>%
-  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
-  mutate(tr2 = ifelse(tr == "Control","Control","Nutrition"),
-         tr2 = factor(tr2)) %>%
-  select(clusterid, compoundid, hhid, childid, block, tr=tr2, targetchild, diar7d=diarr7) %>%
+  select(clusterid, compoundid, hhid, childid, block, tr, targetchild, diar7d=diarr7) %>%
   mutate(childidr2 = (childid+3252)*10,
          clusteridr2 = (clusterid+3252)*10)
 
 
-dk_para2 <- dk_para2 %>%
-  # restrict to control or nutrition arms
-  # 1 = control, 6 = N, 7 = N+WSH
-  filter(tr %in% c(1,6,7)) %>%
-  mutate(tr2 = ifelse(tr == 1,"Control","Nutrition"),
-         tr2 = factor(tr2)) %>%
-  select(-tr) %>%
+dk_para2 <- dk_para %>%
+  mutate(tr2 = case_when(
+    tr == 1 ~ "Control",
+    tr == 2 ~ "Water",
+    tr == 3 ~ "Sanitation",
+    tr == 4 ~ "Handwashing",
+    tr == 5 ~ "WSH",
+    tr == 6 ~ "Nutrition",
+    tr == 7 ~ "Nutrition + WSH"
+  ),
+  tr2 = factor(tr2, levels = c("Control","Water","Sanitation","Handwashing","WSH","Nutrition","Nutrition + WSH"))
+         ) %>%
   select(childidr2, hhidr2, clusteridr2, block,tr=tr2, giar = giardia_yn, al = ascaris_yn, tt = trichuris_yn, hw = hook_yn, sth = sth_yn)
 
 #----------------------------------
