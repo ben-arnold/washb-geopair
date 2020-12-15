@@ -587,8 +587,7 @@ plot_reff <- ggplot(data=dreffplot2, aes(x = corr_w, y = eff_w)) +
   # refine aesthetics
   scale_color_manual(values = pcols, guide=guide_legend(title="Outcome group:")) +
   # scale_color_brewer(palette = "Dark2", guide=guide_legend(title="Outcome group:")) +
-
-  # scale_color_viridis_d(begin = 0, end = 0.6, direction = -1, option = "D",  guide=guide_legend(title="Outcome group:")) +
+  # scale_color_viridis_d(begin = 0.4, end = 0.8, direction = -1, option = "E",  guide=guide_legend(title="Outcome group:")) +
   scale_y_continuous(breaks=seq(1,3.2,by=0.2))+
   scale_x_continuous(breaks=seq(0,0.7,by=0.1)) +
   coord_cartesian(ylim=c(1,3.2),xlim = c(0,0.7)) +
@@ -610,20 +609,20 @@ Compare weighted versus unweighted correlation
 
 ```{r plot correlation}
 pcols <- c("#D9B86A", "#9B9F7C", "#5986B0")
-plot_corr <- ggplot(data = dreffplot, aes(x = corr_w, y = corr_u, color = outcome_group)) +
+plot_corr <- ggplot(data = dreffplot, aes(x = corr_u, y = corr_w)) +
   facet_grid(~country) +
   geom_abline(intercept = 0, slope = 1, color="gray40") +
-  geom_point(size=2.5, alpha=0.9) +
+  geom_point(aes(color = outcome_group),size=2.5, alpha=0.9) +
   geom_point(pch=21, bg=NA, size=2.5, show.legend = TRUE) +
   geom_text(data = dreffplot %>% filter(corr_w - corr_u >0.2), 
             aes(label = outcome_lab2, color = outcome_group),
-            size = 2.5, hjust=1, nudge_x = -0.02,show.legend = FALSE) +
+            size = 2.5, hjust=0, nudge_x = 0.02,show.legend = FALSE) +
   scale_color_manual(values = pcols, guide=guide_legend(title="Outcome group:")) +
   scale_fill_manual(values = pcols) +
   # scale_color_brewer(palette = "Dark2", guide=guide_legend(title="Outcome group:")) +
   scale_x_continuous(breaks=seq(0,0.7,by=0.1))+
   scale_y_continuous(breaks=seq(0,0.7,by=0.1))+
-  labs(x = "Weighted correlation", y = "Unweighted correlation") +
+  labs(x = "Unweighted correlation", y = "Weighted correlation") +
   coord_cartesian(xlim=c(0,0.7),ylim = c(0,0.7)) +
   theme_minimal() +
   theme(
