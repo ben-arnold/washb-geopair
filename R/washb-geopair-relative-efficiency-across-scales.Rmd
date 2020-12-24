@@ -36,9 +36,8 @@ source(here("R","washb-geopair-Config.R"))
 
 
 
-# Bangladesh
 
-## Data prep
+# Data prep
 
 ```{r load data}
 
@@ -50,6 +49,7 @@ source(here("R","washb-geopair-Config.R"))
 # washb-geopair-gps-data-processing.R
 #-------------------------------
 distmat_b <- read_rds(here("data","bangl_analysis_block_dists.rds"))
+distmat_k <- read_rds(here("data","kenya_analysis_block_dists.rds"))
 
 #-------------------------------
 # load the pair-level summary
@@ -80,7 +80,7 @@ dcl_b <- dcl %>% filter(country=="Bangladesh")
 dcl_k <- dcl %>% filter(country=="Kenya") %>% mutate(outcome_lab = factor(outcome_lab))
 ```
 
-## Geographic sampling functions
+# Geographic sampling functions
 
 ```{r bangladesh geographic sampling function}
 #-------------------------------
@@ -154,6 +154,7 @@ geofind <- function(distframe,blockid,nclosest) {
 
 ```
 
+# Bangladesh
 
 ## Correlation across scales
 For each outcome, estimate the correlation between paired means.
@@ -221,7 +222,7 @@ cor_ests_b <- cor_geo_b %>%
 ```
 
 
-```{r estimate median correlation}
+```{r bangladesh estimate median correlation}
 #-------------------------------
 # estimate the median correlation
 # and IQR of correlation across
@@ -239,11 +240,11 @@ medcor_ests_b <- cor_ests_b %>%
 ```
 
 
-# Estimate 95% CIs for relative efficacy
+## Estimate 95% CIs for relative efficiency
 
 Use a bootstrap resampling approach, resampling pairs with replacement, to estimate the 95% confidence interval for relative efficacy of geographic pair matching with 90 matched pairs. This will enable us to show whether lower efficacy at smaller sample sizes is significantly lower, and not just a function of sampling variability.
 
-```{r bootstrap CIs for relative efficacy}
+```{r bangladesh bootstrap CIs for relative efficiency}
 #-------------------------------
 # pivot wider to make the bootstrap
 # easy
@@ -301,9 +302,9 @@ releff_ci_b <- cor_boot_ci_b %>%
 
 
 
-# Relative efficacy across geographic scales
+## Relative efficiency across geographic scales
 
-# Summary Figure
+### Summary Figure
 
 ```{r plot relative efficiency bangladesh}
 
@@ -348,7 +349,7 @@ plot_reff <- ggplot(data=dreleff_b, aes(x = npairs, y = releff, color = outcome_
 plot_reff
 
 
-ggsave(here("output","washb-geopair-relative-efficacy-geographic-scale-smallreps.png"), plot_reff, device = "png", width = 8, height = 8)
+ggsave(here("output","washb-geopair-relative-efficacy-geographic-scale-smallreps-bangladesh.png"), plot_reff, device = "png", width = 8, height = 8)
 ```
 
 Alternate format
@@ -396,7 +397,7 @@ out_labs_print <- cor90ests_b %>%
   mutate(releff90 = ifelse(outcome_lab == "length-for-age z",releff90+0.1, releff90))  %>%
   arrange(outcome_group, desc(releff90)) %>%
   mutate(outcome_order = seq_along(outcome_lab)) %>%
-  mutate(y_text = 3.8 - outcome_order*0.1) %>% 
+  mutate(y_text = 4.4 - outcome_order*0.1) %>% 
   ungroup() %>%
   mutate(releff_cat = case_when(
     releff90 <1.4 ~ "<1.4",
@@ -417,7 +418,7 @@ dreleff_b <- dreleff_b %>%
 #-------------------------------
 # make plot
 #-------------------------------
-pcols <- rev(nytpal[3:7])
+pcols <- rev(nytpal[2:7])
 plot_reff <- ggplot(data=dreleff_b, aes(x = npairs, y = releff, color = releff_cat, fill = releff_cat, group = outcome_lab)) +
   # facet over outcome
   facet_grid(~outcome_group) +
@@ -427,8 +428,8 @@ plot_reff <- ggplot(data=dreleff_b, aes(x = npairs, y = releff, color = releff_c
   # refine aesthetics
   # scale_color_viridis_d(option = "C", end=0.8, direction = -1) +
   # scale_fill_viridis_d(option = "C", end=0.8, direction = -1) +
-  scale_color_manual(values = pcols) +
-  scale_fill_manual(values = pcols) +
+  scale_color_manual(values = pcols, drop = FALSE) +
+  scale_fill_manual(values = pcols, drop = FALSE) +
   # add outcome labels
   geom_text(data = out_labs_print, 
             aes(label=outcome_lab, col = releff_cat, y = y_text), 
@@ -438,9 +439,9 @@ plot_reff <- ggplot(data=dreleff_b, aes(x = npairs, y = releff, color = releff_c
             size=3,
             inherit.aes = FALSE, show.legend = FALSE) +
   #
-  scale_y_continuous(breaks=seq(1,3.4,by=0.4))+
+  scale_y_continuous(breaks=seq(1,4.2,by=0.4))+
   scale_x_continuous(breaks=seq(10,90,by=20)) +
-  coord_cartesian(ylim=c(1,3.6)) +
+  coord_cartesian(ylim=c(1,4.2)) +
   labs(x=expression(paste("Number of geographically contiguous matched pairs")),y=expression(paste("Relative efficiency of geographic pair-matching, (1-",italic(r),")")^-1)) +
   guides(colour = guide_legend(title = "Relative efficiency with 90 pairs",nrow = 1)) +
   theme_minimal() +
@@ -450,8 +451,307 @@ plot_reff <- ggplot(data=dreleff_b, aes(x = npairs, y = releff, color = releff_c
 plot_reff
 
 
-ggsave(here("output","washb-geopair-relative-efficiency-geographic-scale.png"), plot_reff, device = "png", width = 8, height = 5)
+ggsave(here("output","washb-geopair-relative-efficiency-geographic-scale-bangladesh.png"), plot_reff, device = "png", width = 8, height = 5)
 ```
+
+
+
+
+
+# Kenya
+
+## Correlation across scales
+For each outcome, estimate the correlation between paired means.
+
+Repeat estimates from 84 down to 10 pairs. 
+
+Consider a random sample across the entire study population and a geographically proximate sample.  For geographically proximate samples, compute estimates based on all 84 blocks selected as the initial sampling point, in turn.
+
+
+```{r kenya pairwise correlation by number of pairs}
+#-------------------------------
+# Kenya
+#
+# Geographically proximate 
+# estimates across the 78
+# possible permutations
+#-------------------------------
+cor_geo_k <- foreach(outi = levels(dcl_k$outcome_lab), .combine = rbind) %dopar% {
+  foreach(npairs = c(seq(10,78,by=2),79), .combine = rbind) %:% 
+  foreach(blockn = unique(dcl_k$block), .combine = rbind) %do% {
+    
+    # identify the geographically proximate npairs to blockn
+    sampi <- geofind(distframe = distmat_b, blockid = blockn, nclosest = npairs)
+    di <- dcl_k %>%
+      filter(block %in% sampi$block_select & outcome_lab == outi)
+    # estimate outcome correlation, weighted by pair-wise N
+    wY1bar <- di$Y1bar*di$w
+    wY0bar <- di$Y0bar*di$w
+    corri <- 2*cov(wY1bar,wY0bar) / ( var(wY1bar) + var(wY0bar) )
+    # return results
+    res <- data.frame(outcome_lab = outi, npairs , block_select = blockn, corr = corri)
+    res
+  }
+}
+
+#-------------------------------
+# randomly sampled pairs
+# (not necessarily geographically proximate)
+# up to N pairs
+#-------------------------------
+
+cor_random_k <- foreach(outi = levels(dcl_k$outcome_lab), .combine = rbind) %dopar% {
+  foreach(npairs = c(seq(10,78,by=2),79), .combine = rbind) %:% 
+  foreach(iteri = 1:78, .combine = rbind) %do% {
+    set.seed(iteri)
+    # Randomly sample npairs without replacement
+    sampi <- sample(dcl_k$block[dcl_k$outcome_lab == outi], size = npairs, replace = FALSE)
+    di <- dcl_k %>%
+      filter(block %in% sampi & outcome_lab == outi)
+    # estimate outcome correlation, weighted by pair-wise N
+    wY1bar <- di$Y1bar*di$w
+    wY0bar <- di$Y0bar*di$w
+    corri <- 2*cov(wY1bar,wY0bar) / ( var(wY1bar) + var(wY0bar) )
+    # return results
+    res <- data.frame(outcome_lab = outi, npairs , corr = corri)
+    res
+  }
+}
+
+cor_ests_k <- cor_geo_k %>%
+  mutate(method = "geographically proximate pairs") %>%
+  bind_rows(cor_random_k) %>%
+  mutate(method = ifelse(is.na(method),"randomly sampled pairs",method)) %>%
+  mutate(outcome_lab = factor(outcome_lab, levels = levels(dcl_k$outcome_lab)))
+```
+
+
+```{r kenya estimate median correlation}
+#-------------------------------
+# estimate the median correlation
+# and IQR of correlation across
+# the different resampling
+# replicates
+#-------------------------------
+medcor_ests_k <- cor_ests_k %>% 
+  group_by(outcome_lab,method,npairs) %>% 
+  summarize(mediancor = median(corr, na.rm = TRUE), 
+            p25cor = quantile(corr,probs = 0.25, na.rm = TRUE),
+            p75cor = quantile(corr,probs = 0.75, na.rm = TRUE),
+            .groups = "keep") %>%
+  mutate(x = npairs/2)
+
+```
+
+
+
+
+## Estimate 95% CIs for relative efficiency
+
+Use a bootstrap resampling approach, resampling pairs with replacement, to estimate the 95% confidence interval for relative efficacy of geographic pair matching with 79 matched pairs. This will enable us to show whether lower efficacy at smaller sample sizes is significantly lower, and not just a function of sampling variability.
+
+```{r kenya bootstrap CIs for relative efficiency}
+#-------------------------------
+# pivot wider to make the bootstrap
+# easy
+#-------------------------------
+dboot <- dcl_k %>%
+  group_by(outcome_lab)
+
+# estimate outcome correlation, weighted by pair-wise N
+corx <- function(x,y,w) {
+    xw <- x*w
+    yw <- y*w
+    wcorr <- 2*cov(xw,yw) / ( var(xw) + var(yw) )
+    return(wcorr)
+}
+
+#-------------------------------
+# boostrap resample within
+# each outcome group
+# 1000 iterations
+#-------------------------------
+cor_boot_k <- foreach(iteri = 1:1000, .combine = rbind) %dopar% {
+  set.seed(iteri)
+  di <- dboot %>% 
+    slice_sample(prop = 1, replace = TRUE)
+  corest <- di %>% group_map( ~ corx(x=.x$Y1bar, y=.x$Y0bar,w = .x$w))
+  
+  res <- data.frame(iter = iteri, outcome_lab = levels(di$outcome_lab), corr = unlist(corest))
+  res
+}
+
+cor_boot_k2 <- cor_boot_k %>%
+  mutate(outcome_lab = factor(outcome_lab, levels = levels(dcl_k$outcome_lab)))
+
+#-------------------------------
+# calculate percentile 95% CIs 
+# from the bootstrap distribution
+#-------------------------------
+cor_boot_ci_k <- cor_boot_k2 %>%
+  group_by(outcome_lab) %>%
+  mutate(cor_min95 = quantile(corr, probs = 0.025),
+         cor_max95 = quantile(corr, probs = 0.975)) %>%
+  slice(1) %>%
+  select(outcome_lab, cor_min95, cor_max95)
+
+#-------------------------------
+# transform correlation 95% CIs 
+# into relative efficacy
+#-------------------------------
+releff_ci_k <- cor_boot_ci_k %>%
+  mutate(releff_min95 = 1/(1-cor_min95),
+         releff_max95 = 1/(1-cor_max95))
+
+```
+
+
+## Relative efficiency across geographic scales
+
+### Summary Figure
+
+```{r plot relative efficiency kenya}
+
+# calculate relative efficacy from correlation
+dreleff_k <- medcor_ests_k %>%
+  filter(method == "geographically proximate pairs") %>%
+  mutate(releff = 1/(1-mediancor),
+         releff25 = 1/(1-p25cor),
+         releff75 = 1/(1-p75cor)) %>%
+  # merge on the oucome groups 
+  left_join( dcl_k %>% group_by(outcome_lab) %>% slice(1) %>% select(outcome_lab,outcome_group), by="outcome_lab") %>%
+  # re-arrange order of the outcome groups for plot aesthetics
+  mutate(outcome_lab_rev = factor(outcome_lab, levels = rev(levels(dcl_k$outcome_lab))) )
+
+
+# make a data frame to plot a ribbon for the 95% CI
+releff_ci_k_plot <- expand_grid(outcome_lab = unique(dreleff_k$outcome_lab), npairs = unique(dreleff_k$npairs)) %>%
+  left_join(releff_ci_k, by = "outcome_lab")
+
+
+# make plot
+pcols <- nytpal[c(6,1,7)]
+plot_reff_k <- ggplot(data=dreleff_k, aes(x = npairs, y = releff, color = outcome_group, fill = outcome_group)) +
+  # facet over outcome
+  facet_wrap(~outcome_lab_rev,ncol=4) +
+  # plot results
+  geom_ribbon(aes(ymin = releff25, ymax = releff75), alpha=0.2, color = NA) +
+  geom_line() +
+  # refine aesthetics
+  # scale_color_manual(values = pcols) +
+  # scale_fill_manual(values = pcols) +
+  scale_color_brewer(palette = "Dark2") +
+  scale_fill_brewer(palette = "Dark2") +
+  scale_y_continuous(breaks=seq(1,3.4,by=0.4))+
+  scale_x_continuous(breaks=seq(10,90,by=20)) +
+  labs(x=expression(paste("Number of geographically contiguous matched pairs")),y=expression(paste("Relative efficacy of geographic pair-matching, (1-",italic(r),")")^-1)) +
+  guides(colour = guide_legend(title = "N pairs",nrow = 1)) +
+  theme_minimal() +
+  theme(
+    legend.position = "none"  
+    )
+plot_reff_k
+
+
+ggsave(here("output","washb-geopair-relative-efficacy-geographic-scale-smallreps-kenya.png"), plot_reff_k, device = "png", width = 8, height = 8)
+```
+
+Alternate format
+```{r plot relative efficiency kenya compressed}
+#-------------------------------
+# calculate relative efficacy 
+# from correlation
+#-------------------------------
+dreleff_k <- medcor_ests_k %>%
+  filter(method == "geographically proximate pairs") %>%
+  mutate(releff = 1/(1-mediancor),
+         releff25 = 1/(1-p25cor),
+         releff75 = 1/(1-p75cor)) %>%
+  # merge on the outcome groups 
+  left_join( dcl_k %>% group_by(outcome_lab) %>% slice(1) %>% select(outcome_lab,outcome_group), by="outcome_lab") %>%
+  # re-arrange order of the outcome groups for plot aesthetics
+  mutate(outcome_lab_rev = factor(outcome_lab, levels = rev(levels(dcl_k$outcome_lab))) )
+
+#-------------------------------
+# add correlation at 78 pairs
+# to color each outcome in the
+# figure
+#-------------------------------
+cor79ests_k <- dreleff_k %>%
+  ungroup() %>%
+  filter(npairs == 78) %>%
+  select(outcome_group,outcome_lab, cor79 = mediancor, releff79 = releff) %>%
+  arrange(outcome_group, desc(releff79))
+
+dreleff_k <- dreleff_k %>%
+  left_join(cor79ests_k, by = c("outcome_group","outcome_lab"))
+
+#-------------------------------
+# store outcome labels to add to
+# plot
+#-------------------------------
+out_labs_print_k <- cor79ests_k %>%
+  group_by(outcome_group) %>%
+  arrange(outcome_group, desc(releff79)) %>%
+  mutate(outcome_order = seq_along(outcome_lab)) %>%
+  mutate(y_text = 4.4 - outcome_order*0.1) %>% 
+  ungroup() %>%
+  mutate(releff_cat = case_when(
+    releff79 <1.4 ~ "<1.4",
+    releff79 >=1.4 & releff79 < 1.6 ~ "1.4 to 1.6",
+    releff79 >= 1.6 & releff79 < 1.8 ~ "1.6 to 1.8",
+    releff79 >= 1.8 & releff79 < 2.0 ~ "1.8 to 2.0",
+    releff79 >= 2.0 & releff79 < 2.2 ~ "2.0 to 2.2",
+    releff79 >2.2 ~ ">2.2",
+    TRUE ~ as.character(NA)
+  ),
+  releff_cat = factor(releff_cat, levels=c("<1.4","1.4 to 1.6","1.6 to 1.8","1.8 to 2.0","2.0 to 2.2",">2.2"))
+         ) %>%
+  select(outcome_group,outcome_lab,releff_cat, outcome_order, y_text)
+  
+dreleff_k <- dreleff_k %>%
+  left_join(out_labs_print_k, by = c("outcome_group","outcome_lab"))
+
+#-------------------------------
+# make plot
+#-------------------------------
+pcols <- rev(nytpal[2:7])
+plot_reff_k <- ggplot(data=dreleff_k, aes(x = npairs, y = releff, color = releff_cat, fill = releff_cat, group = outcome_lab)) +
+  # facet over outcome
+  facet_grid(~outcome_group) +
+  # plot results
+  geom_ribbon(aes(ymin = releff25, ymax = releff75), alpha=0.2, color = NA, show.legend = FALSE) +
+  geom_line() +
+  # refine aesthetics
+  # scale_color_viridis_d(option = "C", end=0.8, direction = -1) +
+  # scale_fill_viridis_d(option = "C", end=0.8, direction = -1) +
+  scale_color_manual(values = pcols, drop = FALSE) +
+  scale_fill_manual(values = pcols, drop = FALSE) +
+  # add outcome labels
+  geom_text(data = out_labs_print_k, 
+            aes(label=outcome_lab, col = releff_cat, y = y_text), 
+            x = 89, 
+            hjust=1, # right align
+            vjust = 1,
+            size=3,
+            inherit.aes = FALSE, show.legend = FALSE) +
+  #
+  scale_y_continuous(breaks=seq(1,4.2,by=0.4))+
+  scale_x_continuous(breaks=seq(10,90,by=20)) +
+  coord_cartesian(ylim=c(1,4.2), xlim=c(10,90)) +
+  labs(x=expression(paste("Number of geographically contiguous matched pairs")),y=expression(paste("Relative efficiency of geographic pair-matching, (1-",italic(r),")")^-1)) +
+  guides(colour = guide_legend(title = "Relative efficiency with 79 pairs",nrow = 1)) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom"  
+    )
+plot_reff_k
+
+
+ggsave(here("output","washb-geopair-relative-efficiency-geographic-scale-kenya.png"), plot_reff_k, device = "png", width = 8, height = 5)
+```
+
+
 # Session Info
 ```{r session info}
 sessionInfo()
