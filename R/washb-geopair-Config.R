@@ -34,6 +34,17 @@ library(lmtest)
 library(rptR)
 
 #----------------------------
+# spatial packages
+#----------------------------
+library(sp)
+library(sf)
+library(geosphere)
+library(automap)
+library(leaflet)
+library(raster)
+library(rcartocolor)
+
+#----------------------------
 # parallel computing packages
 #----------------------------
 library(foreach)
@@ -44,6 +55,7 @@ registerDoParallel(detectCores() - 1)
 #----------------------------
 # custom color pallettes
 #----------------------------
+library(viridis)
 
 # safe color blind palette
 # http://jfly.iam.u-tokyo.ac.jp/color/
