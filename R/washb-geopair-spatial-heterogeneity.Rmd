@@ -1,0 +1,373 @@
+---
+title: "Assessing outcome spatial heterogeneity in the WASH Benefits trials"
+subtitle: " "
+author: "Ben Arnold ben.arnold@ucsf.edu"
+date: "updated: `r Sys.time()`"
+output: 
+  html_document:
+    theme: default
+    highlight: haddock
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+# Summary
+
+Summary here: **TBD**
+
+Details of original citations and data sources here: **TBD**
+
+
+# Preamble
+
+```{r preamble}
+library(here)
+here()
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","washb-geopair-Config.R"))
+
+```
+
+
+
+# Bangladesh
+
+## Data prep
+
+```{r load bangladesh data}
+#-------------------------------
+# load the formatted analysis
+# data created by
+# washb-geopair-data-processing.R
+# washb-geopair-gps-data-processin.R
+#-------------------------------
+
+# anthropometry data
+danth <- read_rds(here("data","bangl_analysis_anthro.rds")) %>%
+  mutate(blockf = factor(block))
+
+# child development data
+dchdev <- read_rds(here("data","bangl_analysis_chdev.rds")) %>%
+  mutate(blockf = factor(block))
+
+# diarrhea data
+ddiar <- read_rds(here("data","bangl_analysis_diar.rds")) %>%
+  mutate(blockf = factor(block))
+
+# parasite data
+dpara <- read_rds(here("data","bangl_analysis_parasite.rds")) %>%
+  mutate(blockf = factor(block))
+
+# GPS locations
+# NOT PUBLICLY AVAILABLE -- NEED TO USE ACCURATE LON/LAT FOR MAPPING
+dgps <- read_rds(here("data","bangl_analysis_gps.rds")) %>%
+  mutate(block = as.character(block),
+         blockf = factor(block))
+  # save control cluster points for convenience
+  dbgps_control <- dgps %>%
+    filter(tr=="Control")
+```
+
+```{r bangladesh cluster level means}
+#-------------------------------
+# read-in cluster level means
+# these were estimated in the file
+# washb-geopair-relative-efficiency.Rmd
+#-------------------------------
+dcl <- read_rds("~/washb-geopair/data/washb_pair_level_summary_estimates.rds")
+
+```
+
+```{r bangladesh make spatial data}
+#-------------------------------
+# Limit to control data
+# join block-level GPS coordinates
+# and convert to spatial data format
+# for spatial analyses
+#-------------------------------
+dbgps <- dgps %>%
+  filter(tr == "Control") %>%
+  mutate(country = "Bangladesh") %>%
+  left_join(dcl, by = c("country","block")) %>%
+  # calculate the number positive in control clusters for binomial models
+  mutate(pos0 = round(Y0bar*n0 ),
+         pos0 = ifelse(outcome_lab %in% c("Diarrhea","Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm"), pos0, NA))
+
+dbgps_sf <- dbgps %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
+  as("Spatial")
+
+
+```
+
+
+## Semivariance
+
+
+```{r bangladesh semivariance, eval = FALSE}
+
+# rule of thumb: limit max distance in variogram to half of maximum interpoint distance
+distances <- sapply(1:nrow(danths), function(x) geosphere::distGeo(p1 = danths, p2 = danths[x,])) # estimate distance from each point to all other points
+max_dist <- max(distances) / 3 / 1000 # divide by 1000 to turn meters to km
+
+# note that automap creates fewer, but larger bins than gstat (gstat results were much more unstable)
+laz_fit <- automap::autofitVariogram(formula = laz~1,
+                                       input_data = danths[!is.na(danths$laz),],
+                                       model = "Mat", # ability to fit multiple models at once is deprecated?
+                                     miscFitOptions = list(merge.small.bins=TRUE)) # automap has this feature, gstat does not
+
+plot(laz_fit)
+
+
+al_fit <- automap::autofitVariogram(formula = al~1,
+                                       input_data = dparas[!is.na(dparas$al),],
+                                       model = "Exp", # ability to fit multiple models at once is deprecated?
+                                     miscFitOptions = list(merge.small.bins=TRUE)) # automap has this feature, gstat does not
+
+```
+
+
+```{r make bangladesh prediction grid}
+#---------------------------
+# Identify the convex hull
+# around villages and make
+# a polygon and prediction grid
+#---------------------------
+xycoords <- as.matrix(dbgps[,c('lon','lat')])
+xychull <- xycoords[chull(xycoords),]
+bxypoly <- st_polygon(list(rbind(xychull,xychull[1,]))) %>%
+  st_sfc() %>% st_sf() %>% st_set_crs(4326)
+
+b_predgrid <- st_make_grid(bxypoly,
+                           n=c(100,100),
+                           what = "centers")
+
+b_gridxy <- as.data.frame(st_coordinates(b_predgrid)) %>%
+  rename(lon=X,lat=Y)
+
+```
+
+
+```{r bangladesh geospatial model fits}
+#---------------------------
+# geospatial model predictions
+# low rank gaussian process
+# to smooth between points
+#---------------------------
+library(mgcv)
+
+# LAZ
+geofit_laz <- gam(Y0bar ~ s(lat,lon, k=-1,bs="gp"), 
+                   family="gaussian", weights = n0,
+                   data=dbgps %>% filter(outcome_lab == "length-for-age z"),
+                   method="REML", select=TRUE)
+
+# CDI comprehension
+geofit_cdic <- gam(Y0bar ~ s(lat,lon, k=-1,bs="gp"), 
+                   family="gaussian", weights = n0,
+                   data=dbgps %>% filter(outcome_lab == "CDI comprehension z"),
+                   method="REML", select=TRUE)
+
+# Ascaris
+geofit_al <- gam(cbind(pos0,n0) ~ s(lat,lon, k=-1,bs="gp"), 
+                   family="binomial",
+                   data=dbgps %>% filter(outcome_lab == "Ascaris sp."),
+                   method="REML",
+                   select=TRUE)
+
+```
+
+```{r bangladesh geospatial model predictions}
+#---------------------------
+# model predictions 
+# at village points
+#---------------------------
+dbgps$pred <- NA
+dbgps$pred[dbgps$outcome_lab == "length-for-age z"] <- predict(geofit_laz,type="response")
+dbgps$pred[dbgps$outcome_lab == "CDI comprehension z"] <- predict(geofit_cdic,type="response")
+dbgps$pred[dbgps$outcome_lab == "Ascaris sp."] <- predict(geofit_al,type="response")
+
+
+#---------------------------
+# model predictions over 
+# the entire prediction grid
+#---------------------------
+bpred_laz <- predict(geofit_laz,newdata=b_gridxy,type="response")
+bpred_cdic <- predict(geofit_cdic,newdata=b_gridxy,type="response")
+bpred_al <- predict(geofit_al,newdata=b_gridxy,type="response")
+
+# as rasters
+brast_laz <- SpatialPixelsDataFrame(points=b_gridxy[c("lon","lat")],data=data.frame(fit=bpred_laz),proj4string=CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"))
+
+brast_cdic <- SpatialPixelsDataFrame(points=b_gridxy[c("lon","lat")],data=data.frame(fit=bpred_cdic),proj4string=CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"))
+
+brast_al <- SpatialPixelsDataFrame(points=b_gridxy[c("lon","lat")],data=data.frame(fit=bpred_al*100),proj4string=CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"))
+
+```
+
+
+# Bangladesh Maps
+
+## LAZ
+
+```{r map Bangladesh LAZ, warning = FALSE, out.width = "100%"}
+
+brastp_laz <- raster::raster(brast_laz,layer=1)
+xlon <- median(dbgps_control$lon)
+ylat <- median(dbgps_control$lat)
+
+# define the color palettes for mean 
+# reverse palettes are there just for the legend
+# so that we can present high values on the top
+pal <- colorNumeric(
+  palette = "viridis",
+  domain=c(raster::values(brastp_laz)),
+  na.color = "transparent"
+)
+pal_rev <- colorNumeric(
+  palette = "viridis",
+  domain=c(raster::values(brastp_laz)),
+  na.color = "transparent",
+  reverse = TRUE
+)
+
+# make the map
+mapb_laz <- leaflet(width = "100%") %>% 
+  addProviderTiles("CartoDB.Positron",options=providerTileOptions(opacity=1)) %>%
+  setView(lng = xlon, lat = ylat, zoom = 8) %>%
+  addRasterImage(brastp_laz, colors=pal, opacity=0.9, group="Mean") %>%
+  addCircleMarkers(data = dbgps_control,
+                   lng = ~ lon, lat = ~ lat,
+                   radius = 1,
+                   color = ~"black", fill = ~ "black",  weight=1,fillOpacity = 1
+              ) %>%
+  
+  # add scale bar and legends
+  addScaleBar(position="bottomleft",options=scaleBarOptions(imperial = FALSE)) %>%
+  addLegend(position="bottomright",
+            pal = pal_rev, 
+            values= c(raster::values(brastp_laz)),
+            labFormat = labelFormat(transform = function(x) sort(x, decreasing = TRUE)),
+            title = "LAZ",
+            group = "Mean"
+            )
+
+mapb_laz
+
+```
+
+
+## CDI comprehension
+
+Communicative Development Inventory (comprehension)
+
+```{r map Bangladesh CDI comp, warning = FALSE, out.width = "100%"}
+
+brastp_cdic <- raster::raster(brast_cdic,layer=1)
+xlon <- median(dbgps_control$lon)
+ylat <- median(dbgps_control$lat)
+
+# define the color palettes for mean 
+# reverse palettes are there just for the legend
+# so that we can present high values on the top
+scale_range <- c(-0.2, 0.2)
+rcartopal <- carto_pal(9,"Earth")
+pal <- colorNumeric(
+  palette = rcartopal,
+  domain= scale_range,
+  na.color = "transparent"
+)
+pal_rev <- colorNumeric(
+  palette = rcartopal,
+  domain=scale_range,
+  na.color = "transparent",
+  reverse = TRUE
+)
+
+# make the map
+mapb_cdic <- leaflet(width = "100%") %>% 
+  addProviderTiles("CartoDB.Positron",options=providerTileOptions(opacity=1)) %>%
+  setView(lng = xlon, lat = ylat, zoom = 8) %>%
+  addRasterImage(brastp_cdic, colors=pal, opacity=1, group="Mean") %>%
+  addCircleMarkers(data = dbgps_control,
+                   lng = ~ lon, lat = ~ lat,
+                   radius = 1,
+                   color = ~"black", fill = ~ "black",  weight=1,fillOpacity = 1
+              ) %>%
+  
+  # add scale bar and legends
+  addScaleBar(position="bottomleft",options=scaleBarOptions(imperial = FALSE)) %>%
+  addLegend(position="bottomright",
+            pal = pal_rev, 
+            values= scale_range,
+            labFormat = labelFormat(transform = function(x) sort(x, decreasing = TRUE)),
+            title = "CDI Z-score<br>comprehension",
+            group = "Mean"
+            )
+
+mapb_cdic
+
+
+```
+
+
+## Ascaris sp.
+
+```{r map Bangladesh Ascaris, warning = FALSE, out.width = "100%"}
+
+brastp_al <- raster::raster(brast_al,layer=1)
+xlon <- median(dbgps_control$lon)
+ylat <- median(dbgps_control$lat)
+
+# define the color palettes for mean 
+# reverse palettes are there just for the legend
+# so that we can present high values on the top
+pal <- colorNumeric(
+  palette = "inferno",
+  domain=c(raster::values(brastp_al)),
+  na.color = "transparent"
+)
+pal_rev <- colorNumeric(
+  palette = "inferno",
+  domain=c(raster::values(brastp_al)),
+  na.color = "transparent",
+  reverse = TRUE
+)
+
+# make the map
+mapb_al <- leaflet(width = "100%") %>% 
+  addProviderTiles("CartoDB.Positron",options=providerTileOptions(opacity=1)) %>%
+  setView(lng = xlon, lat = ylat, zoom = 8) %>%
+  addRasterImage(brastp_al, colors=pal, opacity=0.9, group="Prevalence") %>%
+  addCircleMarkers(data = dbgps_control,
+                   lng = ~ lon, lat = ~ lat,
+                   radius = 1,
+                   color = ~"black", fill = ~ "black",  weight=1,fillOpacity = 1
+              ) %>%
+  
+  # add scale bar and legends
+  addScaleBar(position="bottomleft",options=scaleBarOptions(imperial = FALSE)) %>%
+  addLegend(position="bottomright",
+            pal = pal_rev, 
+            values= c(raster::values(brastp_al)),
+            labFormat = labelFormat(transform = function(x) sort(x, decreasing = TRUE)),
+            title = "Ascaris<br>Prevalence (%)",
+            group = "Prevalence"
+            )
+
+mapb_al
+
+```
+
+# Session Info
+```{r session info}
+sessionInfo()
+```
+
+
