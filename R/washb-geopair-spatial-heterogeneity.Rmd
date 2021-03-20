@@ -32,6 +32,12 @@ here()
 #----------------------------
 source(here("R","washb-geopair-Config.R"))
 
+#----------------------------
+# add the raster package
+# which conflicts with dplyr::select
+#----------------------------
+library(raster)
+
 ```
 
 
@@ -365,8 +371,16 @@ mapb_al
 
 ```
 
+
+
 # Session Info
 ```{r session info}
+
+#----------------------------
+# detach the raster package
+#----------------------------
+detach("package:raster", unload=TRUE)
+
 sessionInfo()
 ```
 

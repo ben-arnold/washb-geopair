@@ -41,7 +41,6 @@ library(sf)
 library(geosphere)
 library(automap)
 library(leaflet)
-library(raster)
 library(rcartocolor)
 
 #----------------------------
