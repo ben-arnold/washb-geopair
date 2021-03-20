@@ -1,6 +1,6 @@
 ---
-title: "Relative efficiency of geographic pair matching in the WASH Benefits trials"
-subtitle: ""
+title: "Geographic pair matching in large-scale cluster randomized trials"
+subtitle: "Estimates of relative efficiency"
 author: "Ben Arnold ben.arnold@ucsf.edu"
 date: "updated: `r Sys.time()`"
 output: 
@@ -33,6 +33,11 @@ here()
 # source the config file
 #----------------------------
 source(here("R","washb-geopair-Config.R"))
+
+#----------------------------
+# source the base functions
+#----------------------------
+source(here("R","washb-geopair-Functions.R"))
 
 ```
 
@@ -73,88 +78,6 @@ dpara <- read_rds(here("data","bangl_analysis_parasite.rds")) %>%
 ```
 
 ## Estimate ATE and relative efficacy
-
-```{r estimate ATE using imai estimator}
-#-------------------------------
-# estimate_Imai_ATE
-# convenience wrapper to run the 
-# ATEcluster() function from the
-# experiment package 
-#
-# and return a matched-pair level 
-# data frame with key attributes. 
-#
-# It also calculates ATE 95% CIs
-# based on the arithmetic mean 
-# estimator from Imai et al. 2009
-#
-# It also estimates weighted
-# and unweighted pair-wise
-# outcome correlation, and 
-# corresponding relative efficiency 
-# of the matched pair design compared
-# with an unmatched design
-#
-# Arguments, from environment::ATEcluster()
-# @Y : outcome (vector)
-# @Z : binary indicator of treatmetn (0/1)
-# @grp : ID variable for clusters
-# @match : ID variable for matched pairs
-# @data : dataset that includes all these vars
-#
-# returns a list that includes:
-# est       : ATE estimate, Imai 2009 estimator
-# var       : Variance of ATE, Imai 2009 estimator
-# est_min95 : lower bound of the 95% CI for ATE
-# est_max95 : upper bound of the 95% CI for ATE
-# corr_w : pair-wise outcome correlation, weighted
-# corr_u : pair-wise outcome correlation, unweighted
-# eff_w  : relative efficiencey of pair-matched design to unmatched design, weighted
-# eff_u  : relative efficiencey of pair-matched design to unmatched design, unweighted
-# dcl    : a data-frame of pair-level estimates, including:
-#           Y1bar: mean in treatment clusters
-#           Y0bar: mean in control clusters
-#           diff: Y1bar-Y0bar
-#           n1:  number of observations in treatment clusters (also used as weights)
-#           n0:  number of observations in control clusters (also used as weights)
-#           w:  pair-level weight (arithmetic mean)
-#           w_dk:  pair-level weight (geometric mean, per Donner & Klar 1993)
-#-------------------------------
-library(experiment)
-
-estimate_Imai_ATE <- function(Y,Z,grp,match,data) {
-  
-  # estimate ATE and cluster-level means
-  estATE <- ATEcluster(Y=Y, Z=Z, grp=grp, match=match, data=data)
-  
-  # estimate 95% CIs based on the artimetic mean weighted variance
-  # from Imai et al. 2009
-  est_min95 <- estATE$est - 1.96*sqrt(estATE$var)
-  est_max95 <- estATE$est + 1.96*sqrt(estATE$var)
-  
-  # estimate weighted and unweighted correlation between outcomes
-  # see section 5.2 of Imai et al. 2009
-  wY1bar <- estATE$Y1bar*estATE$w
-  wY0bar <- estATE$Y0bar*estATE$w
-  corr_w <- 2*cov(wY1bar,wY0bar) / ( var(wY1bar) + var(wY0bar) )
-  corr_u <- cor(estATE$Y1bar,estATE$Y0bar)
-  
-  # estimate relative efficiency compared to an unmatched design
-  # with weighted and unweighted correlation
-  eff_w <- 1/(1-corr_w)
-  eff_u <- 1/(1-corr_u)
-  
-  # combine cluster level measures in a data.frame()
-  dcl <- data.frame(Y1bar=estATE$Y1bar,Y0bar=estATE$Y0bar,diff=estATE$diff,
-                    n1=estATE$n1,n0=estATE$n0,w=estATE$w, w_dk=estATE$w.dk)
-  
-  return(
-    list(est = estATE$est, var = estATE$var, est_min95=est_min95, est_max95=est_max95, corr_w=corr_w, corr_u=corr_u, eff_w= eff_w, eff_u=eff_u,  dcl=dcl)
-  )
-}
-
-```
-
 ```{r estimate ATE and relative efficiency bangladesh}
 #-------------------------------
 # the estimate_Imai_ATE function
@@ -162,6 +85,9 @@ estimate_Imai_ATE <- function(Y,Z,grp,match,data) {
 # in the outcome, so subset each
 # dataset to non-missing values
 # before each estimation
+#
+# the estimate_IMAI_ATE function
+# is in washb-geopair-Functions.R
 #-------------------------------
 
 #-------------------------------
