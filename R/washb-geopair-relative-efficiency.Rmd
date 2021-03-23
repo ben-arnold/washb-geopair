@@ -426,9 +426,19 @@ dcl <- bind_rows(dcl_b,dcl_k) %>%
   select(country,outcome_lab,block,everything()) %>%
   arrange(country,outcome_lab,block)
 
-write_rds(dcl, path = here("data","washb_pair_level_summary_estimates.rds"))
-write_csv(dcl, path = here("data","washb_pair_level_summary_estimates.csv"))
+write_rds(dcl, file = here("data","washb_pair_level_summary_estimates.rds"))
+write_csv(dcl, file = here("data","washb_pair_level_summary_estimates.csv"))
 
+
+```
+
+# Save ATE and Relative Efficiency Estimates
+```{r save ate and reff estimates}
+ate_res2 <- ate_res %>%
+  bind_rows(k_ate_res) 
+
+write_rds(ate_res2, file = here("data","washb_ATE_releff_estimates.rds"))
+write_csv(ate_res2, file = here("data","washb_ATE_releff_estimates.csv"))
 
 ```
 
