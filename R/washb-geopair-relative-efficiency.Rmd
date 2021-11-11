@@ -177,7 +177,7 @@ ate_hw <- estimate_Imai_ATE(Y=d$hw,Z=d$tr01,grp=d$clusterid,match=d$block,data=d
 ```
 
 
-```{r summarize relative efficacy bangladesh}
+```{r summarize relative efficiency bangladesh}
 #-------------------------------
 # Summarize relative efficacy
 #-------------------------------
@@ -386,7 +386,6 @@ k_ate_res <- k_ate_res %>%
   dplyr::select(country,outcome_lab, everything())
 
 ```
-
 # Save pair-level summary dataset
 
 Save a dataset that includes pair-level means and treatment effects. These estimates will be used in later analysis and plotting
@@ -432,13 +431,153 @@ write_csv(dcl, file = here("data","washb_pair_level_summary_estimates.csv"))
 
 ```
 
+# Estimate 95% CIs for relative efficiency
+
+Use a bootstrap resampling approach, resampling pairs with replacement, to estimate the 95% confidence interval for relative efficacy of geographic pair matching with 90 matched pairs. This will enable us to show whether lower efficacy at smaller sample sizes is significantly lower, and not just a function of sampling variability.
+
+```{r bangladesh bootstrap CIs for relative efficiency}
+#-------------------------------
+# pivot wider to make the bootstrap
+# easy
+#-------------------------------
+dboot <- dcl %>%
+  filter(country == "Bangladesh") %>%
+  group_by(outcome_lab)
+
+# estimate outcome correlation, weighted by pair-wise N
+corx <- function(x,y,w) {
+    xw <- x*w
+    yw <- y*w
+    wcorr <- 2*cov(xw,yw) / ( var(xw) + var(yw) )
+    return(wcorr)
+}
+
+#-------------------------------
+# boostrap resample within
+# each outcome group
+# 1000 iterations
+#-------------------------------
+cor_boot_b <- foreach(iteri = 1:1000, .combine = rbind) %dopar% {
+  set.seed(iteri)
+  di <- dboot %>% 
+    slice_sample(prop = 1, replace = TRUE)
+  corest <- di %>% group_map( ~ corx(x=.x$Y1bar, y=.x$Y0bar,w = .x$w))
+  
+  res <- data.frame(iter = iteri, outcome_lab = levels(di$outcome_lab), corr = unlist(corest))
+  res
+}
+
+cor_boot_b2 <- cor_boot_b %>%
+  mutate(outcome_lab = factor(outcome_lab, levels = levels(dcl$outcome_lab)))
+
+#-------------------------------
+# calculate percentile 95% CIs 
+# from the bootstrap distribution
+#-------------------------------
+cor_boot_ci_b <- cor_boot_b2 %>%
+  group_by(outcome_lab) %>%
+  mutate(cor_min95 = quantile(corr, probs = 0.025),
+         cor_max95 = quantile(corr, probs = 0.975)) %>%
+  slice(1) %>%
+  select(outcome_lab, cor_min95, cor_max95)
+
+#-------------------------------
+# transform correlation 95% CIs 
+# into relative efficacy
+#-------------------------------
+releff_ci_b <- cor_boot_ci_b %>%
+  mutate(releff_min95 = 1/(1-cor_min95),
+         releff_max95 = 1/(1-cor_max95)) %>%
+  mutate(country = "Bangladesh")
+
+#-------------------------------
+# join to the existing estimates
+# of relative efficiency
+#-------------------------------
+ate_res2 <- ate_res %>%
+  left_join(releff_ci_b, by=c("country","outcome_lab"))
+
+```
+
+```{r kenya bootstrap CIs for relative efficiency}
+#-------------------------------
+# pivot wider to make the bootstrap
+# easy
+#-------------------------------
+dboot <- dcl %>%
+  filter(country == "Kenya") %>%
+  mutate(outcome_lab = droplevels(outcome_lab)) %>%
+  group_by(outcome_lab) 
+
+#-------------------------------
+# boostrap resample within
+# each outcome group
+# 1000 iterations
+#-------------------------------
+cor_boot_k <- foreach(iteri = 1:1000, .combine = rbind) %dopar% {
+  set.seed(iteri)
+  di <- dboot %>% 
+    slice_sample(prop = 1, replace = TRUE)
+  corest <- di %>% group_map( ~ corx(x=.x$Y1bar, y=.x$Y0bar,w = .x$w))
+  
+  res <- data.frame(iter = iteri, outcome_lab = levels(di$outcome_lab), corr = unlist(corest))
+  res
+}
+
+cor_boot_k2 <- cor_boot_k %>%
+  mutate(outcome_lab = factor(outcome_lab, levels = levels(dcl$outcome_lab)))
+
+#-------------------------------
+# calculate percentile 95% CIs 
+# from the bootstrap distribution
+#-------------------------------
+cor_boot_ci_k <- cor_boot_k2 %>%
+  group_by(outcome_lab) %>%
+  mutate(cor_min95 = quantile(corr, probs = 0.025),
+         cor_max95 = quantile(corr, probs = 0.975)) %>%
+  slice(1) %>%
+  select(outcome_lab, cor_min95, cor_max95)
+
+#-------------------------------
+# transform correlation 95% CIs 
+# into relative efficacy
+#-------------------------------
+releff_ci_k <- cor_boot_ci_k %>%
+  mutate(releff_min95 = 1/(1-cor_min95),
+         releff_max95 = 1/(1-cor_max95)) %>%
+  mutate(country = "Kenya")
+
+#-------------------------------
+# join to the existing estimates
+# of relative efficiency
+#-------------------------------
+k_ate_res2 <- k_ate_res %>%
+  left_join(releff_ci_k, by=c("country","outcome_lab"))
+
+```
+
+
 # Save ATE and Relative Efficiency Estimates
 ```{r save ate and reff estimates}
-ate_res2 <- ate_res %>%
-  bind_rows(k_ate_res) 
+#-------------------------------
+# Estimate control and intervention
+# means
+#-------------------------------
+dcl_means <- dcl %>%
+  group_by(country,outcome_lab) %>%
+  summarize(Y0bar = weighted.mean(Y0bar,w = n0),
+            Y1bar = weighted.mean(Y1bar,w = n1),
+            .groups = "keep"
+            )
 
-write_rds(ate_res2, file = here("data","washb_ATE_releff_estimates.rds"))
-write_csv(ate_res2, file = here("data","washb_ATE_releff_estimates.csv"))
+
+ate_res3 <- ate_res2 %>%
+  bind_rows(k_ate_res2) %>%
+  left_join(dcl_means, by = c("country","outcome_lab")) %>%
+  select(country, outcome_lab, Y0bar, Y1bar, everything())
+
+write_rds(ate_res3, file = here("data","washb_ATE_releff_estimates.rds"))
+write_csv(ate_res3, file = here("data","washb_ATE_releff_estimates.csv"))
 
 ```
 
@@ -535,15 +674,90 @@ plot_reff <- ggplot(data=dreffplot2, aes(x = corr_w, y = eff_w)) +
   scale_y_continuous(breaks=seq(1,3.2,by=0.2))+
   scale_x_continuous(breaks=seq(0,0.7,by=0.1)) +
   coord_cartesian(ylim=c(1,3.2),xlim = c(0,0.7)) +
-  labs(x=expression(paste("Correlation between paired outcomes, (",italic(r),")")),y=expression(paste("Relative efficiency of geographic pair-matching, (1-",italic(r),")")^-1)) +
+  labs(x=expression(paste("Correlation between paired outcomes, (",italic(r),")")),y=expression(paste("Relative efficiency of geographic pair-matching, (1-",italic(r),")")^-1), tag = "a") +
   theme_minimal() +
   theme(
-    legend.position = "bottom",
-    panel.grid.minor = element_blank()
+    legend.position = "none",
+    panel.grid.minor = element_blank(),
+    plot.tag = element_text(face = "bold")
   )
 plot_reff
 
-ggsave(filename = here("output","washb-geopair-relative-efficiency.png"),plot_reff,device = "png", height=5,width=7)
+```
+
+# Break even correlation
+
+
+The power of the matched t-test for a two-tailed 0.05 test where the power of the unmatched test is held at 0.80 and the pairs are uncorrelated
+```{r power of matched vs unmatched}
+
+#------------------------------
+# power of the matched
+# compared to unmatched test
+# r = 0
+#------------------------------
+ns <- 2:50
+sdu <- 1
+powr0 <- foreach(ni = ns, .combine = rbind) %do% {
+  pu <- power.t.test(n=ni,sd=sdu, power=0.8, type="two.sample")
+  pm <- power.t.test(n=ni,delta=pu$delta, sd=sqrt(2)*sdu, sig.level= 0.05, type = "one.sample")
+  res <- data.frame(n=ni, powm = pm$power, powu = pu$power,sdm=pm$sd,sdu = sdu)
+}
+
+ggplot(data=powr0, aes(x=n)) +
+  geom_hline(yintercept = 0.8, color = "gray40") + 
+  geom_line(aes(y=powm)) +
+  scale_y_continuous(breaks=seq(0,1,by=0.1))+
+  coord_cartesian(ylim = c(0,1)) +
+  labs(x = "number of pairs", y = "power") +
+  theme_minimal() 
+```
+
+Solve for break even correlations of matched versus unmatched designs. This is an adaptation of Figure 4 in Martin et al. (1993)(https://pubmed.ncbi.nlm.nih.gov/8456215/), where they present a function of within-pair correlation, $r_{xy}$, whose squared value equals the within-pair correlation, ($r_{yy}$ in their notation). Below is the break-even correlation for within-pair outcomes.
+
+```{r break even correlation}
+#------------------------------
+# solve for break-even r
+#------------------------------
+ns <- 3:50
+sdu <- 1
+breakrs <- foreach(ni = ns, .combine = rbind) %do% {
+  pu <- power.t.test(n=ni,sd=sdu, power=0.8, sig.level= 0.05, type="two.sample")
+  pm <- power.t.test(n=ni,delta=pu$delta, power=0.8,sd=NULL, sig.level= 0.05, type = "one.sample")
+  ri = 1 - ( pm$sd^2/(2*(sdu)^2) )
+  res <- data.frame(n=ni, powm = pm$power, powu = pu$power,sdm=pm$sd,sdu = sdu, r=ri)
+}
+ggplot(data=breakrs, aes(x=n,y=r)) +
+  geom_line(aes(), color = "gray40") + 
+  geom_point() +
+  scale_y_continuous(breaks=seq(0,1,by=0.1))+
+  labs(x = "number of pairs", y = "break-even correlation (r)") +
+  annotate("text",x = 10, y=0.225, label = "Favors a matched design", hjust = 0)+
+  annotate("text",x = 1, y=0.025, label = "Favors unmatched design", hjust = 0)+
+  coord_cartesian(ylim = c(0,0.6), xlim=c(0,50)) +
+  theme_minimal() 
+
+#------------------------------
+# solve for break even r
+# by iteration
+# (not used) 100% consistent
+# with the analytic solution, above
+# just did this to confirm
+#------------------------------
+# ns <- 2:50
+# sdu <- 1
+# powrs <- foreach(ni = ns, .combine = rbind) %do% {
+#   pu <- power.t.test(n=ni,sd=sdu, power=0.8, type="two.sample")
+#   ri <- 0
+#   powm <- 0
+#   while(ri < 1 & powm < 0.8) {
+#     pm <- power.t.test(n=ni,delta=pu$delta, sd=sqrt(2)*sdu*sqrt(1-ri), sig.level= 0.05, type = "one.sample")
+#     powm <- pm$power
+#     ri <- ri+0.001
+#   }
+#   res <- data.frame(n=ni, powm = pm$power, powu = pu$power,sdm=pm$sd,sdu = sdu, r=ri)
+# }
+
 
 ```
 
@@ -552,10 +766,19 @@ ggsave(filename = here("output","washb-geopair-relative-efficiency.png"),plot_re
 Compare weighted versus unweighted correlation
 
 ```{r plot correlation}
+
+# retrieve the break-even correlation for N = 10 pairs
+breakr10 <- breakrs %>% 
+  filter(n==10) %>%
+  pull(r)
+
 pcols <- c("#D9B86A", "#9B9F7C", "#5986B0")
 plot_corr <- ggplot(data = dreffplot, aes(x = corr_w, y = corr_u)) +
   facet_grid(~country) +
+  geom_vline(xintercept=breakr10,color = "gray60", lwd=0.5) + 
+  annotate("text",x=breakr10+0.01,y=0.65,label="break-even correlation\nfor n=10 pairs",hjust=0,size=2.5) +
   geom_abline(intercept = 0, slope = 1, color="gray40") +
+  
   geom_point(aes(color = outcome_group),size=2.5, alpha=0.9) +
   geom_point(pch=21, bg=NA, size=2.5, show.legend = TRUE) +
   geom_text(data = dreffplot %>% filter(corr_w - corr_u >0.2), 
@@ -566,19 +789,61 @@ plot_corr <- ggplot(data = dreffplot, aes(x = corr_w, y = corr_u)) +
   # scale_color_brewer(palette = "Dark2", guide=guide_legend(title="Outcome group:")) +
   scale_x_continuous(breaks=seq(0,1,by=0.1))+
   scale_y_continuous(breaks=seq(0,1,by=0.1))+
-  labs(x = "Weighted correlation", y = "Unweighted correlation") +
+  labs(x = "Weighted correlation", y = "Unweighted correlation", tag="b ") +
   coord_cartesian(xlim=c(0,0.7),ylim = c(0,0.7)) +
   theme_minimal() +
   theme(
     legend.position = "bottom",
-    panel.grid.minor = element_blank()
+    panel.grid.minor = element_blank(),    
+    plot.tag = element_text(face = "bold")
+
   )
 
 
 plot_corr
 
-ggsave(filename = here("output","washb-geopair-correlation-weight-v-unweight.png"),plot_corr,device = "png", height=4.5,width=7)
-  
+```
+Create a composite figure
+
+```{r composite correlation figure}
+plot_corr_comp <- grid.arrange(plot_reff,plot_corr,ncol=1,nrow=2)
+
+ggsave(here("output","washb-geopair-reff-corr.png"),plot_corr_comp,device="png",height=9,width=7)
+
+
+```
+
+
+# Relative efficiency by prevalence figure
+
+```{r plot relative efficiency by prevalence}
+
+prevplotd <- ate_res3 %>%
+  filter(outcome_lab %in% c("Diarrhea","Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm")) %>%
+   mutate(
+     lab_hjust = case_when(
+       country == "Kenya" & outcome_lab %in% c("Hookworm","Trichuris sp.") ~ 0,
+       TRUE ~ as.numeric(1)
+         ),
+     lab_xnudge = case_when(
+       country == "Kenya" & outcome_lab %in% c("Hookworm","Trichuris sp.") ~ 0.01,
+       TRUE ~ as.numeric(-0.01)
+         ),
+   )
+
+plot_reff_by_prev <- ggplot( data = prevplotd, aes(x = Y0bar, y = eff_w)) +
+  facet_grid(.~country) +
+  geom_pointrange(aes(ymin = releff_min95, ymax = releff_max95), color = "gray40") +
+  scale_x_continuous(breaks=seq(0,0.4,by=0.1), labels = sprintf("%1.0f",seq(0,0.4,by=0.1)*100))+
+  labs(x = "Outcome prevalence in control clusters (%)", y = "Relative efficiency") +
+   geom_text(aes(label = outcome_lab),
+             hjust=prevplotd$lab_hjust, nudge_x = prevplotd$lab_xnudge,
+            size = 2.5, show.legend = FALSE) +
+  theme_minimal()
+
+plot_reff_by_prev
+
+ggsave(filename = here("output","washb-geopair-releff-by-prev.png"),plot_reff_by_prev,device = "png", height=4.5,width=7)
 ```
 
 # Session Info
