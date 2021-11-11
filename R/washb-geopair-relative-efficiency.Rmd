@@ -689,6 +689,7 @@ plot_reff
 
 
 The power of the matched t-test for a two-tailed 0.05 test where the power of the unmatched test is held at 0.80 and the pairs are uncorrelated
+
 ```{r power of matched vs unmatched}
 
 #------------------------------
@@ -805,12 +806,9 @@ plot_corr
 ```
 Create a composite figure
 
-```{r composite correlation figure}
+```{r composite correlation figure, fig.height = 9}
 plot_corr_comp <- grid.arrange(plot_reff,plot_corr,ncol=1,nrow=2)
-
 ggsave(here("output","washb-geopair-reff-corr.png"),plot_corr_comp,device="png",height=9,width=7)
-
-
 ```
 
 
