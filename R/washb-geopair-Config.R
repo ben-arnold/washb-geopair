@@ -32,6 +32,7 @@ library(gridExtra)
 library(sandwich)
 library(lmtest)
 library(rptR)
+library(experiment)
 
 #----------------------------
 # spatial packages
