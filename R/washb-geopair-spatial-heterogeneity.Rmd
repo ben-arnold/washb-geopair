@@ -51,7 +51,7 @@ library(raster)
 # load the formatted analysis
 # data created by
 # washb-geopair-data-processing.R
-# washb-geopair-gps-data-processin.R
+# washb-geopair-gps-data-processing.R
 #-------------------------------
 
 # anthropometry data
@@ -70,7 +70,7 @@ ddiar <- read_rds(here("data","bangl_analysis_diar.rds")) %>%
 dpara <- read_rds(here("data","bangl_analysis_parasite.rds")) %>%
   mutate(blockf = factor(block))
 
-# GPS locations
+# Cluster-level GPS locations (centroids of compounds in each cluster)
 # NOT PUBLICLY AVAILABLE -- NEED TO USE ACCURATE LON/LAT FOR MAPPING
 dgps <- read_rds(here("data","bangl_analysis_gps.rds")) %>%
   mutate(block = as.character(block),
@@ -78,6 +78,8 @@ dgps <- read_rds(here("data","bangl_analysis_gps.rds")) %>%
   # save control cluster points for convenience
   dbgps_control <- dgps %>%
     filter(tr=="Control")
+  
+ddists <- read_rds(here("data","bangl_analysis_block_dists.rds"))
 ```
 
 ```{r bangladesh cluster level means}
@@ -92,60 +94,70 @@ dcl <- read_rds("~/washb-geopair/data/washb_pair_level_summary_estimates.rds")
 
 ```{r bangladesh make spatial data}
 #-------------------------------
-# Limit to control data
-# join block-level GPS coordinates
-# and convert to spatial data format
-# for spatial analyses
+# Create 3 GPS datasetes for 
+# the spatial kriging
+#
+# dataset 1 has all control
+# cluster centroids, used for
+# geostatistical model smooths
+# of the control group outcomes (n=180)
+#
+# dataset 2 has all control and
+# nutrition cluster centroids,
+# used for geostatistical model smooths
+# of the control + nutrition group
+# outcomes in a joint model (n=360)
+#
+# dataset 3 has block
+# level centroids, computed
+# as the median lon/lat across
+# clusters in each block (n=90)
 #-------------------------------
+dbgps_control <- dgps %>%
+  filter(tr=="Control") %>%
+  dplyr::select(clusterid,tr,block,blockf,lon,lat)
+
+dbgps_cn <- dgps %>%
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  dplyr::select(clusterid,tr,block,blockf,lon,lat)
+
 dbgps <- dgps %>%
-  filter(tr == "Control") %>%
+  ungroup() %>%
+  dplyr::select(block,blockf,tr,lon,lat) %>%
+  group_by(block,blockf) %>%
+  summarize(lon = median(lon),
+            lat = median(lat), 
+            .groups = "keep") %>%
   mutate(country = "Bangladesh") %>%
   left_join(dcl, by = c("country","block")) %>%
   # calculate the number positive in control clusters for binomial models
   mutate(pos0 = round(Y0bar*n0 ),
          pos0 = ifelse(outcome_lab %in% c("Diarrhea","Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm"), pos0, NA))
 
+#-------------------------------
+# create sf objects of gps datasets
+#-------------------------------
+dbgps_control_sf <- dbgps_control %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4326) 
+
+dbgps_cn_sf <- dbgps_cn %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4326) 
+
 dbgps_sf <- dbgps %>%
-  st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
-  as("Spatial")
+  st_as_sf(coords = c("lon", "lat"), crs = 4326) 
 
 
 ```
 
-
-## Semivariance
-
-
-```{r bangladesh semivariance, eval = FALSE}
-
-# rule of thumb: limit max distance in variogram to half of maximum interpoint distance
-distances <- sapply(1:nrow(danths), function(x) geosphere::distGeo(p1 = danths, p2 = danths[x,])) # estimate distance from each point to all other points
-max_dist <- max(distances) / 3 / 1000 # divide by 1000 to turn meters to km
-
-# note that automap creates fewer, but larger bins than gstat (gstat results were much more unstable)
-laz_fit <- automap::autofitVariogram(formula = laz~1,
-                                       input_data = danths[!is.na(danths$laz),],
-                                       model = "Mat", # ability to fit multiple models at once is deprecated?
-                                     miscFitOptions = list(merge.small.bins=TRUE)) # automap has this feature, gstat does not
-
-plot(laz_fit)
-
-
-al_fit <- automap::autofitVariogram(formula = al~1,
-                                       input_data = dparas[!is.na(dparas$al),],
-                                       model = "Exp", # ability to fit multiple models at once is deprecated?
-                                     miscFitOptions = list(merge.small.bins=TRUE)) # automap has this feature, gstat does not
-
-```
 
 
 ```{r make bangladesh prediction grid}
 #---------------------------
 # Identify the convex hull
-# around villages and make
+# around all villages and make
 # a polygon and prediction grid
 #---------------------------
-xycoords <- as.matrix(dbgps[,c('lon','lat')])
+xycoords <- as.matrix(dgps[,c('lon','lat')])
 xychull <- xycoords[chull(xycoords),]
 bxypoly <- st_polygon(list(rbind(xychull,xychull[1,]))) %>%
   st_sfc() %>% st_sf() %>% st_set_crs(4326)
@@ -157,6 +169,413 @@ b_predgrid <- st_make_grid(bxypoly,
 b_gridxy <- as.data.frame(st_coordinates(b_predgrid)) %>%
   rename(lon=X,lat=Y)
 
+#---------------------------
+# create a 6 km buffer around
+# clusters
+# 6 km was chosen through
+# iteration, finding the
+# smallest buffer around 
+# clusters that would create a 
+# single, contiguous
+# prediction surface
+#---------------------------
+
+# get cluster centroids
+dbgps_sf_utm <- dgps %>%
+  ungroup() %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
+  dplyr::select(geometry) %>%
+  # transform to UTM for km units
+  st_transform("+proj=utm +zone=46N +datum=WGS84 +units=km")
+
+# identify a 6km buffer around each cluster
+cl_6km <- st_buffer(dbgps_sf_utm, dist=6) %>%
+  # identify their union, then convert to a single polygon
+  summarise(geometry = st_union(geometry)) %>%
+  st_cast("POLYGON") %>%
+  # set the CRS back to WGS84
+  st_transform(crs=4326) %>%
+  # now crop the 6m buffer by the convex hull around study clusters
+  # to only extrapolate within the point cloud (not beyond)
+  st_intersection(bxypoly)
+
+# create a grid of points around the 6km buffer polygon
+b_6kmgrid <- st_make_grid(cl_6km,
+                           n=c(100,100),
+                           what = "centers") %>%
+  st_sf() %>% st_set_crs(4326)
+
+# subset the grid to those that intersect the polygon
+b_6kmgridxy <- st_intersection(b_6kmgrid,cl_6km) 
+
+```
+
+## Semivariance
+
+
+```{r bangladesh semivariance, eval = FALSE}
+
+# rule of thumb: limit max distance in variogram to half of maximum interpoint distance
+max_dist <- max(ddists) / 2 / 1000 # divide by 1000 to turn meters to km
+
+bpairs_laz <- dbgps %>% filter(outcome_lab=="length-for-age z") %>% ungroup() 
+bpairs_laz_sp <- SpatialPointsDataFrame(coords = bpairs_laz[,c("lon","lat")],bpairs_laz[,c("Y0bar")],match.ID=FALSE,proj4string = CRS("+proj=utm +zone=46N +datum=WGS84 +units=km"))
+
+b_6kmgridxy_sp <- b_6kmgridxy %>%
+  st_transform("+proj=utm +zone=46N +datum=WGS84 +units=km") %>%
+  as_Spatial()
+
+# note that automap creates fewer, but larger bins than gstat (gstat results were much more unstable)
+# laz_variofit <- automap::autofitVariogram(formula = Y0bar~1,
+#                                        input_data = bpairs_laz_sp,
+#                                        model = "Mat", # ability to fit multiple models at once is deprecated?
+#                                      miscFitOptions = list(merge.small.bins=TRUE)) # automap has this feature, gstat does not
+# plot(laz_variofit)
+
+# laz_kriged <- autoKrige(Y0bar~1, input_data=bpairs_laz_sp, new_data = b_6kmgridxy_sp)
+# laz_kriged_sf <- st_as_sf(laz_kriged$krige_output)
+
+# laz_variogram <- gstat::variogram(Y0bar~1, bpairs_laz_sp)
+# laz_variofit  <- gstat::fit.variogram(laz_variogram, model = vgm(psill=1,model="Mat",range=max_dist,nugget=1))
+# laz_kriged <- gstat::krige(formula = Y0bar~1, locations = bpairs_laz_sp, newdata = b_6kmgridxy_sp, model = laz_variofit)
+
+# al_fit <- automap::autofitVariogram(formula = al~1,
+#                                        input_data = dparas[!is.na(dparas$al),],
+#                                        model = "Exp", # ability to fit multiple models at once is deprecated?
+#                                      miscFitOptions = list(merge.small.bins=TRUE)) # automap has this feature, gstat does not
+
+```
+
+# Spatial predictions of outcomes and ATEs
+
+
+
+```{r outcome kriging function}
+## spatial prediction -----
+# `get_grid_preds`: get predictions over a surface using a simple model
+# input_grid: sf grid to get values over
+# df: dataframe with coordinates ("lat" & "lon") and outcome variable to build model
+# outcome_var: string, name of outcome variable of interest
+get_grid_preds <- function(input_grid, model_fit){
+  
+  # convert grid into a data.frame with lon/lat variables
+  newd <- input_grid %>%
+    st_centroid() %>% 
+    st_as_sf(crs = 4326) %>% 
+    mutate(lon = sf::st_coordinates(.)[,1],
+           lat = sf::st_coordinates(.)[,2]) %>%
+    st_drop_geometry()
+  
+  # get predictions
+  temp_preds <- predict(object = model_fit,
+                        type = "response",
+                        # create dataframe for predictions using centroid coordinates from grid
+                        newdata = newd)
+  
+  # get estimated variance
+  temp_predVar <- spaMM::get_predVar(object = model_fit, newdata = newd, which = "predVar")
+  
+  # merge predictions and variance with grid
+  ret <- input_grid %>% 
+    as.data.frame() %>% 
+    st_as_sf(crs = 4326) %>% 
+    mutate(pred = temp_preds,
+          pred_var = temp_predVar)
+  
+  return(ret)
+  
+}
+
+
+```
+
+## LAZ
+
+```{r bangladesh laz spatial model fit}
+#-------------------------
+# data frame for
+# LAZ spatial modeling
+#-------------------------
+bcontrol_laz <- danth %>%
+  filter(tr=="Control") %>%
+  group_by(clusterid) %>%
+  summarize(Y0bar=mean(laz,na.rm=TRUE),
+            nobs=n()) %>%
+  left_join(dgps,by=c("clusterid"))
+
+bnutrition_laz <- danth %>%
+  filter(tr %in% c("Nutrition","Nutrition + WSH")) %>%
+  group_by(clusterid) %>%
+  summarize(Y1bar=mean(laz,na.rm=TRUE),
+            nobs=n()) %>%
+  left_join(dgps,by=c("clusterid"))
+
+bpairs_laz <- dbgps %>% filter(outcome_lab=="length-for-age z") %>% ungroup()
+
+
+
+#-------------------------
+# fit spatial models for
+# control means
+# treatment means
+# differences
+#-------------------------
+# control mean
+(b_fitlaz0 <- spaMM::fitme(Y0bar ~ 1 + Matern(1|lat + lon),
+                           data = bcontrol_laz,
+                           family = gaussian(link = "identity")) )
+
+# nutrition mean
+(b_fitlaz1 <- spaMM::fitme(Y1bar ~ 1 + Matern(1|lat + lon),
+                           data = bnutrition_laz,
+                           family = gaussian(link = "identity")) )
+
+# mean difference
+(b_fitlaz_diff <- spaMM::fitme(diff ~  1 + Matern(1|lat + lon),
+                           data = bpairs_laz,
+                           family = gaussian(link = "identity")) )
+
+```
+
+```{r bangladesh laz spatial model predictions}
+#-------------------------
+# get model predictions 
+# over the study area grid
+#-------------------------
+b_lazpred0 <- get_grid_preds(input_grid = b_6kmgridxy, model_fit = b_fitlaz0) %>%
+  rename(pred0=pred, pred0_var=pred_var)
+
+b_lazpred1 <- get_grid_preds(input_grid = b_6kmgridxy, model_fit = b_fitlaz1) %>%
+  rename(pred1=pred, pred1_var=pred_var) %>%
+  st_drop_geometry()
+
+b_lazpred_diff <- get_grid_preds(input_grid = b_6kmgridxy, model_fit = b_fitlaz_diff) %>%
+  rename(pred_diff=pred, pred_var_diff = pred_var)
+
+b_lazpred <- b_lazpred0 %>%
+  as.data.frame() %>% 
+  st_as_sf(crs = 4326) %>% 
+  mutate(pred1 = b_lazpred1$pred1,
+         pred1_var = b_lazpred1$pred1_var,
+         diff = pred1-pred0)
+
+```
+
+```{r bangladesh laz spatial model predictions single model}
+#-------------------------
+# look at predictions from
+# a joint model
+#-------------------------
+
+bcn_laz <- danth %>%
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  mutate(tx_c = ifelse(tr=="Control",TRUE,FALSE),
+         tx_n = ifelse(tr=="Control",FALSE,TRUE),
+         tx = ifelse(tr=="Control","Control","Nutrition"),
+         tx = factor(tx),
+         tx01 = ifelse(tr=="Control",0,1)) %>%
+  group_by(clusterid,tx,tx01,tx_c,tx_n) %>%
+  summarize(Ybar=mean(laz,na.rm=TRUE),
+            nobs=n(), 
+            .groups = "keep") %>%
+  left_join(dgps,by=c("clusterid"))
+  
+
+# joint model of control and nutrition
+(b_fitlaz01 <- spaMM::fitme(Ybar ~  1 + Matern(tx_c|lat + lon) + Matern(tx_n | lat + lon),
+                           data = bcn_laz,
+                           family = gaussian(link = "identity")) )
+# (b_fitlaz01 <- spaMM::fitme(Ybar ~  tx + lat + lon + Matern(1| lat + lon),
+#                            data = bcn_laz,
+#                            family = gaussian(link = "identity")) )
+# (b_fitlaz01 <- spaMM::fitme(Ybar ~  tx*(lat+lon),
+#                            data = bcn_laz,
+#                            family = gaussian(link = "identity")) )
+
+
+
+b_6kmgridxy_c <- b_6kmgridxy %>%
+  mutate(tx = factor("Control"), tx01=0, tx_c = TRUE, tx_n = FALSE)
+b_6kmgridxy_n <- b_6kmgridxy %>%
+  mutate(tx = factor("Nutrition"), tx01=1, tx_c = FALSE, tx_n = TRUE)
+
+b_lazpred0 <- get_grid_preds(input_grid = b_6kmgridxy_c, model_fit = b_fitlaz01) %>%
+  rename(pred0=pred, pred0_var=pred_var)
+
+b_lazpred1 <- get_grid_preds(input_grid = b_6kmgridxy_n, model_fit = b_fitlaz01) %>%
+  rename(pred1=pred, pred1_var=pred_var)
+
+b_lazpred <- b_lazpred0 %>%
+  as.data.frame() %>% 
+  st_as_sf(crs = 4326) %>% 
+  mutate(pred1 = b_lazpred1$pred1,
+         pred1_var = b_lazpred1$pred1_var,
+         diff = pred1-pred0)
+
+```
+
+```{r bangladesh laz spatial model predictions spline model, eval=FALSE}
+# try with a 3-dimensional spline
+# (b_fitlaz01 <- mgcv::gam(Ybar ~ tx + lat + lon + s(tx01,lat,lon, k=-1,bs="gp"), 
+#                    family="gaussian", weights = nobs,
+#                    data=bcn_laz,
+#                    method="REML", select=TRUE) )
+# 
+# 
+# b_lazpred0 <- get_grid_preds(input_grid = b_6kmgridxy_c, model_fit = b_fitlaz01) %>%
+#   rename(pred0=pred)
+# 
+# b_lazpred1 <- get_grid_preds(input_grid = b_6kmgridxy_n, model_fit = b_fitlaz01) %>%
+#   rename(pred1=pred)
+# 
+# b_lazpred <- b_lazpred0 %>%
+#   as.data.frame() %>% 
+#   st_as_sf(crs = 4326) %>% 
+#   mutate(pred1 = b_lazpred1$pred1,
+#          pred1_var = b_lazpred1$pred1_var,
+#          diff = pred1-pred0)
+
+
+```
+
+
+```{r map laz control}
+
+map_laz0 <- ggplot(data=b_lazpred) + 
+  geom_sf(aes(color=pred0)) + 
+  coord_sf(crs = 4326) +
+  scale_color_viridis(option="mako", begin=0.1, limits = c(-2.1,-1.0), breaks=seq(-2.0,-1.0,by=0.5),
+                      guide=guide_colorbar(title="LAZ in control", 
+                                           title.position = "left",
+                                           title.vjust = 1,
+                                           direction="horizontal",
+                                           label.position = "bottom",
+                                           barheight=unit(10,"pt"))) +
+  # scale_color_gradient(low=cbpal[8], high="white", limits = c(-2.5,-1), guide=guide_colorbar(title="LAZ")) +
+  geom_point(data=dbgps_cn %>% filter(tr=="Control"), aes(x=lon,y=lat),pch=20,size=0.2,color="black") +
+  # geom_point(data=dgps, aes(x=lon,y=lat),pch=20,size=0.1,color="black") +
+  labs(x="Latitude",y="Longitude",tag="a") +
+  annotation_scale(location = "bl", width_hint = 0.3) +
+  annotation_north_arrow(location = "bl", which_north = "true", 
+        pad_x = unit(0.05, "in"), pad_y = unit(0.25, "in"),
+        height=unit(0.75,"cm"), width=unit(0.75,"cm"),
+        style = north_arrow_fancy_orienteering
+        ) +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    plot.tag = element_text(face="bold")
+  )
+```
+
+
+```{r map laz nutrition}
+
+map_laz1 <- ggplot(data=b_lazpred) + 
+  geom_sf(aes(color=pred1)) + 
+  coord_sf(crs = 4326) +
+  scale_color_viridis(option="mako", begin=0.1, limits = c(-2.1,-1.0), breaks=seq(-2.0,-1.0,by=0.5),
+                      guide=guide_colorbar(title="LAZ in nutrition", 
+                                           title.position = "left",
+                                           title.vjust = 1,
+                                           direction="horizontal",
+                                           label.position = "bottom",
+                                           barheight=unit(10,"pt"))) +
+  # scale_color_gradient(low=cbpal[8], high="white", limits = c(-2.5,-1), guide=guide_colorbar(title="LAZ")) +
+  geom_point(data=dbgps_cn %>% filter(tr!="Control"), aes(x=lon,y=lat),pch=20,size=0.2,color="black") +
+  # geom_point(data=dgps, aes(x=lon,y=lat),pch=20,size=0.1,color="black") +
+  labs(x="Latitude",y="Longitude",tag="b") +
+  annotation_scale(location = "bl", width_hint = 0.3) +
+  annotation_north_arrow(location = "bl", which_north = "true", 
+        pad_x = unit(0.05, "in"), pad_y = unit(0.25, "in"),
+        height=unit(0.75,"cm"), width=unit(0.75,"cm"),
+        style = north_arrow_fancy_orienteering
+        ) +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    plot.tag = element_text(face="bold")
+  )
+
+```
+
+```{r map laz predicted ATE}
+
+
+map_laz_ate <- ggplot(data=b_lazpred) + 
+  geom_sf(aes(color=diff)) + 
+  scale_color_gradient2(low=cbpal[2], mid="white", high=cbpal[3], limits = c(-0.2,0.4),
+                        breaks = seq(-0.2,0.4,by=0.2),
+                        guide=guide_colorbar(title="Difference in LAZ", 
+                                           title.position = "left",
+                                           title.vjust = 1,
+                                           direction="horizontal",
+                                           label.position = "bottom",
+                                           barheight=unit(10,"pt"),
+                                           ticks.colour = "black",
+                                           ticks.linewidth = 1,
+                                           frame.colour = "black"
+                        )) +
+  geom_point(data=dbgps_cn, aes(x=lon,y=lat),pch=20,size=0.2,color="black") +
+  labs(x="Latitude",y="Longitude",tag="c") +
+  annotation_scale(location = "bl", width_hint = 0.3) +
+  annotation_north_arrow(location = "bl", which_north = "true", 
+        pad_x = unit(0.05, "in"), pad_y = unit(0.25, "in"),
+        height=unit(0.75,"cm"), width=unit(0.75,"cm"),
+        style = north_arrow_fancy_orienteering
+        ) +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    plot.tag = element_text(face="bold")
+  )
+
+```
+
+```{r laz composite map, fig.width=8}
+laz_map_composite <- grid.arrange(map_laz0,map_laz1,map_laz_ate,nrow=1,ncol=3)
+ggsave(filename=here("output","washb-geopair-bangladesh-laz-map.png"),plot = laz_map_composite,device="png",width=15,height=6)
+```
+
+
+```{r map laz predicted ATE from pairs}
+map_laz_diff <- ggplot(data=b_lazpred_diff) + 
+  geom_sf(aes(color=pred_diff)) + 
+  coord_sf(crs = 4326) +
+  scale_color_gradient2(low=cbpal[2], mid="white", high=cbpal[3],limits = c(-1.2,1.05), 
+                        breaks = seq(-1,1,by=0.5),
+                        guide=guide_colorbar(title="Difference in LAZ", 
+                                           title.position = "left",
+                                           title.vjust = 1,
+                                           direction="horizontal",
+                                           label.position = "bottom",
+                                           barheight=unit(10,"pt"),
+                                           ticks.colour = "black",
+                                           ticks.linewidth = 1,
+                                           frame.colour = "black"
+                        )
+                        ) +
+  geom_point(data=dbgps, aes(x=lon,y=lat),pch=20,size=0.1,color="black") +
+  labs(x="Latitude",y="Longitude",tag="d") +
+  annotation_scale(location = "bl", width_hint = 0.3) +
+  annotation_north_arrow(location = "bl", which_north = "true", 
+        pad_x = unit(0.05, "in"), pad_y = unit(0.25, "in"),
+        height=unit(0.75,"cm"), width=unit(0.75,"cm"),
+        style = north_arrow_fancy_orienteering
+        ) +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    plot.tag = element_text(face="bold")
+  )
+
+```
+
+
+
+```{r laz composite map with diffs, fig.width=8}
+laz_map_composite <- grid.arrange(map_laz0,map_laz1,map_laz_ate,map_laz_diff, nrow=1,ncol=4)
+ggsave(filename=here("output","washb-geopair-bangladesh-laz-map-with-diff.png"),plot = laz_map_composite,device="png",width=20,height=6)
 ```
 
 
