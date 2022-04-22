@@ -177,7 +177,7 @@ dk_para <- haven::read_dta(file=paste0(Box_data_directory,"untouched/parasites_k
 # limit to relevant variables
 #----------------------------------
 dk_anth2 <- dk_anth %>%
-  dplyr::dplyr::select(clusterid, compoundid, hhid, childid, block, tr, targetchild, laz=haz, waz, whz, hcz, haz_who, waz_who, whz_who)
+  dplyr::select(clusterid, compoundid, hhid, childid, block, tr, targetchild, laz=haz, waz, whz, hcz, haz_who, waz_who, whz_who)
 
 dk_chd2 <- dk_chd %>%
   dplyr::select(childidr2, hhidr2, clusteridr2, block, tr, z_easq_com = comtotz, z_easq_motor = mottotz, z_easq_pers = pstotz, z_easq_total = globaltotz)
