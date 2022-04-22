@@ -1,0 +1,283 @@
+---
+title: "WASH Benefits maps"
+author: "Ben Arnold"
+date: "1/19/2021"
+output:
+  html_document:
+    highlight: default
+    theme: default
+    code_folding: hide
+    toc: yes
+    toc_depth: 3
+    toc_float:
+      collapsed: yes
+      smooth_scroll: yes
+---
+
+```{r preamble}
+library(here)
+here()
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","washb-geopair-Config.R"))
+
+#----------------------------
+# source the base functions
+#----------------------------
+source(here("R","washb-geopair-Functions.R"))
+
+vircols <- viridisLite::viridis(n=9)
+
+```
+
+
+# Process GPS data
+
+These data are generated as part of the WASH Benefits analysis of the efficiency of geographic pair matching
+
+```{r load data}
+#----------------------------------
+# Load Bangladesh + Kenya GPS data
+# and cluster-level means
+#----------------------------------
+gps_b <- read_rds(file=here("data","bangl_analysis_gps.rds"))
+gps_k <- read_rds(file=here("data","kenya_analysis_gps.rds"))
+dcl <- read_rds(file=here("data","washb_pair_level_summary_estimates.rds"))
+
+
+#----------------------------------
+# Load the Bangladesh and Kenya
+# administrative shapefiles
+#----------------------------------
+admin_b <- st_read(here("data","bgd_adm_bbs_20201113_SHP"),layer = "bgd_admbnda_adm3_bbs_20201113")
+admin_k <- st_read(here("data","ken_adm_iebc_20191031_shp"),layer = "ken_admbnda_adm2_iebc_20191031")
+
+```
+
+# Geodata processing
+
+```{r geodata processing}
+#----------------------------------
+# subset the overall GPS data
+# to just control and nutrition
+# containing clusters for convenience
+#----------------------------------
+gps_b_c <- gps_b %>%
+  filter(tr == "Control")
+gps_b_n <- gps_b %>%
+  filter(tr %in% c("Nutrition","Nutrition + WSH"))
+
+gps_k_c <- gps_k %>%
+  filter(tr == "Control")
+gps_k_n <- gps_k %>%
+  filter(tr %in% c("Nutrition","Nutrition + WSH"))
+
+#---------------------------
+# register Bangladesh data
+# as an sf object
+#---------------------------
+sfgps_b <- gps_b %>% 
+  st_as_sf(coords = c("lon","lat")) %>%
+  st_set_crs(4326)
+
+#---------------------------
+# register Kenya data
+# as an sf object
+#---------------------------
+sfgps_k <- gps_k %>% 
+  st_as_sf(coords = c("lon","lat")) %>%
+  st_set_crs(4326)
+
+
+#---------------------------
+# subset the Bangladesh
+# Upazila boundaries to just
+# those that intersect study
+# clusters
+#---------------------------
+# this function sums up the number 
+# of clusters in the bangladesh subdistrict (upazila) polygons
+# admin_b_study_int <- apply(st_intersects(admin_b, sfgps_b, sparse = FALSE),1,function(x) sum(ifelse(x==TRUE,1,0)))
+
+# easlier: just do it with a merge using admin codes 
+# that are joined to the GPS data in an earlier step, using a spatial join
+admin_b_study <- admin_b %>%
+  filter(ADM3_PCODE %in% gps_b$ADM3_PCODE)
+
+#---------------------------
+# subset the Kenya
+# sub-county boundaries to just
+# those that intersect study
+# clusters
+#---------------------------
+admin_k_study <- admin_k %>%
+  filter(ADM2_PCODE %in% gps_k$ADM2_PCODE)
+
+```
+
+
+# Bangladesh clusters
+
+```{r bangladesh single block highlight}
+#---------------------------------------
+# identify a single block of clusters 
+# to use as an example in the figure
+# block 11 is on the margin and compact
+# so used for an example
+#---------------------------------------
+single_block_id <- 11
+gps_b_single_cl <- gps_b %>%
+  filter(block == single_block_id)
+#---------------------------
+# Identify the convex hull
+# around the clusters in the
+# block and make a polygon
+# for mapping
+#---------------------------
+single_block_xycoords <- as.matrix(gps_b_single_cl[,c('lon','lat')])
+
+single_block_xychull <- single_block_xycoords[chull(single_block_xycoords),]
+single_block_xypoly <- st_polygon(list(rbind(single_block_xychull,single_block_xychull[1,]))) %>%
+  st_sfc() %>% st_sf() %>% st_set_crs(4326)
+```
+
+```{r map Bangladesh clusters, out.width = "100%"}
+
+xlon <- median(gps_b$lon)
+ylat <- median(gps_b$lat)
+
+# make the map
+map_b <- leaflet(width = "100%") %>% 
+  addProviderTiles(provider = providers$CartoDB.Positron ,options=providerTileOptions(opacity=1)) %>%
+  # addProviderTiles("Stamen.TerrainBackground",options=providerTileOptions(opacity=1)) %>%
+  setView(lng = xlon, lat = ylat, zoom = 8.5) %>%
+  # plot Upazila (subdistrict) boundaries
+  addPolygons(data = admin_b_study, fillOpacity = 0, color = "#000000", weight=1) %>%
+  addCircleMarkers(data = gps_b,
+                   lng = ~ lon, lat = ~ lat,
+                   # radius = markerscale*sqrt((dvil3_2014$sea_prev*100)/pi),
+                   radius = 1.5,
+                   color = ~ nytpal[7], fill = ~ nytpal[7],  weight=1, opacity = 1, fillOpacity = 1,
+                   # pop ups with block IDs.
+                   popup=paste("Block: ", gps_b$block)
+              ) %>%
+   # addCircleMarkers(data = gps_b %>% filter(block==single_block_id),
+   #                 lng = ~ lon, lat = ~ lat,
+   #                 # radius = markerscale*sqrt((dvil3_2014$sea_prev*100)/pi),
+   #                 radius = 1,
+   #                 color = ~ nytpal[7], fill = ~ nytpal[7],  weight=1, opacity = 1, fillOpacity = 1,
+   #                 # pop ups with block IDs.
+   #                 popup=paste("Block: ", gps_b$block)
+   #            ) %>%
+  # addPolygons(data = single_block_xypoly,
+  #             # lng = ~ lon, lat = ~ lat,
+  #             color = "black",weight=1,fill = FALSE, fillOpacity = 0) %>%
+
+  # add scale bar and legends
+  addScaleBar(position="bottomleft",options=scaleBarOptions(imperial = FALSE))
+
+
+map_b
+
+
+```
+
+
+```{r map Bangladesh single block, out.width = "100%"}
+xlon <- median(gps_b$lon[gps_b$block==single_block_id])
+ylat <- median(gps_b$lat[gps_b$block==single_block_id])
+
+# make the map
+map_b_single_cl <- leaflet(width = "100%") %>% 
+  # remove labels in the base tile to protect confidentiality
+  addProviderTiles(provider = providers$CartoDB.PositronNoLabels,options=providerTileOptions(opacity=1)) %>%
+  setView(lng = xlon, lat = ylat, zoom = 12) %>%
+  
+  # add convex hull of the highlighted block
+  # (not used)
+  # addPolygons(data = single_block_xypoly,
+  #             # lng = ~ lon, lat = ~ lat,
+  #             color = "black",weight=1,fill = FALSE, fillOpacity = 0) %>%
+
+  # plot control clusters
+   addCircleMarkers(data = gps_b %>% filter(block==single_block_id & tr == "Control"),
+                   lng = ~ lon, lat = ~ lat,
+                   # radius = markerscale*sqrt((dvil3_2014$sea_prev*100)/pi),
+                   radius = 7,
+                   color = ~ nytpal[7], fillColor = nytpal[7],   weight=1, opacity = 1, fillOpacity = 0.7
+              ) %>%
+  # plot nutrition clusters
+  addCircleMarkers(data = gps_b %>% filter(block==single_block_id & tr %in% c("Nutrition","Nutrition + WSH")),
+                   lng = ~ lon, lat = ~ lat,
+                   # radius = markerscale*sqrt((dvil3_2014$sea_prev*100)/pi),
+                   radius = 7,
+                   color = ~ "black", fill = ~ nytpal[4], fillColor = cbpal[2],
+                   weight=1, opacity =1, fillOpacity = 0.8
+              ) %>%
+  # plot remaining clusters
+  addCircleMarkers(data = gps_b %>% filter(block==single_block_id & !tr %in% c("Control","Nutrition","Nutrition + WSH")),
+                   lng = ~ lon, lat = ~ lat,
+                   # radius = markerscale*sqrt((dvil3_2014$sea_prev*100)/pi),
+                   radius = 7,
+                   color = ~ "black", fill = FALSE,  
+                   weight=1, opacity = 1, fillOpacity = 1,
+                   popup=paste("Block: ", gps_b$block[gps_b$block==single_block_id])
+              ) %>%
+  # plot all other clusters, not in the highlighted block
+  addCircleMarkers(data = gps_b %>% filter(block!=single_block_id),
+                   lng = ~ lon, lat = ~ lat,
+                   # radius = markerscale*sqrt((dvil3_2014$sea_prev*100)/pi),
+                   radius = 7,
+                   color = ~ "black", fill = "black",  
+                   weight=1, opacity = 0.1, fillOpacity = 0.2, 
+                   popup=paste("Block: ", gps_b$block[gps_b$block!=single_block_id])
+              ) %>%
+  
+  # add scale bar and legends
+  addScaleBar(position="bottomright",options=scaleBarOptions(imperial = FALSE))
+
+
+map_b_single_cl
+
+
+```
+
+# Kenya clusters
+```{r map Kenya clusters, out.width = "100%", eval = FALSE}
+
+xlon <- median(gps_k$lon)
+ylat <- median(gps_k$lat)
+
+# make the map
+map_k <- leaflet(width = "100%") %>% 
+  addProviderTiles("CartoDB.Positron",options=providerTileOptions(opacity=1)) %>%
+  # addProviderTiles("Stamen.TerrainBackground",options=providerTileOptions(opacity=1)) %>%
+  setView(lng = xlon, lat = ylat, zoom = 8) %>%
+  addCircleMarkers(data = gps_k,
+                   lng = ~ lon, lat = ~ lat,
+                   # radius = markerscale*sqrt((dvil3_2014$sea_prev*100)/pi),
+                   radius = 1,
+                   color = ~ vircols[2], fill = ~ vircols[2],  weight=1, opacity = 1, fillOpacity = 1
+                   # remove pop ups to protect confidentiality.
+                   # popup=paste(dvil3_2014$vid, "<br>",
+                   #             "N pos / tested: ", dvil3_2014$sea_n," / ",dvil3_2014$sea_N,"<br>",
+                   #       "SEA seroprevalence: ", sprintf("%1.0f",dvil3_2014$sea_prev*100),"%","<br>",
+                   #       "predicted: ",sprintf("%1.0f",dvil3_2014$pred_sea*100),"%",sep="")
+              ) %>%
+  
+  # add scale bar and legends
+  addScaleBar(position="bottomleft",options=scaleBarOptions(imperial = FALSE))
+
+
+map_k
+
+
+```
+
+
+
+# Session Info
+```{r session info}
+sessionInfo()
+```
