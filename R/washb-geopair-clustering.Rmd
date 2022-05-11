@@ -1,0 +1,257 @@
+---
+title: "Assessing global clustering in the WASH Benefits trials"
+subtitle: " "
+author: "Christine Tedijanto christine.tedijanto@ucsf.edu"
+date: "updated: `r Sys.time()`"
+output: 
+  html_document:
+    theme: default
+    highlight: haddock
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+# Summary
+
+Summary here: **TBD**
+
+Details of original citations and data sources here: **TBD**
+
+# Preamble
+
+```{r preamble}
+library(here)
+here()
+
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","washb-geopair-Config.R"))
+
+#----------------------------
+# add the raster package
+# which conflicts with dplyr::select
+#----------------------------
+library(raster)
+
+#----------------------------
+# Box data filepath
+#----------------------------
+Box_data_directory <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/final/"
+```
+
+# Data prep
+
+```{r load gps data}
+#-------------------------------
+# load the formatted gps
+# data created by
+# washb-geopair-gps-data-processing.R
+#-------------------------------
+
+## Bangladesh -----
+# Cluster-level GPS locations (centroids of compounds in each cluster)
+# NOT PUBLICLY AVAILABLE -- NEED TO USE ACCURATE LON/LAT FOR MAPPING
+dbgps <- read_rds(paste0(Box_data_directory,"bangl_analysis_gps.rds")) %>%
+  mutate(block = as.character(block),
+         blockf = factor(block))
+
+## Kenya -----
+# Cluster-level GPS locations (centroids of compounds in each cluster)
+# NOT PUBLICLY AVAILABLE -- NEED TO USE ACCURATE LON/LAT FOR MAPPING
+dkgps <- read_rds(paste0(Box_data_directory,"kenya_analysis_gps.rds")) %>%
+  mutate(block = as.character(block),
+         blockf = factor(block))
+```
+
+```{r load cluster level means and relative efficiency}
+#-------------------------------
+# read-in cluster level means and relative efficiency
+# these were estimated in the file
+# washb-geopair-relative-efficiency.Rmd
+#-------------------------------
+dcl <- read_rds(here("data", "washb_pair_level_summary_estimates.rds")) 
+
+ate_res <- read_rds(here("data", "washb_ATE_releff_estimates.rds"))
+```
+
+```{r make spatial data}
+#-------------------------------
+# create gps datasets
+# with different methods of assigning
+# lat/lon to block
+#-------------------------------
+
+#-------------------------------
+# dataset 1 has all control
+# cluster centroids, used for
+# geostatistical model smooths
+# of the control group outcomes (n=180)
+#-------------------------------
+
+dbgps_control <- dbgps %>%
+  filter(tr=="Control") %>%
+  dplyr::select(clusterid,tr,block,blockf,lon,lat)
+
+dkgps_control <- dkgps %>%
+  filter(tr %in% c("Control")) %>%
+  dplyr::select(clusterid,tr,block,blockf,lon,lat)
+
+#-------------------------------
+# dataset 2 has all control and
+# nutrition cluster centroids,
+# used for geostatistical model smooths
+# of the control + nutrition group
+# outcomes in a joint model (n=360)
+#-------------------------------
+
+dbgps_cn <- dbgps %>%
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  dplyr::select(clusterid,tr,block,blockf,lon,lat)
+
+dkgps_cn <- dkgps %>%
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  dplyr::select(clusterid,tr,block,blockf,lon,lat)
+
+#-------------------------------
+# dataset 3 has a row for each block
+# median of control clusters only (n=90)
+#-------------------------------
+
+dbgps_control_med <- dbgps %>%
+  filter(tr=="Control") %>%
+  dplyr::select(clusterid,tr,block,blockf,lon,lat) %>% 
+  group_by(block, blockf) %>%
+  summarise(lon = median(lon), lat = median(lat),
+            .groups = "keep")
+
+dkgps_control_med <- dkgps %>%
+  filter(tr %in% c("Control")) %>%
+  dplyr::select(clusterid,tr,block,blockf,lon,lat) %>% 
+  group_by(block, blockf) %>%
+  summarise(lon = median(lon), lat = median(lat),
+            .groups = "keep")
+```
+
+# Estimate Moran's I
+
+```{r outcome labels and colors}
+# keys to facilitate loops and figures
+outcome_lab_key <- data.frame(outcome = c("laz", "waz", "whz", "hcz",
+                                          "z_easq_com", "z_easq_motor", "z_easq_pers", "z_cdi_comp", "z_cdi_expr",
+                                          "diar7d", "giar", "al", "tt", "hw"),
+                              outcome_lab = c("length-for-age z", "weight-for-age z", "weight-for-height z", "head circumference z",
+                                              "EASQ communication z", "EASQ gross motor z", "EASQ personal-social z",
+                                              "CDI comprehension z", "CDI expression z",
+                                              "Diarrhea", "Giardia sp.", "Ascaris sp.", "Trichuris sp.", "Hookworm"),
+                              outcome_group = c(rep("Child growth", 4),
+                                                 rep("Child development", 5),
+                                                 rep("Infectious disease", 5)))
+
+outcome_colors <- c("Child development" = "#D9B86A",
+                    "Child growth" = "#9B9F7C",
+                    "Infectious disease" = "#5986B0")
+```
+
+```{r morani data prep}
+# create wide dataframe with summarized variables from control clusters for each block
+dcl_Y0bar_wide <- dcl %>% 
+  remove_rownames() %>%
+  left_join(outcome_lab_key, by = "outcome_lab") %>% 
+  dplyr::select(country, block, outcome, Y0bar) %>% 
+  pivot_wider(id_cols = c("country", "block"),
+              names_from = "outcome",
+              values_from = "Y0bar") %>%
+  # add lon / lat for control clusters only (median across 2 control clusters in each block)
+  left_join(bind_rows(dbgps_control_med %>% mutate(country = "Bangladesh"),
+                      dkgps_control_med %>% mutate(country = "Kenya")),
+            by = c("country", "block"))
+```
+
+```{r morani estimation}
+## `get_moran`: wrapper around ape::Moran.I -----
+## inputs:
+# - input_df: dataframe containing coordinates ("lon", "lat") and variable of interest
+# - var (character): variable of interest
+## outputs:
+# - dataframe with morani outputs (observed, expected, sd, p.value), outcome, and country
+get_moran <- function(input_df, var){
+  
+  # use distGeo distance method, which accounts for curved globe surface
+  # gives very similar Moran's I results to dist()
+  temp_spatial <- input_df %>%
+    st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
+    as("Spatial")
+  
+  dist_matrix <- sapply(1:nrow(temp_spatial),
+                        function(x) geosphere::distGeo(p1 = temp_spatial, p2 = temp_spatial[x,]))
+
+  # take inverse of distances
+  dist_matrix_inv <- 1/dist_matrix
+  diag(dist_matrix_inv) <- 0
+  
+  # estimate Moran's I and statistical significance for each trachoma variable 
+  ret <- ape::Moran.I(input_df %>% pull(get(var)), dist_matrix_inv) %>% 
+    as.data.frame() %>%
+    rename_all(~paste0("morani_", .)) %>% 
+    mutate(outcome = var)
+  
+  return(ret)
+}
+
+## loop outcomes for Bangladesh and Kenya -----
+moranib <- lapply(outcome_lab_key$outcome,
+                  function(x){
+                    get_moran(input_df = dcl_Y0bar_wide %>% filter(country == "Bangladesh"),
+                              var = x)}) %>% 
+  bind_rows() %>% 
+  mutate(country = "Bangladesh")
+
+moranik <- lapply(setdiff(outcome_lab_key$outcome, c("z_cdi_comp", "z_cdi_expr")),
+                  function(x){
+                    get_moran(input_df = dcl_Y0bar_wide %>% filter(country == "Kenya"),
+                              var = x)}) %>% 
+  bind_rows() %>% 
+  mutate(country = "Kenya")
+
+## join all moran I results -----
+morani_res <- moranib %>% 
+  bind_rows(moranik) %>% 
+  left_join(outcome_lab_key, by = c("outcome")) %>% 
+  left_join(ate_res, by = c("outcome_lab", "country"))
+```
+
+# Visualize results
+
+```{r plot morani, fig.width = 8.5, fig.height = 2.5}
+morani_res %>%
+  ggplot(aes(x = morani_observed, y = eff_w)) +
+  geom_errorbar(aes(x = morani_observed,
+                    ymin = releff_min95,
+                    ymax = releff_max95,
+                    color = outcome_group)) +
+    geom_point(aes(fill = outcome_group), pch = 21,
+               alpha = 0.8, size = 2) +
+  scale_color_manual(values = outcome_colors) +
+  scale_fill_manual(values = outcome_colors) +
+  labs(x = "Observed Moran's I", y = "Relative efficiency") +
+  facet_wrap(.~country, nrow = 1) +
+  theme_minimal() +
+  theme(panel.spacing = unit(2, "lines"))
+```
+
+# Session Info
+
+```{r session info}
+#----------------------------
+# detach the raster package
+#----------------------------
+detach("package:raster", unload=TRUE)
+
+sessionInfo()
+```
+
