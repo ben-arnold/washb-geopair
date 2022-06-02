@@ -1,0 +1,270 @@
+---
+title: "Comparing levels of analysis matching in the WASH Benefits trials"
+subtitle: " "
+author: "Christine Tedijanto christine.tedijanto@ucsf.edu"
+date: "updated: `r Sys.time()`"
+output: 
+  html_document:
+    theme: default
+    highlight: haddock
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+# Summary
+
+Summary here: **TBD**
+
+Details of original citations and data sources here: **TBD**
+
+# Preamble
+
+```{r preamble}
+library(here)
+here()
+
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","washb-geopair-Config.R"))
+
+#----------------------------
+# source the base functions
+#----------------------------
+source(here("R","washb-geopair-Functions.R"))
+
+#----------------------------
+# Box data filepath
+#----------------------------
+Box_data_directory <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/final/"
+```
+
+# Data prep
+
+```{r load gps data}
+#-------------------------------
+# load the formatted gps
+# data created by
+# washb-geopair-gps-data-processing.R
+#-------------------------------
+
+## Bangladesh -----
+# Cluster-level GPS locations (centroids of compounds in each cluster)
+# NOT PUBLICLY AVAILABLE -- NEED TO USE ACCURATE LON/LAT FOR MAPPING
+dbgps <- read_rds(paste0(Box_data_directory,"bangl_analysis_gps.rds")) %>%
+  mutate(block = as.character(block),
+         blockf = factor(block))
+
+## Kenya -----
+# Cluster-level GPS locations (centroids of compounds in each cluster)
+# NOT PUBLICLY AVAILABLE -- NEED TO USE ACCURATE LON/LAT FOR MAPPING
+dkgps <- read_rds(paste0(Box_data_directory,"kenya_analysis_gps.rds")) %>%
+  mutate(block = as.character(block),
+         blockf = factor(block))
+```
+
+```{r load cluster level means and relative efficiency}
+#-------------------------------
+# read-in cluster level means and relative efficiency
+# these were estimated in the file
+# washb-geopair-relative-efficiency.Rmd
+#-------------------------------
+dcl <- read_rds(here("data", "washb_pair_level_summary_estimates.rds")) 
+
+ate_res <- read_rds(here("data", "washb_ATE_releff_estimates.rds"))
+```
+
+```{r outcome labels}
+outcome_lab_key <- data.frame(outcome = c("laz", "waz", "whz", "hcz",
+                                          "z_easq_com", "z_easq_motor", "z_easq_pers", "z_cdi_comp", "z_cdi_expr",
+                                          "diar7d", "giar", "al", "tt", "hw"),
+                              outcome_lab = c("length-for-age z", "weight-for-age z", "weight-for-height z", "head circumference z",
+                                              "EASQ communication z", "EASQ gross motor z", "EASQ personal-social z",
+                                              "CDI comprehension z", "CDI expression z",
+                                              "Diarrhea", "Giardia sp.", "Ascaris sp.", "Trichuris sp.", "Hookworm"),
+                              outcome_group = c(rep("Child growth", 4),
+                                                 rep("Child development", 5),
+                                                 rep("Infectious disease", 5)))
+```
+
+## Create subdistrict dataframe
+
+```{r subdistrict data}
+# blocks are not all nested within subdistricts (15 / 347 instances with repeats)
+dsubdist <- dbgps %>% 
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  mutate(tr01 = ifelse(tr == "Control", 0, 1)) %>% 
+  dplyr::select(block, subdist = ADM3_PCODE, tr01) %>% # use lowest admin level
+  distinct() %>% 
+  mutate(country = "Bangladesh") %>% 
+  bind_rows(dkgps %>%
+              filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+              mutate(tr01 = ifelse(tr == "Control", 0, 1)) %>% 
+              dplyr::select(block, subdist = ADM2_PCODE, tr01) %>% # use lowest admin level
+              distinct() %>% 
+              mutate(country = "Kenya")) %>% 
+  group_by(country, block, tr01) %>% 
+  # for now, just select first subdistrict for each block
+  slice(1) %>% 
+  ungroup()
+```
+
+# Run regression models
+
+```{r run regression models}
+# create shorter cluster-level means dataset with variables of interest
+dcl_2 <- dcl %>%
+  remove_rownames() %>% 
+  dplyr::select(country, outcome_lab, block, Y1bar, Y0bar, w)
+
+## `get_reg_results`: function to run matched, unmatched, and subdistrict regressions -----
+## inputs:
+# - c (character): current country of interest
+# - o (character): outcome for regression models
+## outputs:
+# - dataframe with country, outcome, and estimated ATE and
+# variance of ATE from unmatched, matched and subdistrict models
+get_reg_results <- function(c, o){
+  temp_df <- dcl_2 %>% 
+    filter(country == c, outcome_lab == o) %>% 
+    pivot_longer(cols = c(Y1bar, Y0bar),
+                 names_to = "name", 
+                 values_to = "Ybar") %>% 
+    mutate(tr01 = ifelse(name=="Y1bar",1,0)) %>% 
+    left_join(dsubdist, by = c("country", "block", "tr01"))
+  
+  # matched regression (analogous to paired t-test)
+  matchreg <- glm(Ybar ~ tr01 + as.factor(block),
+                  weights = w/2,
+                  data = temp_df)
+  ate_matchreg <- summary(matchreg)$coefficients["tr01", "Estimate"]
+  var_matchreg <- summary(matchreg)$coefficients["tr01", "Std. Error"]^2
+  
+  # unmatched regression
+  nomatch <- glm(Ybar ~ tr01,
+                 weights = w/2,
+                 data = temp_df)
+  ate_nomatch <- summary(nomatch)$coefficients["tr01", "Estimate"]
+  var_nomatch <- summary(nomatch)$coefficients["tr01", "Std. Error"]^2
+  
+  # regression adjusting for subdistrict
+  subdreg <- glm(Ybar ~ tr01 + as.factor(subdist),
+                 weights = w/2,
+                 data = temp_df)
+  ate_subdreg <- summary(subdreg)$coefficients["tr01", "Estimate"]
+  var_subdreg <- summary(subdreg)$coefficients["tr01", "Std. Error"]^2
+  
+  ret <- data.frame(country = c,
+                    outcome_lab = o,
+                    ate_matchreg = ate_matchreg,
+                    var_matchreg = var_matchreg,
+                    ate_nomatch = ate_nomatch,
+                    var_nomatch = var_nomatch,
+                    ate_subdreg = ate_subdreg,
+                    var_subdreg = var_subdreg)
+  
+  return(ret)
+}
+
+## run apply to get regression results -----
+
+# create unique list of country-outcome pairs for apply
+country_outcome_uniq <- dcl_2 %>% distinct(country, outcome_lab)
+
+reg_results <- mapply(get_reg_results,
+                      c = country_outcome_uniq$country,
+                      o = country_outcome_uniq$outcome_lab,
+                      SIMPLIFY = FALSE) %>% 
+  bind_rows()
+
+all_results <- reg_results %>% 
+  left_join(ate_res %>% 
+              dplyr::select(country, outcome_lab, ate_imai = est, var_imai = var),
+            by = c("country", "outcome_lab")) %>% 
+  left_join(outcome_lab_key, by = "outcome_lab")
+```
+
+# Visualize results
+
+Outcomes are arranged in descending order of weighted paired correlation.
+
+```{r visualize results}
+outcome_colors <- c("Child development" = "#D9B86A",
+                    "Child growth" = "#9B9F7C",
+                    "Infectious disease" = "#5986B0")
+
+# determine ordering for outcomes
+orderb <- ate_res %>% 
+  filter(country == "Bangladesh") %>% 
+  arrange(desc(corr_w)) %>% 
+  pull(outcome_lab)
+
+orderk <- ate_res %>% 
+  filter(country == "Kenya") %>% 
+  arrange(desc(corr_w)) %>% 
+  pull(outcome_lab)
+```
+
+## Bangladesh
+```{r bangladesh fig, fig.width = 8.5, fig.height = 3.2}
+all_results %>%
+  filter(country == "Bangladesh") %>% 
+  pivot_longer(cols = c("var_matchreg", "var_imai", "var_subdreg"),
+               names_pattern = "var_(.*)",
+               names_to = "model",
+               values_to = "var") %>%
+  filter(model != "matchreg") %>% # remove matched regression (similar to imai)
+  mutate(rel_eff = var_nomatch/var) %>% # relative efficiency is ratio, comparing variance of unmatched analysis to variance from other analyses
+  mutate(outcome_lab = factor(outcome_lab, levels = orderb)) %>% 
+  ggplot(aes(x = outcome_lab, y = rel_eff)) + 
+  geom_point(aes(fill = outcome_group, shape = model),
+             size = 2, alpha = 0.7) +
+  scale_shape_manual(values = c("imai" = 24, "subdreg" = 21),
+                     labels = c("imai" = "imai nonparam", "subdreg" = "subdistrict adj")) +
+    scale_fill_manual(values = outcome_colors) +
+  labs(x = NULL, y = "rel efficiency compared\nto unmatched analysis") +
+  coord_cartesian(ylim = c(1,3)) +
+  guides(fill = "none") +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        axis.title.x = element_text(size = 6),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Kenya
+
+```{r kenya fig, fig.width = 8.5, fig.height = 3.2}
+all_results %>%
+  filter(country == "Kenya") %>% 
+  pivot_longer(cols = c("var_matchreg", "var_imai", "var_subdreg"),
+               names_pattern = "var_(.*)",
+               names_to = "model",
+               values_to = "var") %>%
+  filter(model != "matchreg") %>% # remove matched regression (similar to imai)
+  mutate(rel_eff = var_nomatch/var) %>% # relative efficiency is ratio, comparing variance of unmatched analysis to variance from other analyses
+  mutate(outcome_lab = factor(outcome_lab, levels = orderk)) %>% 
+  ggplot(aes(x = outcome_lab, y = rel_eff)) + 
+  geom_point(aes(fill = outcome_group, shape = model),
+             size = 2, alpha = 0.7) +
+  scale_shape_manual(values = c("imai" = 24, "subdreg" = 21),
+                     labels = c("imai" = "imai nonparam", "subdreg" = "subdistrict adj")) +
+    scale_fill_manual(values = outcome_colors) +
+  labs(x = NULL, y = "rel efficiency compared\nto unmatched analysis") +
+  coord_cartesian(ylim = c(1,3)) +
+  guides(fill = "none") +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        axis.title.x = element_text(size = 6),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+# Session Info
+
+```{r session info}
+sessionInfo()
+```
+
