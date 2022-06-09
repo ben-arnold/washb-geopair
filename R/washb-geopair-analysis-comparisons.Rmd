@@ -17,15 +17,15 @@ output:
 
 # Summary
 
-Summary here: **TBD**
-
-Details of original citations and data sources here: **TBD**
+In this analysis, we compare the estimated relative efficiency based on analytic methods with the empirical relative efficiency. The empirical relative efficiency is calculated by comparing the variance of the treatment effect in an analysis that does not account for matching to the variance of the treatment effect using the Imai matched pair estimator. 
 
 # Preamble
 
 ```{r preamble}
 library(here)
 here()
+
+library(cowplot) # for plot_grid
 
 #----------------------------
 # source the config file
@@ -183,7 +183,8 @@ reg_results <- mapply(get_reg_results,
 
 all_results <- reg_results %>% 
   left_join(ate_res %>% 
-              dplyr::select(country, outcome_lab, ate_imai = est, var_imai = var),
+              dplyr::select(country, outcome_lab, ate_imai = est, var_imai = var,
+                            eff_w, eff_u),
             by = c("country", "outcome_lab")) %>% 
   left_join(outcome_lab_key, by = "outcome_lab")
 ```
@@ -260,6 +261,42 @@ all_results %>%
   theme(legend.position = "bottom",
         axis.title.x = element_text(size = 6),
         axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Additional comparison figures
+
+```{r compare, fig.width = 8.5, fig.height = 3}
+wt_eff_fig <- all_results %>% 
+  mutate(rel_eff = var_nomatch / var_imai) %>% 
+  ggplot(aes(x = eff_w, y = rel_eff, fill = outcome_group)) +
+  geom_point(pch = 21, size = 2, alpha = 0.8) +
+  scale_fill_manual(values = outcome_colors) +
+  facet_wrap(.~country) +
+  labs(x = "weighted relative efficiency (analytic)",
+       y = "relative efficiency (model-based)",
+       fill = "outcome group") +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        legend.title = element_text(size = 8),
+        legend.text = element_text(size = 8))
+
+unwt_eff_fig <- all_results %>% 
+  mutate(rel_eff = var_nomatch / var_imai) %>% 
+  ggplot(aes(x = eff_u, y = rel_eff, fill = outcome_group)) +
+  geom_point(pch = 21, size = 2, alpha = 0.8) +
+  scale_fill_manual(values = outcome_colors) +
+  facet_wrap(.~country) +
+  labs(x = "unweighted relative efficiency (analytic)",
+       y = "relative efficiency (model-based)",
+       fill = "outcome group") +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        legend.title = element_text(size = 8),
+        legend.text = element_text(size = 8))
+
+plot_grid(wt_eff_fig,
+          unwt_eff_fig,
+          nrow = 1)
 ```
 
 # Session Info

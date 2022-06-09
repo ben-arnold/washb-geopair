@@ -17,9 +17,7 @@ output:
 
 # Summary
 
-Summary here: **TBD**
-
-Details of original citations and data sources here: **TBD**
+In this analysis, we compare a measure of global spatial clustering (Moran's I) with the estimated relative efficiency for each outcome of interest.
 
 # Preamble
 
