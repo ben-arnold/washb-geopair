@@ -25,6 +25,7 @@ library(haven)
 library(table1)
 library(kableExtra)
 library(gridExtra)
+library(ggplot2)
 
 #----------------------------
 # stats packages
@@ -44,6 +45,9 @@ library(ggspatial)
 library(automap)
 library(leaflet)
 library(rcartocolor)
+library(raster)
+library(malariaAtlas)
+library(gdistance)
 
 #----------------------------
 # parallel computing packages
