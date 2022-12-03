@@ -1,7 +1,7 @@
 ---
 title: "WASH Benefits maps"
-author: "Ben Arnold"
-date: "1/19/2021"
+author: "Ben Arnold ben.arnold@ucsf.edu"
+date: "updated `r Sys.time()`"
 output:
   html_document:
     highlight: default
@@ -14,7 +14,11 @@ output:
       smooth_scroll: yes
 ---
 
-```{r preamble}
+# Summary
+
+Make overview maps of the WASH Benefits Bangladesh and Kenya trials. Highlight specific blocks for a didactic figure to illustrate the geographically pair-matched design.
+
+```{r preamble, message = FALSE}
 library(here)
 here()
 #----------------------------
@@ -23,11 +27,11 @@ here()
 source(here("R","washb-geopair-Config.R"))
 
 #----------------------------
-# source the base functions
+# Box data file paths
 #----------------------------
-source(here("R","washb-geopair-Functions.R"))
+Box_data_directory    <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/final/"
+Box_geodata_directory <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/geodata/"
 
-vircols <- viridisLite::viridis(n=9)
 
 ```
 
@@ -50,12 +54,38 @@ dcl <- read_rds(file=here("data","washb_pair_level_summary_estimates.rds"))
 # Load the Bangladesh and Kenya
 # administrative shapefiles
 #----------------------------------
-admin_b <- st_read(here("data","bgd_adm_bbs_20201113_SHP"),layer = "bgd_admbnda_adm3_bbs_20201113")
-admin_k <- st_read(here("data","ken_adm_iebc_20191031_shp"),layer = "ken_admbnda_adm2_iebc_20191031")
+admin_b <- st_read(paste0(Box_geodata_directory,"bgd_adm_bbs_20201113_SHP"),layer = "bgd_admbnda_adm3_bbs_20201113")
+admin_k <- st_read(paste0(Box_geodata_directory,"ken_adm_iebc_20191031_shp"),layer = "ken_admbnda_adm2_iebc_20191031")
 
 ```
 
 # Geodata processing
+
+```{r geodata cleaning}
+# there are a small number of clusters (n=4) in Kenya 
+# that seem to be geolocated just over the line 
+# into a new sub-county. By hand, recode the 
+# administrative information for these clusters 
+# to be the same as those for the other clusters 
+# in the same randomization block.
+gps_k <- gps_k %>%
+  mutate(
+    
+    ADM2_PCODE = ifelse(ADM2_PCODE=="KE037202" & block==3,"KE037205",ADM2_PCODE),
+    ADM2_EN = ifelse(ADM2_PCODE=="KE037202" & block==3,"Mumias East",ADM2_EN),
+    
+    ADM2_PCODE = ifelse(ADM2_PCODE=="KE039220" & block==6,"KE039219",ADM2_PCODE),
+    ADM2_EN = ifelse(ADM2_PCODE=="KE039220" & block==6,"Bumula",ADM2_EN),
+    
+    ADM2_PCODE = ifelse(ADM2_PCODE=="KE042239" & block==61,"KE038214",ADM2_PCODE),
+    ADM2_EN = ifelse(ADM2_PCODE=="KE042239" & block==61,"Luanda",ADM2_EN),
+    
+    ADM2_PCODE = ifelse(ADM2_PCODE=="KE041235" & block==61,"KE038214",ADM2_PCODE),
+    ADM2_EN = ifelse(ADM2_PCODE=="KE041235" & block==61,"Luanda",ADM2_EN)
+  )
+
+
+```
 
 ```{r geodata processing}
 #----------------------------------
@@ -148,7 +178,11 @@ xlon <- median(gps_b$lon)
 ylat <- median(gps_b$lat)
 
 # make the map
-map_b <- leaflet(width = "100%") %>% 
+map_b <- leaflet(width = "100%", 
+                 options = leafletOptions(zoomControl = TRUE,
+                                 zoomSnap = 0.1,
+                                 zoomDelta = 0.1)
+                 ) %>% 
   addProviderTiles(provider = providers$CartoDB.Positron ,options=providerTileOptions(opacity=1)) %>%
   # addProviderTiles("Stamen.TerrainBackground",options=providerTileOptions(opacity=1)) %>%
   setView(lng = xlon, lat = ylat, zoom = 8.5) %>%
@@ -156,7 +190,6 @@ map_b <- leaflet(width = "100%") %>%
   addPolygons(data = admin_b_study, fillOpacity = 0, color = "#000000", weight=1) %>%
   addCircleMarkers(data = gps_b,
                    lng = ~ lon, lat = ~ lat,
-                   # radius = markerscale*sqrt((dvil3_2014$sea_prev*100)/pi),
                    radius = 1.5,
                    color = ~ nytpal[7], fill = ~ nytpal[7],  weight=1, opacity = 1, fillOpacity = 1,
                    # pop ups with block IDs.
@@ -175,7 +208,7 @@ map_b <- leaflet(width = "100%") %>%
   #             color = "black",weight=1,fill = FALSE, fillOpacity = 0) %>%
 
   # add scale bar and legends
-  addScaleBar(position="bottomleft",options=scaleBarOptions(imperial = FALSE))
+  addScaleBar(position="bottomright",options=scaleBarOptions(imperial = FALSE))
 
 
 map_b
@@ -189,7 +222,11 @@ xlon <- median(gps_b$lon[gps_b$block==single_block_id])
 ylat <- median(gps_b$lat[gps_b$block==single_block_id])
 
 # make the map
-map_b_single_cl <- leaflet(width = "100%") %>% 
+map_b_single_cl <- leaflet(width = "100%", 
+                 options = leafletOptions(zoomControl = TRUE,
+                                 zoomSnap = 0.25,
+                                 zoomDelta = 0.25)
+                 ) %>% 
   # remove labels in the base tile to protect confidentiality
   addProviderTiles(provider = providers$CartoDB.PositronNoLabels,options=providerTileOptions(opacity=1)) %>%
   setView(lng = xlon, lat = ylat, zoom = 12) %>%
@@ -210,7 +247,6 @@ map_b_single_cl <- leaflet(width = "100%") %>%
   # plot nutrition clusters
   addCircleMarkers(data = gps_b %>% filter(block==single_block_id & tr %in% c("Nutrition","Nutrition + WSH")),
                    lng = ~ lon, lat = ~ lat,
-                   # radius = markerscale*sqrt((dvil3_2014$sea_prev*100)/pi),
                    radius = 7,
                    color = ~ "black", fill = ~ nytpal[4], fillColor = cbpal[2],
                    weight=1, opacity =1, fillOpacity = 0.8
@@ -218,7 +254,6 @@ map_b_single_cl <- leaflet(width = "100%") %>%
   # plot remaining clusters
   addCircleMarkers(data = gps_b %>% filter(block==single_block_id & !tr %in% c("Control","Nutrition","Nutrition + WSH")),
                    lng = ~ lon, lat = ~ lat,
-                   # radius = markerscale*sqrt((dvil3_2014$sea_prev*100)/pi),
                    radius = 7,
                    color = ~ "black", fill = FALSE,  
                    weight=1, opacity = 1, fillOpacity = 1,
@@ -227,7 +262,6 @@ map_b_single_cl <- leaflet(width = "100%") %>%
   # plot all other clusters, not in the highlighted block
   addCircleMarkers(data = gps_b %>% filter(block!=single_block_id),
                    lng = ~ lon, lat = ~ lat,
-                   # radius = markerscale*sqrt((dvil3_2014$sea_prev*100)/pi),
                    radius = 7,
                    color = ~ "black", fill = "black",  
                    weight=1, opacity = 0.1, fillOpacity = 0.2, 
@@ -244,30 +278,56 @@ map_b_single_cl
 ```
 
 # Kenya clusters
-```{r map Kenya clusters, out.width = "100%", eval = FALSE}
+
+```{r kenya single block highlight}
+#---------------------------------------
+# identify a single block of clusters 
+# to use as an example in the figure
+# block 66 is on the margin and compact
+# so used for an example
+#---------------------------------------
+single_block_id_k <- 66
+gps_k_single_cl <- gps_k %>%
+  filter(block == single_block_id_k)
+#---------------------------
+# Identify the convex hull
+# around the clusters in the
+# block and make a polygon
+# for mapping
+#---------------------------
+single_block_xycoords <- as.matrix(gps_b_single_cl[,c('lon','lat')])
+
+single_block_xychull <- single_block_xycoords[chull(single_block_xycoords),]
+single_block_xypoly <- st_polygon(list(rbind(single_block_xychull,single_block_xychull[1,]))) %>%
+  st_sfc() %>% st_sf() %>% st_set_crs(4326)
+```
+
+```{r map Kenya clusters, out.width = "100%"}
 
 xlon <- median(gps_k$lon)
 ylat <- median(gps_k$lat)
 
 # make the map
-map_k <- leaflet(width = "100%") %>% 
+map_k <- leaflet(width = "100%", 
+                 options = leafletOptions(zoomControl = TRUE,
+                                 zoomSnap = 0.25,
+                                 zoomDelta = 0.25)
+                 ) %>% 
   addProviderTiles("CartoDB.Positron",options=providerTileOptions(opacity=1)) %>%
   # addProviderTiles("Stamen.TerrainBackground",options=providerTileOptions(opacity=1)) %>%
-  setView(lng = xlon, lat = ylat, zoom = 8) %>%
+  setView(lng = xlon, lat = ylat, zoom = 9) %>%
+    # plot Sub-County boundaries (Admin level 2)
+  addPolygons(data = admin_k_study, fillOpacity = 0, color = "#000000", weight=1) %>%
   addCircleMarkers(data = gps_k,
                    lng = ~ lon, lat = ~ lat,
-                   # radius = markerscale*sqrt((dvil3_2014$sea_prev*100)/pi),
-                   radius = 1,
-                   color = ~ vircols[2], fill = ~ vircols[2],  weight=1, opacity = 1, fillOpacity = 1
-                   # remove pop ups to protect confidentiality.
-                   # popup=paste(dvil3_2014$vid, "<br>",
-                   #             "N pos / tested: ", dvil3_2014$sea_n," / ",dvil3_2014$sea_N,"<br>",
-                   #       "SEA seroprevalence: ", sprintf("%1.0f",dvil3_2014$sea_prev*100),"%","<br>",
-                   #       "predicted: ",sprintf("%1.0f",dvil3_2014$pred_sea*100),"%",sep="")
+                   radius = 1.5,
+                   color = ~ nytpal[7], fill = ~ nytpal[7],  weight=1, opacity = 1, fillOpacity = 1,
+                   # pop ups with block IDs.
+                   popup=paste("Block: ", gps_k$block)
               ) %>%
   
   # add scale bar and legends
-  addScaleBar(position="bottomleft",options=scaleBarOptions(imperial = FALSE))
+  addScaleBar(position="bottomright",options=scaleBarOptions(imperial = FALSE))
 
 
 map_k
@@ -276,6 +336,89 @@ map_k
 ```
 
 
+```{r map Kenya single block, out.width = "100%"}
+xlon <- median(gps_k$lon[gps_b$block==single_block_id_k])
+ylat <- median(gps_k$lat[gps_b$block==single_block_id_k])
+
+# make the map
+map_k_single_cl <- leaflet(width = "100%", 
+                 options = leafletOptions(zoomControl = TRUE,
+                                 zoomSnap = 0.25,
+                                 zoomDelta = 0.25)
+                 ) %>% 
+  # remove labels in the base tile to protect confidentiality
+  addProviderTiles(provider = providers$CartoDB.PositronNoLabels,options=providerTileOptions(opacity=1)) %>%
+  setView(lng = xlon, lat = ylat, zoom = 12) %>%
+  
+  # add convex hull of the highlighted block
+  # (not used)
+  # addPolygons(data = single_block_xypoly,
+  #             # lng = ~ lon, lat = ~ lat,
+  #             color = "black",weight=1,fill = FALSE, fillOpacity = 0) %>%
+
+  # plot control clusters
+   addCircleMarkers(data = gps_k %>% filter(block==single_block_id_k & tr == "Control"),
+                   lng = ~ lon, lat = ~ lat,
+                   radius = 5,
+                   color = ~ nytpal[7], fillColor = nytpal[7],   weight=1, opacity = 1, fillOpacity = 0.7
+              ) %>%
+  # plot nutrition clusters
+  addCircleMarkers(data = gps_k %>% filter(block==single_block_id_k & tr %in% c("Nutrition","Nutrition + WSH")),
+                   lng = ~ lon, lat = ~ lat,
+                   radius = 5,
+                   color = ~ "black", fill = ~ nytpal[4], fillColor = cbpal[2],
+                   weight=1, opacity =1, fillOpacity = 0.8
+              ) %>%
+  # plot remaining clusters
+  addCircleMarkers(data = gps_k %>% filter(block==single_block_id_k & !tr %in% c("Control","Nutrition","Nutrition + WSH")),
+                   lng = ~ lon, lat = ~ lat,
+                   radius = 5,
+                   color = ~ "black", fill = FALSE,  
+                   weight=1, opacity = 1, fillOpacity = 1,
+                   popup=paste("Block: ", gps_b$block[gps_b$block==single_block_id_k])
+              ) %>%
+  # plot all other clusters, not in the highlighted block
+  addCircleMarkers(data = gps_k %>% filter(block!=single_block_id_k),
+                   lng = ~ lon, lat = ~ lat,
+                   radius = 5,
+                   color = ~ "black", fill = "black",  
+                   weight=1, opacity = 0.1, fillOpacity = 0.2, 
+                   popup=paste("Block: ", gps_b$block[gps_b$block!=single_block_id_k])
+              ) %>%
+  
+  # add scale bar and legends
+  addScaleBar(position="bottomright",options=scaleBarOptions(imperial = FALSE))
+
+
+map_k_single_cl
+
+
+```
+
+# summarize sample sizes by outcome
+
+By country, tabulate the number of matched pairs by outcome, then summarize the number of children in each group (control, nutrition) by outcome.  Finally, summarize the distribution of block sizes.
+
+```{r number of clusters by outcome}
+table(dcl$outcome_lab,dcl$country)
+```
+
+```{r number of children by outcome}
+
+n_by_group <- dcl %>% 
+  group_by(country, outcome_lab) %>% 
+  summarize(n1sum=sum(n1),n0sum=sum(n0), .groups="drop")
+
+kbl(n_by_group %>% dplyr::select(-country), 
+    col.names = c("Outcome","Nutrition","Control"),
+    caption = "Number of children included in the analysis by country and outcome",
+    format.args = list(big.mark=",")
+    ) %>%
+  kable_styling(bootstrap_options = "striped") %>%
+  pack_rows(start_row = 1, end_row = 14, group_label = "Bangladesh") %>%
+  pack_rows(start_row = 15, end_row = 26, group_label = "Kenya")
+
+```
 
 # Session Info
 ```{r session info}
