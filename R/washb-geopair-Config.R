@@ -58,9 +58,10 @@ registerDoParallel(detectCores() - 1)
 
 
 #----------------------------
-# custom color pallettes
+# custom color palettes
 #----------------------------
 library(viridis)
+library(RColorBrewer)
 
 # safe color blind palette
 # http://jfly.iam.u-tokyo.ac.jp/color/
