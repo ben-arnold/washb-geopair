@@ -26,13 +26,20 @@ Details of original citations and data sources here: **TBD**
 
 # Preamble
 
-```{r preamble}
+```{r preamble, message = FALSE}
 library(here)
 here()
 #----------------------------
 # source the config file
 #----------------------------
 source(here("R","washb-geopair-Config.R"))
+
+# detach raster and gdistance packages because
+# of conflicts with dplyr::select() and not
+# needed
+detach("package:gdistance", unload = TRUE)
+detach("package:raster", unload = TRUE)
+
 
 #----------------------------
 # source the base functions
@@ -349,6 +356,7 @@ k_ate_hw <- estimate_Imai_ATE(Y=d$hw,Z=d$tr01,grp=d$clusteridr2,match=d$block,da
 detach("package:experiment", unload = TRUE)
 detach("package:MASS", unload = TRUE)
 
+
 ```
 
 
@@ -445,6 +453,8 @@ dboot <- dcl %>%
   group_by(outcome_lab)
 
 # estimate outcome correlation, weighted by pair-wise N
+# this function is not used below because we are going
+# to go with unweighted correlation, implemented in stats::cor()
 corx <- function(x,y,w) {
     xw <- x*w
     yw <- y*w
@@ -461,7 +471,7 @@ cor_boot_b <- foreach(iteri = 1:1000, .combine = rbind) %dopar% {
   set.seed(iteri)
   di <- dboot %>% 
     slice_sample(prop = 1, replace = TRUE)
-  corest <- di %>% group_map( ~ corx(x=.x$Y1bar, y=.x$Y0bar,w = .x$w))
+  corest <- di %>% group_map( ~ cor(x=.x$Y1bar, y=.x$Y0bar,method="pearson"))
   
   res <- data.frame(iter = iteri, outcome_lab = levels(di$outcome_lab), corr = unlist(corest))
   res
@@ -518,7 +528,7 @@ cor_boot_k <- foreach(iteri = 1:1000, .combine = rbind) %dopar% {
   set.seed(iteri)
   di <- dboot %>% 
     slice_sample(prop = 1, replace = TRUE)
-  corest <- di %>% group_map( ~ corx(x=.x$Y1bar, y=.x$Y0bar,w = .x$w))
+  corest <- di %>% group_map( ~ cor(x=.x$Y1bar, y=.x$Y0bar,method="pearson"))
   
   res <- data.frame(iter = iteri, outcome_lab = levels(di$outcome_lab), corr = unlist(corest))
   res
@@ -540,7 +550,7 @@ cor_boot_ci_k <- cor_boot_k2 %>%
 
 #-------------------------------
 # transform correlation 95% CIs 
-# into relative efficacy
+# into relative efficiency
 #-------------------------------
 releff_ci_k <- cor_boot_ci_k %>%
   mutate(releff_min95 = 1/(1-cor_min95),
@@ -581,268 +591,6 @@ write_csv(ate_res3, file = here("data","washb_ATE_releff_estimates.csv"))
 
 ```
 
-# Relative Efficiency table
-
-```{r summary relative efficacy table}
-options(knitr.kable.NA = "‡")
-
-sumtab <- ate_res %>%
-  select(outcome_lab, bcorr_w = corr_w, beff_w = eff_w) %>%
-  left_join(k_ate_res, by = "outcome_lab") %>%
-  select(outcome_lab, bcorr_w, corr_w, beff_w, eff_w)
-
-
-knitr::kable(sumtab,
-             digits = c(0,2,2,1,1),
-             align = c("lcccc"),
-             col.names = c("Outcome","Bangladesh","Kenya","Bangladesh","Kenya"),
-             caption = "Summary of pair-wise outcome correlation and relative efficacy of geographic pair-matching") %>%
-  kable_styling(bootstrap_options = "striped") %>%
-  pack_rows("Child growth",1,4) %>%
-  pack_rows("Child development",5,9) %>%
-  pack_rows("Infectious disease",10,14) %>%
-  add_header_above(c(" " = 1, "Pair-wise correlation*" = 2, "Relative Efficiency†" = 2)) %>%
-  footnote(symbol = c("Correlation between geographically paired, cluster-level means weighted by cluster sizes.",
-                      "Relative efficiency of geographic pair-matching compared to an unmatched design, defined as 1/(1-r), where r is the correlation between paired outcomes. A relative efficiency of 2 means that a pair-matched study with 30 clusters per group has the same power as an unmatched study with 60 clusters per group.","Communicative Development Inventory (CDI) measures were not collected in the Kenya trial."))
-
-```
-
-
-# Relative Efficiency Figure
-
-```{r plot relative efficiency, warning = FALSE}
-# pivot the summary table longer to plot
-dreffplot <- ate_res %>%
-  select(country, outcome_lab, corr_u, eff_u, corr_w, eff_w) %>%
-  bind_rows(k_ate_res %>% select(country, outcome_lab, corr_u, eff_u,  corr_w, eff_w))
-# group outcomes for plot aesthetics
-dreffplot$outcome_group = c(rep("Child growth",4),rep("Child development",5),rep("Infectious disease",5) , rep("Child growth",4),rep("Child development",3),rep("Infectious disease",5))
-# make shorter outcome labels
-dreffplot$outcome_lab2 = c( c("LAZ","WAZ","WHZ","HCZ","EASQ Communication","EASQ Gross motor","EASQ Personal-social","CDI Comprehension","CDI Expression","Diarrhea","Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm"), c("LAZ","WAZ","WHZ","HCZ","EASQ Communication","EASQ Gross motor","EASQ Personal-social","Diarrhea","Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm"))
-
-dreffplot2 <- dreffplot %>%
-  mutate(outcome_group = factor(outcome_group),
-         country = factor(country)) %>%
-  # tedious x and y nudge coordinates for labels to optimize display
-  mutate(lab_xnudge = case_when(
-           outcome_lab2 == "LAZ" & country == "Bangladesh" ~ 0.015,
-           outcome_lab2 == "HCZ" & country == "Bangladesh" ~ 0.015,
-           outcome_lab2 == "Diarrhea" & country == "Bangladesh" ~ 0.015,
-           outcome_lab2 == "WHZ" & country == "Kenya" ~ 0.015,
-           outcome_lab2 %in% c("EASQ Communication","EASQ Personal-social","CDI Expression") & country == "Bangladesh" ~ 0.015,
-           TRUE ~ as.numeric(-0.015)
-         ),
-         lab_ynudge = case_when(
-           outcome_lab2 == "Hookworm" & country == "Kenya" ~ 0.02,
-           outcome_lab2 == "Trichuris sp." & country == "Kenya" ~ 0.02,
-           outcome_lab2 == "WHZ" & country == "Kenya" ~ -0.02,
-           outcome_lab2 == "EASQ Gross motor" & country == "Bangladesh" ~ 0.01,
-           outcome_lab2 == "EASQ Personal-social" & country == "Bangladesh" ~ -0.02,
-           outcome_lab2 == "EASQ Personal-social" & country == "Kenya" ~ 0.02,
-           outcome_lab2 == "CDI Comprehension" & country == "Bangladesh" ~ 0.02,
-           outcome_lab2 == "CDI Expression" & country == "Bangladesh" ~ -0.04,
-           TRUE ~ as.numeric(0)
-         ),
-         lab_hjust = ifelse(lab_xnudge < 0 , 1, 0)
-         )
-
-
-# data frame for function
-d_reff <- data.frame(rho = seq(0,1,by=0.01)) %>%
-  mutate(reff = 1/(1-rho))
-
-# make plot
-pcols <- c("#D9B86A", "#9B9F7C", "#5986B0")
-plot_reff <- ggplot(data=dreffplot2, aes(x = corr_w, y = eff_w)) +
-  # facet over country
-  facet_grid(~country) +
-  # add function line
-  geom_line(data=d_reff,aes(x=rho,y=reff),alpha = 0.4, linetype = "dashed", show.legend = FALSE) +
-  # plot results
-  # this offset is very idiosyncratic to optimize display -- fragile code!
-  geom_text(aes(label = outcome_lab2, color = outcome_group), 
-            hjust = dreffplot2$lab_hjust, 
-            nudge_x = dreffplot2$lab_xnudge,
-            nudge_y = dreffplot2$lab_ynudge,
-            size = 2.5, show.legend = FALSE) +
-  geom_point(aes(color = outcome_group), size = 2.2, alpha=1) + 
-  geom_point(pch=21,bg=NA, size=2.2, show.legend = TRUE) +
-  # refine aesthetics
-  scale_color_manual(values = pcols, guide=guide_legend(title="Outcome group:")) +
-  # scale_color_brewer(palette = "Dark2", guide=guide_legend(title="Outcome group:")) +
-  # scale_color_viridis_d(begin = 0.4, end = 0.8, direction = -1, option = "E",  guide=guide_legend(title="Outcome group:")) +
-  scale_y_continuous(breaks=seq(1,3.2,by=0.2))+
-  scale_x_continuous(breaks=seq(0,0.7,by=0.1)) +
-  coord_cartesian(ylim=c(1,3.2),xlim = c(0,0.7)) +
-  labs(x=expression(paste("Correlation between paired outcomes, (",italic(r),")")),y=expression(paste("Relative efficiency of geographic pair-matching, (1-",italic(r),")")^-1), tag = "a") +
-  theme_minimal() +
-  theme(
-    legend.position = "none",
-    panel.grid.minor = element_blank(),
-    plot.tag = element_text(face = "bold")
-  )
-plot_reff
-
-```
-
-# Break even correlation
-
-
-The power of the matched t-test for a two-tailed 0.05 test where the power of the unmatched test is held at 0.80 and the pairs are uncorrelated
-
-```{r power of matched vs unmatched}
-
-#------------------------------
-# power of the matched
-# compared to unmatched test
-# r = 0
-#------------------------------
-ns <- 2:50
-sdu <- 1
-powr0 <- foreach(ni = ns, .combine = rbind) %do% {
-  pu <- power.t.test(n=ni,sd=sdu, power=0.8, type="two.sample")
-  pm <- power.t.test(n=ni,delta=pu$delta, sd=sqrt(2)*sdu, sig.level= 0.05, type = "one.sample")
-  res <- data.frame(n=ni, powm = pm$power, powu = pu$power,sdm=pm$sd,sdu = sdu)
-}
-
-ggplot(data=powr0, aes(x=n)) +
-  geom_hline(yintercept = 0.8, color = "gray40") + 
-  geom_line(aes(y=powm)) +
-  scale_y_continuous(breaks=seq(0,1,by=0.1))+
-  coord_cartesian(ylim = c(0,1)) +
-  labs(x = "number of pairs", y = "power") +
-  theme_minimal() 
-```
-
-Solve for break even correlations of matched versus unmatched designs. This is an adaptation of Figure 4 in Martin et al. (1993)(https://pubmed.ncbi.nlm.nih.gov/8456215/), where they present a function of within-pair correlation, $r_{xy}$, whose squared value equals the within-pair correlation, ($r_{yy}$ in their notation). Below is the break-even correlation for within-pair outcomes.
-
-```{r break even correlation}
-#------------------------------
-# solve for break-even r
-#------------------------------
-ns <- 3:50
-sdu <- 1
-breakrs <- foreach(ni = ns, .combine = rbind) %do% {
-  pu <- power.t.test(n=ni,sd=sdu, power=0.8, sig.level= 0.05, type="two.sample")
-  pm <- power.t.test(n=ni,delta=pu$delta, power=0.8,sd=NULL, sig.level= 0.05, type = "one.sample")
-  ri = 1 - ( pm$sd^2/(2*(sdu)^2) )
-  res <- data.frame(n=ni, powm = pm$power, powu = pu$power,sdm=pm$sd,sdu = sdu, r=ri)
-}
-ggplot(data=breakrs, aes(x=n,y=r)) +
-  geom_line(aes(), color = "gray40") + 
-  geom_point() +
-  scale_y_continuous(breaks=seq(0,1,by=0.1))+
-  labs(x = "number of pairs", y = "break-even correlation (r)") +
-  annotate("text",x = 10, y=0.225, label = "Favors a matched design", hjust = 0)+
-  annotate("text",x = 1, y=0.025, label = "Favors unmatched design", hjust = 0)+
-  coord_cartesian(ylim = c(0,0.6), xlim=c(0,50)) +
-  theme_minimal() 
-
-#------------------------------
-# solve for break even r
-# by iteration
-# (not used) 100% consistent
-# with the analytic solution, above
-# just did this to confirm
-#------------------------------
-# ns <- 2:50
-# sdu <- 1
-# powrs <- foreach(ni = ns, .combine = rbind) %do% {
-#   pu <- power.t.test(n=ni,sd=sdu, power=0.8, type="two.sample")
-#   ri <- 0
-#   powm <- 0
-#   while(ri < 1 & powm < 0.8) {
-#     pm <- power.t.test(n=ni,delta=pu$delta, sd=sqrt(2)*sdu*sqrt(1-ri), sig.level= 0.05, type = "one.sample")
-#     powm <- pm$power
-#     ri <- ri+0.001
-#   }
-#   res <- data.frame(n=ni, powm = pm$power, powu = pu$power,sdm=pm$sd,sdu = sdu, r=ri)
-# }
-
-
-```
-
-# Correlation figure
-
-Compare weighted versus unweighted correlation
-
-```{r plot correlation}
-
-# retrieve the break-even correlation for N = 10 pairs
-breakr10 <- breakrs %>% 
-  filter(n==10) %>%
-  pull(r)
-
-pcols <- c("#D9B86A", "#9B9F7C", "#5986B0")
-plot_corr <- ggplot(data = dreffplot, aes(x = corr_w, y = corr_u)) +
-  facet_grid(~country) +
-  geom_vline(xintercept=breakr10,color = "gray60", lwd=0.5) + 
-  annotate("text",x=breakr10+0.01,y=0.65,label="break-even correlation\nfor n=10 pairs",hjust=0,size=2.5) +
-  geom_abline(intercept = 0, slope = 1, color="gray40") +
-  
-  geom_point(aes(color = outcome_group),size=2.5, alpha=0.9) +
-  geom_point(pch=21, bg=NA, size=2.5, show.legend = TRUE) +
-  geom_text(data = dreffplot %>% filter(corr_w - corr_u >0.2), 
-            aes(label = outcome_lab2, color = outcome_group),
-            size = 2.5, hjust=1, nudge_x = -0.02,show.legend = FALSE) +
-  scale_color_manual(values = pcols, guide=guide_legend(title="Outcome group:")) +
-  scale_fill_manual(values = pcols) +
-  # scale_color_brewer(palette = "Dark2", guide=guide_legend(title="Outcome group:")) +
-  scale_x_continuous(breaks=seq(0,1,by=0.1))+
-  scale_y_continuous(breaks=seq(0,1,by=0.1))+
-  labs(x = "Weighted correlation", y = "Unweighted correlation", tag="b ") +
-  coord_cartesian(xlim=c(0,0.7),ylim = c(0,0.7)) +
-  theme_minimal() +
-  theme(
-    legend.position = "bottom",
-    panel.grid.minor = element_blank(),    
-    plot.tag = element_text(face = "bold")
-
-  )
-
-
-plot_corr
-
-```
-Create a composite figure
-
-```{r composite correlation figure, fig.height = 9}
-plot_corr_comp <- grid.arrange(plot_reff,plot_corr,ncol=1,nrow=2)
-ggsave(here("output","washb-geopair-reff-corr.png"),plot_corr_comp,device="png",height=9,width=7)
-```
-
-
-# Relative efficiency by prevalence figure
-
-```{r plot relative efficiency by prevalence}
-
-prevplotd <- ate_res3 %>%
-  filter(outcome_lab %in% c("Diarrhea","Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm")) %>%
-   mutate(
-     lab_hjust = case_when(
-       country == "Kenya" & outcome_lab %in% c("Hookworm","Trichuris sp.") ~ 0,
-       TRUE ~ as.numeric(1)
-         ),
-     lab_xnudge = case_when(
-       country == "Kenya" & outcome_lab %in% c("Hookworm","Trichuris sp.") ~ 0.01,
-       TRUE ~ as.numeric(-0.01)
-         ),
-   )
-
-plot_reff_by_prev <- ggplot( data = prevplotd, aes(x = Y0bar, y = eff_w)) +
-  facet_grid(.~country) +
-  geom_pointrange(aes(ymin = releff_min95, ymax = releff_max95), color = "gray40") +
-  scale_x_continuous(breaks=seq(0,0.4,by=0.1), labels = sprintf("%1.0f",seq(0,0.4,by=0.1)*100))+
-  labs(x = "Outcome prevalence in control clusters (%)", y = "Relative efficiency") +
-   geom_text(aes(label = outcome_lab),
-             hjust=prevplotd$lab_hjust, nudge_x = prevplotd$lab_xnudge,
-            size = 2.5, show.legend = FALSE) +
-  theme_minimal()
-
-plot_reff_by_prev
-
-ggsave(filename = here("output","washb-geopair-releff-by-prev.png"),plot_reff_by_prev,device = "png", height=4.5,width=7)
-```
 
 # Session Info
 ```{r session info}
