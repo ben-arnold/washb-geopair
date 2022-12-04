@@ -17,11 +17,11 @@ output:
 
 # Summary
 
-In this analysis, we compare a measure of global spatial clustering (Moran's I) with the estimated relative efficiency for each outcome of interest.
+In this analysis, we estimate a measure of global spatial clustering (Moran's I) in the control clusters. There is a quick plot to compare the estimates with the predicted relative efficiency for each outcome of interest based on pair-wise correlation.
 
 # Preamble
 
-```{r preamble}
+```{r preamble, message = FALSE}
 library(here)
 here()
 
@@ -29,12 +29,6 @@ here()
 # source the config file
 #----------------------------
 source(here("R","washb-geopair-Config.R"))
-
-#----------------------------
-# add the raster package
-# which conflicts with dplyr::select
-#----------------------------
-library(raster)
 
 #----------------------------
 # Box data filepath
@@ -192,7 +186,7 @@ get_moran <- function(input_df, var){
   dist_matrix_inv <- 1/dist_matrix
   diag(dist_matrix_inv) <- 0
   
-  # estimate Moran's I and statistical significance for each trachoma variable 
+  # estimate Moran's I and statistical significance for each outcome variable 
   ret <- ape::Moran.I(input_df %>% pull(get(var)), dist_matrix_inv) %>% 
     as.data.frame() %>%
     rename_all(~paste0("morani_", .)) %>% 
@@ -225,31 +219,46 @@ morani_res <- moranib %>%
 
 # Visualize results
 
-```{r plot morani, fig.width = 8.5, fig.height = 2.5}
+```{r plot morani, fig.width = 8, fig.height = 5}
 morani_res %>%
-  ggplot(aes(x = morani_observed, y = eff_w)) +
-  geom_errorbar(aes(x = morani_observed,
-                    ymin = releff_min95,
-                    ymax = releff_max95,
-                    color = outcome_group)) +
+  ggplot(aes(y = morani_observed, x = eff_u)) +
+  geom_smooth(method = "gam", se=FALSE, color="gray80") +
+  # geom_errorbar(aes(x = morani_observed,
+  #                   ymin = releff_min95,
+  #                   ymax = releff_max95,
+  #                   color = outcome_group)) +
     geom_point(aes(fill = outcome_group), pch = 21,
                alpha = 0.8, size = 2) +
-  scale_color_manual(values = outcome_colors) +
+  
+  scale_color_manual(values = outcome_colors,guide=guide_legend(title="outcome group:")) +
   scale_fill_manual(values = outcome_colors) +
-  labs(x = "Observed Moran's I", y = "Relative efficiency") +
+  scale_y_continuous(breaks = seq(0,0.16,by=0.02)) + 
+  scale_x_continuous(breaks = seq(1,4,by=0.5)) + 
+  coord_cartesian(xlim=c(1,2.5)) +
+  labs(y = "global clustering in the control group (Moran's I)", 
+       x = expression(paste("predicted relative efficiency of geographic pair-matching, (1-",italic(r),")")^-1)) +
   facet_wrap(.~country, nrow = 1) +
   theme_minimal() +
-  theme(panel.spacing = unit(2, "lines"))
+  theme(
+    legend.position = "bottom",
+    strip.text = element_text(size=11),
+    panel.grid.minor.y = element_blank()
+    )
+```
+
+# Save estimates
+
+Save Moran's I estimates for composite plots or tables
+
+```{r save results}
+write_csv(morani_res,file=here("data","washb-geopair-morans-I-estimates.csv"))
+write_rds(morani_res,file=here("data","washb-geopair-morans-I-estimates.rds"))
+
 ```
 
 # Session Info
 
 ```{r session info}
-#----------------------------
-# detach the raster package
-#----------------------------
-detach("package:raster", unload=TRUE)
-
 sessionInfo()
 ```
 
