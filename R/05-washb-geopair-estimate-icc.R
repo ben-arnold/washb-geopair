@@ -8,7 +8,13 @@ here()
 # source the config file
 source(here("R","washb-geopair-Config.R"))
 
-
+#----------------------------
+# Set the seed and 
+# the number of bootstrap
+# replicates
+#----------------------------
+set.seed(91742)
+nbootreps <- 100
 
 #-------------------------------
 # Bangladesh Estimates
@@ -41,7 +47,6 @@ dpara <- read_rds(here("data","bangl_analysis_parasite.rds")) %>%
 # each pair among the 
 # control arm observations
 #-------------------------------
-set.seed(9124)
 
 #-------------------------------
 # Block-level ICC
@@ -49,10 +54,10 @@ set.seed(9124)
 #-------------------------------
 danth_control <- danth %>%
   filter(tr == "Control")
-icc_laz <- rptGaussian(laz ~ 1 + (1|blockf), grname = "blockf", data = danth_control, nboot = 1000)
-icc_waz <- rptGaussian(waz ~ 1 + (1|blockf), grname = "blockf", data = danth_control, nboot = 1000)
-icc_whz <- rptGaussian(whz ~ 1 + (1|blockf), grname = "blockf", data = danth_control, nboot = 1000)
-icc_hcz <- rptGaussian(hcz ~ 1 + (1|blockf), grname = "blockf", data = danth_control, nboot = 1000)
+icc_laz <- rptGaussian(laz ~ 1 + (1|blockf), grname = "blockf", data = danth_control, nboot = nbootreps)
+icc_waz <- rptGaussian(waz ~ 1 + (1|blockf), grname = "blockf", data = danth_control, nboot = nbootreps)
+icc_whz <- rptGaussian(whz ~ 1 + (1|blockf), grname = "blockf", data = danth_control, nboot = nbootreps)
+icc_hcz <- rptGaussian(hcz ~ 1 + (1|blockf), grname = "blockf", data = danth_control, nboot = nbootreps)
 
 #-------------------------------
 # Block-level ICC
@@ -60,11 +65,11 @@ icc_hcz <- rptGaussian(hcz ~ 1 + (1|blockf), grname = "blockf", data = danth_con
 #-------------------------------
 dchdev_control <- dchdev %>%
   filter(tr == "Control")
-icc_easqcom <- rptGaussian(z_easq_com ~ 1 + (1|blockf), grname = "blockf", data = dchdev_control, nboot = 1000)
-icc_easqmot <- rptGaussian(z_easq_motor ~ 1 + (1|blockf), grname = "blockf", data = dchdev_control, nboot = 1000)
-icc_easqps <- rptGaussian(z_easq_pers ~ 1 + (1|blockf), grname = "blockf", data = dchdev_control, nboot = 1000)
-icc_cdicomp <- rptGaussian(z_cdi_comp ~ 1 + (1|blockf), grname = "blockf", data = dchdev_control, nboot = 1000)
-icc_cdiexpr <- rptGaussian(z_cdi_expr ~ 1 + (1|blockf), grname = "blockf", data = dchdev_control, nboot = 1000)
+icc_easqcom <- rptGaussian(z_easq_com ~ 1 + (1|blockf), grname = "blockf", data = dchdev_control, nboot = nbootreps)
+icc_easqmot <- rptGaussian(z_easq_motor ~ 1 + (1|blockf), grname = "blockf", data = dchdev_control, nboot = nbootreps)
+icc_easqps <- rptGaussian(z_easq_pers ~ 1 + (1|blockf), grname = "blockf", data = dchdev_control, nboot = nbootreps)
+icc_cdicomp <- rptGaussian(z_cdi_comp ~ 1 + (1|blockf), grname = "blockf", data = dchdev_control, nboot = nbootreps)
+icc_cdiexpr <- rptGaussian(z_cdi_expr ~ 1 + (1|blockf), grname = "blockf", data = dchdev_control, nboot = nbootreps)
 
 #-------------------------------
 # Block-level ICC
@@ -72,7 +77,7 @@ icc_cdiexpr <- rptGaussian(z_cdi_expr ~ 1 + (1|blockf), grname = "blockf", data 
 #-------------------------------
 ddiar_control <- ddiar %>%
   filter(tr == "Control")
-icc_diar <- rptBinary(diar7d ~ 1 + (1|blockf), grname = "blockf", data=ddiar_control, nboot = 1000)
+icc_diar <- rptBinary(diar7d ~ 1 + (1|blockf), grname = "blockf", data=ddiar_control, nboot = nbootreps)
 
 #-------------------------------
 # Block-level ICC
@@ -80,10 +85,10 @@ icc_diar <- rptBinary(diar7d ~ 1 + (1|blockf), grname = "blockf", data=ddiar_con
 #-------------------------------
 dpara_control <- dpara %>%
   filter(tr == "Control")
-icc_giar <- rptBinary(giar ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = 1000)
-icc_al   <- rptBinary(al ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = 1000)
-icc_tt   <- rptBinary(tt ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = 1000)
-icc_hw   <- rptBinary(hw ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = 1000)
+icc_giar <- rptBinary(giar ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = nbootreps)
+icc_al   <- rptBinary(al ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = nbootreps)
+icc_tt   <- rptBinary(tt ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = nbootreps)
+icc_hw   <- rptBinary(hw ~ 1 + (1|blockf), grname = "blockf", data=dpara_control, nboot = nbootreps)
 
 
 #-------------------------------
@@ -143,7 +148,6 @@ dkpara <- read_rds(here("data","kenya_analysis_parasite.rds")) %>%
 # each pair among the 
 # control arm observations
 #-------------------------------
-set.seed(0928)
 
 #-------------------------------
 # Block-level ICC
@@ -151,10 +155,10 @@ set.seed(0928)
 #-------------------------------
 dkanth_control <- dkanth %>%
   filter(tr == "Control")
-kicc_laz <- rptGaussian(laz ~ 1 + (1|blockf), grname = "blockf", data = dkanth_control, nboot = 1000)
-kicc_waz <- rptGaussian(waz ~ 1 + (1|blockf), grname = "blockf", data = dkanth_control, nboot = 1000)
-kicc_whz <- rptGaussian(whz ~ 1 + (1|blockf), grname = "blockf", data = dkanth_control, nboot = 1000)
-kicc_hcz <- rptGaussian(hcz ~ 1 + (1|blockf), grname = "blockf", data = dkanth_control, nboot = 1000)
+kicc_laz <- rptGaussian(laz ~ 1 + (1|blockf), grname = "blockf", data = dkanth_control, nboot = nbootreps)
+kicc_waz <- rptGaussian(waz ~ 1 + (1|blockf), grname = "blockf", data = dkanth_control, nboot = nbootreps)
+kicc_whz <- rptGaussian(whz ~ 1 + (1|blockf), grname = "blockf", data = dkanth_control, nboot = nbootreps)
+kicc_hcz <- rptGaussian(hcz ~ 1 + (1|blockf), grname = "blockf", data = dkanth_control, nboot = nbootreps)
 
 #-------------------------------
 # Block-level ICC
@@ -162,9 +166,9 @@ kicc_hcz <- rptGaussian(hcz ~ 1 + (1|blockf), grname = "blockf", data = dkanth_c
 #-------------------------------
 dkchdev_control <- dkchdev %>%
   filter(tr == "Control")
-kicc_easqcom <- rptGaussian(z_easq_com ~ 1 + (1|blockf), grname = "blockf", data = dkchdev_control, nboot = 1000)
-kicc_easqmot <- rptGaussian(z_easq_motor ~ 1 + (1|blockf), grname = "blockf", data = dkchdev_control, nboot = 1000)
-kicc_easqps <- rptGaussian(z_easq_pers ~ 1 + (1|blockf), grname = "blockf", data = dkchdev_control, nboot = 1000)
+kicc_easqcom <- rptGaussian(z_easq_com ~ 1 + (1|blockf), grname = "blockf", data = dkchdev_control, nboot = nbootreps)
+kicc_easqmot <- rptGaussian(z_easq_motor ~ 1 + (1|blockf), grname = "blockf", data = dkchdev_control, nboot = nbootreps)
+kicc_easqps <- rptGaussian(z_easq_pers ~ 1 + (1|blockf), grname = "blockf", data = dkchdev_control, nboot = nbootreps)
 
 
 #-------------------------------
@@ -173,7 +177,7 @@ kicc_easqps <- rptGaussian(z_easq_pers ~ 1 + (1|blockf), grname = "blockf", data
 #-------------------------------
 dkdiar_control <- dkdiar %>%
   filter(tr == "Control")
-kicc_diar <- rptBinary(diarr7 ~ 1 + (1|blockf), grname = "blockf", data=dkdiar_control, nboot = 1000)
+kicc_diar <- rptBinary(diar7d ~ 1 + (1|blockf), grname = "blockf", data=dkdiar_control, nboot = nbootreps)
 
 #-------------------------------
 # Block-level ICC
@@ -182,9 +186,9 @@ kicc_diar <- rptBinary(diarr7 ~ 1 + (1|blockf), grname = "blockf", data=dkdiar_c
 #-------------------------------
 dkpara_control <- dkpara %>%
   filter(tr == "Control")
-kicc_giar <- rptBinary(giar ~ 1 + (1|blockf), grname = "blockf", data=dkpara_control, nboot = 1000)
-kicc_al   <- rptBinary(al ~ 1 + (1|blockf), grname = "blockf", data=dkpara_control, nboot = 1000)
-kicc_hw   <- rptBinary(hw ~ 1 + (1|blockf), grname = "blockf", data=dkpara_control, nboot = 1000)
+kicc_giar <- rptBinary(giar ~ 1 + (1|blockf), grname = "blockf", data=dkpara_control, nboot = nbootreps)
+kicc_al   <- rptBinary(al ~ 1 + (1|blockf), grname = "blockf", data=dkpara_control, nboot = nbootreps)
+kicc_hw   <- rptBinary(hw ~ 1 + (1|blockf), grname = "blockf", data=dkpara_control, nboot = nbootreps)
 
 #-------------------------------
 # summarize the results 
@@ -200,7 +204,7 @@ kicc_ub <- unlist(c(kicc_laz$CI_emp[2],kicc_waz$CI_emp[2],kicc_whz$CI_emp[2],kic
                     kicc_easqcom$CI_emp[2],kicc_easqmot$CI_emp[2],kicc_easqps$CI_emp[2],
                     kicc_diar$CI_emp[[1]][2], kicc_giar$CI_emp[[1]][2], kicc_al$CI_emp[[1]][2], kicc_hw$CI_emp[[1]][2]))
 kicc_tab <- data.frame(
-  outcome = c("LAZ","WAZ","WHZ","HCZ",
+  outcome = c("length-for-age z","weight-for-age z","weight-for-height z","head circumference z",
               "EASQ Communication","EASQ Gross motor","EASQ Personal-social",
               "Diarrhea","Giardia","Ascaris","Hookworm"),
   icc = kiccs,
@@ -217,9 +221,11 @@ kicc_tab <- data.frame(
 icc_tab_all <- icc_tab %>%
   mutate(country = "Bangladesh") %>%
   bind_rows(kicc_tab) %>%
-  mutate(country = ifelse(is.na(country),"Kenya",country))
+  mutate(country = ifelse(is.na(country),"Kenya",country)) %>%
+  dplyr::select(country, everything())
 
-write_csv(icc_tab_all, path = here("data","washb-geopair-icc-estimates.csv") )
+write_csv(icc_tab_all, file = here("data","washb-geopair-icc-estimates.csv") )
+write_rds(icc_tab_all, file = here("data","washb-geopair-icc-estimates.rds") )
 
 
 print(icc_tab_all)
