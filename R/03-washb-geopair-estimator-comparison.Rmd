@@ -1,7 +1,7 @@
 ---
-title: "Comparing levels of analysis matching in the WASH Benefits trials"
-subtitle: " "
-author: "Christine Tedijanto christine.tedijanto@ucsf.edu"
+title: "Geographic pair matching in large-scale cluster randomized trials"
+subtitle: "Estimate empirical gains in efficiency from pair matching and adjusted analyses (vs unmatched estimator)"
+author: "Christine Tedijanto christine.tedijanto@ucsf.edu and Ben Arnold ben.arnold@ucsf.edu"
 date: "updated: `r Sys.time()`"
 output: 
   html_document:
@@ -17,7 +17,7 @@ output:
 
 # Summary
 
-In this analysis, we compare the estimated relative efficiency based on analytic methods with the empirical relative efficiency. The empirical relative efficiency is calculated by comparing the variance of the treatment effect in an analysis that does not account for matching to the variance of the treatment effect using the Imai matched pair estimator. 
+In this analysis, we compare the estimated relative efficiency based on analytic methods with the empirical relative efficiency. The empirical relative efficiency is calculated by comparing the variance of the treatment effect in an analysis that does not account for matching to the variance of the treatment effect using the Imai matched pair estimator. An additional analysis controls for subdistricts (zillas in Bangladesh, sub-counties in Kenya) and compares the relative efficiency of that estimator to an unmatched analysis. 
 
 # Preamble
 
