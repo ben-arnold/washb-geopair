@@ -14,7 +14,7 @@ source(here("R","washb-geopair-Config.R"))
 # replicates
 #----------------------------
 set.seed(91742)
-nbootreps <- 100
+nbootreps <- 1000
 
 #-------------------------------
 # Bangladesh Estimates
@@ -105,9 +105,9 @@ icc_ub <- unlist(c(icc_laz$CI_emp[2],icc_waz$CI_emp[2],icc_whz$CI_emp[2],icc_hcz
                     icc_easqcom$CI_emp[2],icc_easqmot$CI_emp[2],icc_easqps$CI_emp[2],icc_cdicomp$CI_emp[2],icc_cdiexpr$CI_emp[2],
                    icc_diar$CI_emp[[1]][2], icc_giar$CI_emp[[1]][2], icc_al$CI_emp[[1]][2], icc_tt$CI_emp[[1]][2], icc_hw$CI_emp[[1]][2]))
 icc_tab <- data.frame(
-  outcome = c("LAZ","WAZ","WHZ","HCZ",
-              "EASQ Communication","EASQ Gross motor","EASQ Personal-social","CDI Comprehension","CDI Expression",
-              "Diarrhea","Giardia","Ascaris","Trichuris","Hookworm"),
+  outcome = c("length-for-age z","weight-for-age z","weight-for-height z","head circumference z",
+              "EASQ communication z","EASQ gross motor z","EASQ personal-social z","CDI comprehension z","CDI expression z",
+              "Diarrhea","Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm"),
   icc = iccs,
   icc_min95 = icc_lb,
   icc_max95 = icc_ub
@@ -205,8 +205,8 @@ kicc_ub <- unlist(c(kicc_laz$CI_emp[2],kicc_waz$CI_emp[2],kicc_whz$CI_emp[2],kic
                     kicc_diar$CI_emp[[1]][2], kicc_giar$CI_emp[[1]][2], kicc_al$CI_emp[[1]][2], kicc_hw$CI_emp[[1]][2]))
 kicc_tab <- data.frame(
   outcome = c("length-for-age z","weight-for-age z","weight-for-height z","head circumference z",
-              "EASQ Communication","EASQ Gross motor","EASQ Personal-social",
-              "Diarrhea","Giardia","Ascaris","Hookworm"),
+              "EASQ communication z","EASQ gross motor z","EASQ personal-social z",
+              "Diarrhea","Giardia sp.","Ascaris sp.","Hookworm"),
   icc = kiccs,
   icc_min95 = kicc_lb,
   icc_max95 = kicc_ub
