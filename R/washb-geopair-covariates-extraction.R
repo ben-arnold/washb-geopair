@@ -16,6 +16,12 @@ source(here("cluster-level-covariates/R", "0-config.R"))
 ###################
 ### Import data ###
 ###################
+# BGD_Admin
+BGD_Adm <- raster::getData("GADM",
+                           country = "BGD",
+                           level = 1,
+                           path = here("data/untouched/country-admin"))
+
 # WashB clusters GPS
 washB <- readRDS("data/untouched/cluster-gps/bangl_analysis_gps.rds")
 
@@ -31,7 +37,8 @@ flood_area_percent <- readRDS(here("data/untouched/flood", "flood_area_percent")
 # Accessibility to cities (malaria atlas project)
 accessibility_to_cities_2015_min <- raster(here("data/untouched/2015_accessibility_to_cities_v1/2015_accessibility_to_cities_v1.0.tif"))
 
-
+accessibility_to_cities_2015_min_mask <- mask(crop(accessibility_to_cities_2015_min, BGD_Adm), BGD_Adm)
+plot(accessibility_to_cities_2015_min_mask)
 #-------------------------------------------------------------------------------
 
 ####################
