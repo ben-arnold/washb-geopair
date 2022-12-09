@@ -48,6 +48,7 @@ library(rcartocolor)
 library(raster)
 library(malariaAtlas)
 library(gdistance)
+library(spaMM)
 
 #----------------------------
 # parallel computing packages
