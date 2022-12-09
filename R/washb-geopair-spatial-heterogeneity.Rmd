@@ -6,7 +6,7 @@ date: "updated: `r Sys.time()`"
 output: 
   html_document:
     theme: default
-    highlight: haddock
+    highlight: default
     code_folding: hide
     toc: true
     toc_depth: 3
@@ -17,14 +17,23 @@ output:
 
 # Summary
 
-Summary here: **TBD**
+This script conducts an analysis of an outcome in the Bangladesh trial (diarrhea) and an outcome in the Kenya trial (Ascaris sp. infection). 
 
-Details of original citations and data sources here: **TBD**
+These two outcomes were chosen as illustrative examples because both outcomes exhibit spatial heterogeneity in the control group means, yet provide contrasting examples of spatial heterogeneity in the average treatment effect (ATE) — some heterogeneity of the effect on diarrhea in Bangladesh, but almost none for Ascaris sp. in Kenya. 
 
+For each outcome, we use a geostatistical regression model to krige (smooth) the mean in the control group between pair-matched locations, as well as the ATE.  As of Dec 2022, Wikipedia has one of the most concise summaries of the approach (https://en.wikipedia.org/wiki/Regression-kriging). We use a simple model that estimates the mean as a function of longitude and latitude plus a Matern spatial covariance function allowing for correlated values between locations. This is sometimes called _universal kriging_. 
+
+Loosly following notation from Diggle and Giorgi (2016, https://doi.org/10.1080/01621459.2015.1123158) the model is:
+
+$E[Y(x_i)] = d(x_i)^{'}\beta + S(x_i)$
+
+where $d(x_i)$ includes an intercept plus longitude and latitude at each location, $x_i$, and $S(x_i)$ is a Gaussian process with mean zero and correlation function assumed to follow a Matern distribution between locations $x_i$, with $g(x) = g(x,x^{'}) = \left[S(x),S(x^')\right] = Matern(x; \nu,\rho)$ where $\nu$ is the smoothness parameter and $\rho$ estimates the decay in correlation with distance between locations.  We fit the model using maximum likelihood using the `spaMM` package in R.
+
+Once fit, we then predict over a fine grid of the study area, trimmed to locations within study-region subdistricts that are within 10km of study clusters. We chose 10km as a reasonable distance to extrapolate from observed values. Outcomes in both examples demonstrated correlation within 10-20 km based on the fitted regression kriging models.  Finally, we simulate from the model fit of the fixed effect and spatial covariance matrix 1,000 realizations of the outcome at each location, and compute the proportion of those realizations where there is a treatment benefit (a reduction in prevalence of diarrhea or Ascaris sp. infection): $Pr(\hat{E}[Y(x_i)] < 0)$. This is an approximate posterior probability of a treatment benefit under an uninformative prior. It is useful because it conveys information about both the magnitude of the treatment effect and its uncertainty (Diggle and Giorgi 2016 https://doi.org/10.1080/01621459.2015.1123158, Fronterre et al. 2020 https://doi.org/10.1093/infdis/jiz554).
 
 # Preamble
 
-```{r preamble}
+```{r preamble, message = FALSE}
 library(here)
 here()
 #----------------------------
@@ -33,907 +42,872 @@ here()
 source(here("R","washb-geopair-Config.R"))
 
 #----------------------------
-# add the raster package
-# which conflicts with dplyr::select
+# source the shared functions file
 #----------------------------
-library(raster)
+source(here("R","washb-geopair-Functions.R"))
 
+
+#----------------------------
+# Box data file paths
+#----------------------------
+Box_data_directory    <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/final/"
+Box_geodata_directory <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/geodata/"
 ```
 
-
-
-# Bangladesh
+# Bangladesh diarrhea
 
 ## Data prep
 
 ```{r load bangladesh data}
 #-------------------------------
-# load the formatted analysis
+# load the study GPS data
 # data created by
-# washb-geopair-data-processing.R
 # washb-geopair-gps-data-processing.R
+#
+# NOT PUBLICLY AVAILABLE
+# NEED TO USE ACCURATE LON/LAT FOR MAPPING
 #-------------------------------
-
-# anthropometry data
-danth <- read_rds(here("data","bangl_analysis_anthro.rds")) %>%
-  mutate(blockf = factor(block))
-
-# child development data
-dchdev <- read_rds(here("data","bangl_analysis_chdev.rds")) %>%
-  mutate(blockf = factor(block))
-
-# diarrhea data
-ddiar <- read_rds(here("data","bangl_analysis_diar.rds")) %>%
-  mutate(blockf = factor(block))
-
-# parasite data
-dpara <- read_rds(here("data","bangl_analysis_parasite.rds")) %>%
-  mutate(blockf = factor(block))
 
 # Cluster-level GPS locations (centroids of compounds in each cluster)
-# NOT PUBLICLY AVAILABLE -- NEED TO USE ACCURATE LON/LAT FOR MAPPING
-dgps <- read_rds(here("data","bangl_analysis_gps.rds")) %>%
+dgps <- read_rds(paste0(Box_data_directory,"bangl_analysis_gps.rds")) %>%
   mutate(block = as.character(block),
          blockf = factor(block))
-  # save control cluster points for convenience
-  dbgps_control <- dgps %>%
-    filter(tr=="Control")
   
-ddists <- read_rds(here("data","bangl_analysis_block_dists.rds"))
-```
+#----------------------------------
+# Load the Bangladesh
+# administrative shapefile
+#----------------------------------
+admin_b <- st_read(paste0(Box_geodata_directory,"bgd_adm_bbs_20201113_SHP"),layer = "bgd_admbnda_adm3_bbs_20201113")
+  
+admin_b_study <- admin_b %>%
+  # add in one more zilla that is encircled by study zillas
+  # to allow for the 10km spatial predictions Fulbaria (BD456120)
+  filter(ADM3_PCODE %in% c(dgps$ADM3_PCODE,"BD456120"))
 
-```{r bangladesh cluster level means}
 #-------------------------------
-# read-in cluster level means
+# read-in block-level level means
 # these were estimated in the file
-# washb-geopair-relative-efficiency.Rmd
+# 02-washb-geopair-relative-efficiency.Rmd
 #-------------------------------
-dcl <- read_rds("~/washb-geopair/data/washb_pair_level_summary_estimates.rds")
-
+dcl <- read_rds(here("data","washb_pair_level_summary_estimates.rds")) 
 ```
 
 ```{r bangladesh make spatial data}
 #-------------------------------
-# Create 3 GPS datasetes for 
+# Create 2 GPS datasetes for 
 # the spatial kriging
 #
-# dataset 1 has all control
-# cluster centroids, used for
-# geostatistical model smooths
-# of the control group outcomes (n=180)
-#
-# dataset 2 has all control and
+# dataset 1 has all control and
 # nutrition cluster centroids,
-# used for geostatistical model smooths
-# of the control + nutrition group
-# outcomes in a joint model (n=360)
+# used to identify 10km buffer around
+# the control + nutrition clusters (n=360)
 #
-# dataset 3 has block
+# dataset 2 has block
 # level centroids, computed
 # as the median lon/lat across
 # clusters in each block (n=90)
 #-------------------------------
-dbgps_control <- dgps %>%
-  filter(tr=="Control") %>%
-  dplyr::select(clusterid,tr,block,blockf,lon,lat)
-
 dbgps_cn <- dgps %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   dplyr::select(clusterid,tr,block,blockf,lon,lat)
 
-dbgps <- dgps %>%
+dbgps_block <- dgps %>%
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   ungroup() %>%
   dplyr::select(block,blockf,tr,lon,lat) %>%
   group_by(block,blockf) %>%
   summarize(lon = median(lon),
             lat = median(lat), 
             .groups = "keep") %>%
-  mutate(country = "Bangladesh") %>%
-  left_join(dcl, by = c("country","block")) %>%
-  # calculate the number positive in control clusters for binomial models
-  mutate(pos0 = round(Y0bar*n0 ),
-         pos0 = ifelse(outcome_lab %in% c("Diarrhea","Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm"), pos0, NA))
+  mutate(country = "Bangladesh") 
 
-#-------------------------------
-# create sf objects of gps datasets
-#-------------------------------
-dbgps_control_sf <- dbgps_control %>%
-  st_as_sf(coords = c("lon", "lat"), crs = 4326) 
-
-dbgps_cn_sf <- dbgps_cn %>%
-  st_as_sf(coords = c("lon", "lat"), crs = 4326) 
-
-dbgps_sf <- dbgps %>%
-  st_as_sf(coords = c("lon", "lat"), crs = 4326) 
-
-
+# join the block-level GPS coordinates to block-level means
+dbgps <- dbgps_block %>%
+  left_join(dcl, by = c("country","block"))
 ```
-
-
 
 ```{r make bangladesh prediction grid}
 #---------------------------
-# Identify the convex hull
-# around all villages and make
-# a polygon and prediction grid
-#---------------------------
-xycoords <- as.matrix(dgps[,c('lon','lat')])
-xychull <- xycoords[chull(xycoords),]
-bxypoly <- st_polygon(list(rbind(xychull,xychull[1,]))) %>%
-  st_sfc() %>% st_sf() %>% st_set_crs(4326)
-
-b_predgrid <- st_make_grid(bxypoly,
-                           n=c(100,100),
-                           what = "centers")
-
-b_gridxy <- as.data.frame(st_coordinates(b_predgrid)) %>%
-  rename(lon=X,lat=Y)
-
-#---------------------------
-# create a 6 km buffer around
+# identify the bounding box
+# around subdistricts that
+# contain the WASHB Bangladesh
 # clusters
-# 6 km was chosen through
-# iteration, finding the
-# smallest buffer around 
-# clusters that would create a 
-# single, contiguous
-# prediction surface
+#---------------------------
+b_boxgrid <- st_make_grid(admin_b_study,
+                          n=c(100,100),
+                          what = "centers"
+                          )
+
+#---------------------------
+# create a 10 km buffer around
+# clusters
+# 10 km was chosen as a reasonably
+# short distance over which to
+# make spatial predictions
 #---------------------------
 
 # get cluster centroids
-dbgps_sf_utm <- dgps %>%
+dbgps_sf_utm <- dbgps_cn %>%
   ungroup() %>%
   st_as_sf(coords = c("lon", "lat"), crs=4326) %>%
   dplyr::select(geometry) %>%
   # transform to UTM for km units
   st_transform("+proj=utm +zone=46 +datum=WGS84 +units=km")
 
-
-# identify a 6km buffer around each cluster
-cl_6km <- st_buffer(dbgps_sf_utm, dist=6) %>%
+# identify a 10km buffer around each cluster
+cl_buff <- st_buffer(dbgps_sf_utm, dist=10) %>%
   # identify their union, then convert to a single polygon
   summarise(geometry = st_union(geometry)) %>%
   st_cast("POLYGON") %>%
   # set the CRS back to WGS84
-  st_transform(crs=4326) %>%
-  # now crop the 6m buffer by the convex hull around study clusters
-  # to only extrapolate within the point cloud (not beyond)
-  st_intersection(bxypoly)
-
-# create a grid of points around the 6km buffer polygon
-b_6kmgrid <- st_make_grid(cl_6km,
-                           n=c(100,100),
-                           what = "centers") %>%
-  st_sf() %>% st_set_crs(4326)
-
-# subset the grid to those that intersect the polygon
-# add lon/lat to the object for model predictions
-b_6kmgridxy <- st_intersection(b_6kmgrid,cl_6km) 
-b_6kmgridxy_coords <- st_coordinates(b_6kmgridxy)
-b_6kmgridxy <- b_6kmgridxy %>%
-  mutate(lon=as.double(b_6kmgridxy_coords[,1]),
-         lat=as.double(b_6kmgridxy_coords[,2]))
+  st_transform(crs=4326)
 
 ```
 
-## Semivariance
 
+## Spatial predictions of diarrhea and ATE
 
-```{r bangladesh semivariance, eval = FALSE}
-
-# rule of thumb: limit max distance in variogram to half of maximum interpoint distance
-max_dist <- max(ddists) / 2 / 1000 # divide by 1000 to turn meters to km
-
-bpairs_laz <- dbgps %>% filter(outcome_lab=="length-for-age z") %>% ungroup() 
-bpairs_laz_sp <- SpatialPointsDataFrame(coords = bpairs_laz[,c("lon","lat")],bpairs_laz[,c("Y0bar")],match.ID=FALSE,proj4string = CRS("+proj=utm +zone=46N +datum=WGS84 +units=km"))
-
-b_6kmgridxy_sp <- b_6kmgridxy %>%
-  st_transform("+proj=utm +zone=46N +datum=WGS84 +units=km") %>%
-  as_Spatial()
-
-# note that automap creates fewer, but larger bins than gstat (gstat results were much more unstable)
-# laz_variofit <- automap::autofitVariogram(formula = Y0bar~1,
-#                                        input_data = bpairs_laz_sp,
-#                                        model = "Mat", # ability to fit multiple models at once is deprecated?
-#                                      miscFitOptions = list(merge.small.bins=TRUE)) # automap has this feature, gstat does not
-# plot(laz_variofit)
-
-# laz_kriged <- autoKrige(Y0bar~1, input_data=bpairs_laz_sp, new_data = b_6kmgridxy_sp)
-# laz_kriged_sf <- st_as_sf(laz_kriged$krige_output)
-
-# laz_variogram <- gstat::variogram(Y0bar~1, bpairs_laz_sp)
-# laz_variofit  <- gstat::fit.variogram(laz_variogram, model = vgm(psill=1,model="Mat",range=max_dist,nugget=1))
-# laz_kriged <- gstat::krige(formula = Y0bar~1, locations = bpairs_laz_sp, newdata = b_6kmgridxy_sp, model = laz_variofit)
-
-# al_fit <- automap::autofitVariogram(formula = al~1,
-#                                        input_data = dparas[!is.na(dparas$al),],
-#                                        model = "Exp", # ability to fit multiple models at once is deprecated?
-#                                      miscFitOptions = list(merge.small.bins=TRUE)) # automap has this feature, gstat does not
-
-```
-
-# Spatial predictions of outcomes and ATEs
-
-
-
-```{r outcome kriging function}
-## spatial prediction -----
-# `get_grid_preds`: get predictions over a surface using a simple model
-# input_grid: sf grid to get values over
-# df: dataframe with coordinates ("lat" & "lon") and outcome variable to build model
-# outcome_var: string, name of outcome variable of interest
-get_grid_preds <- function(input_grid, model_fit){
-  
-  # convert grid into a data.frame with lon/lat variables
-  newd <- input_grid %>%
-    st_centroid() %>% 
-    st_as_sf(crs = 4326) %>% 
-    mutate(lon = sf::st_coordinates(.)[,1],
-           lat = sf::st_coordinates(.)[,2]) %>%
-    st_drop_geometry()
-  
-  # get predictions
-  temp_preds <- predict(object = model_fit,
-                        type = "response",
-                        # create dataframe for predictions using centroid coordinates from grid
-                        newdata = newd)
-  
-  # get estimated variance
-  temp_predVar <- spaMM::get_predVar(object = model_fit, newdata = newd, which = "predVar")
-  
-  # merge predictions and variance with grid
-  ret <- input_grid %>% 
-    as.data.frame() %>% 
-    st_as_sf(crs = 4326) %>% 
-    mutate(pred = temp_preds,
-          pred_var = temp_predVar)
-  
-  return(ret)
-  
-}
-
-
-```
-
-## LAZ
-
-```{r bangladesh laz spatial model fit}
+```{r bangladesh diarrhea mean spatial model fit}
 #-------------------------
 # data frame for
-# LAZ spatial modeling
+# diarrhea spatial modeling
 #-------------------------
-bcontrol_laz <- danth %>%
-  filter(tr=="Control") %>%
-  group_by(clusterid) %>%
-  summarize(Y0bar=mean(laz,na.rm=TRUE),
-            nobs=n()) %>%
-  left_join(dgps,by=c("clusterid"))
-
-bnutrition_laz <- danth %>%
-  filter(tr %in% c("Nutrition","Nutrition + WSH")) %>%
-  group_by(clusterid) %>%
-  summarize(Y1bar=mean(laz,na.rm=TRUE),
-            nobs=n()) %>%
-  left_join(dgps,by=c("clusterid"))
-
-bpairs_laz <- dbgps %>% filter(outcome_lab=="length-for-age z") %>% ungroup()
-
-
+bpairs_diar <- dbgps %>% filter(outcome_lab=="Diarrhea") %>% ungroup()
 
 #-------------------------
-# fit spatial models for
-# control means
-# treatment means
+# fit spatial model for
+# diarrhea prevalence in 
+# the control group
+#-------------------------
+(b_fitdiar <- spaMM::fitme(Y0bar ~  lat + lon + Matern(1|lat + lon),
+                           data = bpairs_diar,
+                           weights.form = ~ w,
+                           family = gaussian(link = "identity")) )
+```
+```{r bangladesh diar correlation by distance}
+# (see function in washb-geopair-Functions.R)
+(plot_materncor_diar <- plot_matern_corr(b_fitdiar) )
+ggsave(filename=here("output","washb-geopair-bangladesh-diar-materncor.png"),plot = plot_materncor_diar,device="png",width=3.3,height=3.5)
+```
+
+Use the model to make spatial predictions over the study area grid.  
+
+```{r bangladesh diar spatial model predictions}
+#--------------------------------------
+# get model predictions on a grid
+# (see function in washb-geopair-Functions.R)
+#--------------------------------------
+b_preds_diar <- get_grid_preds(input_grid=b_boxgrid, 
+                              spamm_model_fit = b_fitdiar)
+#--------------------------------------
+# convert predicted surface of the mean
+# to a raster to make it a regular
+# set of tiles (rather than points), 
+# then to tibble for ggplot2
+# scale prevalence by 100
+# to be in units of percent (%)
+#--------------------------------------
+b_preds_diar_coords <- st_coordinates(b_preds_diar)
+b_preds_diar_raster <- points_to_raster(
+  x = b_preds_diar_coords[,1],
+  y = b_preds_diar_coords[,2],
+  z = b_preds_diar$pred*100,
+  mask1 = admin_b_study,
+  mask2 = cl_buff,
+  crop1 = admin_b_study
+)
+b_preds_diar_raster2 <- raster_to_tibble(b_preds_diar_raster)
+```
+
+
+```{r map diar predicted from control}
+map_diar <- ggplot(data=b_preds_diar_raster2) + 
+  geom_tile(aes(x=x,y=y,fill=value), na.rm=TRUE) +
+  geom_sf(data=admin_b_study,fill=NA) +
+  coord_sf(crs = 4326) +
+  scale_fill_viridis(option = "D", direction = 1,
+                     limits = c(0,10),
+                        na.value = NA,
+                        breaks = seq(0,10,by=2),
+                        guide=guide_colorbar(title="diarrhea prevalence (%)", 
+                                           title.position = "top",
+                                           title.hjust = 0.5,
+                                           direction="horizontal",
+                                           label.position = "bottom",
+                                           label.hjust = 0.5,
+                                           barheight=unit(10,"pt"),
+                                           barwidth=unit(200,"pt"),
+                                           ticks.colour = "white",
+                                           ticks.linewidth = 1,
+                                           frame.colour = "white"
+                        )
+                        ) +
+  geom_point(data=dbgps_block, aes(x=lon,y=lat),pch=21,size=2,color="black",fill=NA) +
+  # geom_point(data=dbgps_cn,aes(x=lon,y=lat),pch=16,color="gray40",size=0.8) +
+  labs(x="latitude",y="longitude",tag="a") +
+  annotation_scale(location = "br", width_hint = 0.2) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    plot.tag = element_text(face="bold",size=16)
+  )
+
+map_diar
+```
+
+Use a geostatistical model to krige pair-level treatment effect estimates. Assume a Matern spatial covariance. Weight pairs by the number of measurements in each block.
+
+```{r bangladesh diarrhea diff spatial model fit}
+#-------------------------
+# fit spatial model for
 # differences
 #-------------------------
-# control mean
-(b_fitlaz0 <- spaMM::fitme(Y0bar ~ 1 + Matern(1|lat + lon),
-                           data = bcontrol_laz,
+(b_fitdiar_pairdiff <- spaMM::fitme(diff ~  lat + lon + Matern(1|lat + lon),
+                           data = bpairs_diar,
+                           weights.form = ~ w,
                            family = gaussian(link = "identity")) )
+```
+Plot the estimated correlation function based on model fit parameters.
 
-# nutrition mean
-(b_fitlaz1 <- spaMM::fitme(Y1bar ~ 1 + Matern(1|lat + lon),
-                           data = bnutrition_laz,
-                           family = gaussian(link = "identity")) )
-
-# mean difference
-(b_fitlaz_diff <- spaMM::fitme(diff ~  1 + Matern(1|lat + lon),
-                           data = bpairs_laz,
-                           family = gaussian(link = "identity")) )
-
+```{r bangladesh diar diff correlation by distance}
+# (see function in washb-geopair-Functions.R)
+(plot_materncor_diar_diff <- plot_matern_corr(b_fitdiar_pairdiff) )
+ggsave(filename=here("output","washb-geopair-bangladesh-diar-diff-materncor.png"),plot = plot_materncor_diar_diff,device="png",width=3.3,height=3.5)
 ```
 
-```{r bangladesh laz spatial model predictions}
-#-------------------------
-# get model predictions 
-# over the study area grid
-#-------------------------
-b_lazpred0 <- get_grid_preds(input_grid = b_6kmgridxy, model_fit = b_fitlaz0) %>%
-  rename(pred0=pred, pred0_var=pred_var)
+Use the model to make spatial predictions over the study area grid.  
 
-b_lazpred1 <- get_grid_preds(input_grid = b_6kmgridxy, model_fit = b_fitlaz1) %>%
-  rename(pred1=pred, pred1_var=pred_var) %>%
-  st_drop_geometry()
-
-b_lazpred_diff <- get_grid_preds(input_grid = b_6kmgridxy, model_fit = b_fitlaz_diff) %>%
-  rename(pred_diff=pred, pred_var_diff = pred_var)
-
-b_lazpred <- b_lazpred0 %>%
-  as.data.frame() %>% 
-  st_as_sf(crs = 4326) %>% 
-  mutate(pred1 = b_lazpred1$pred1,
-         pred1_var = b_lazpred1$pred1_var,
-         diff = pred1-pred0)
-
-```
-
-```{r bangladesh laz spatial model predictions single model}
-#-------------------------
-# look at predictions from
-# a joint model
-#-------------------------
-
-bcn_laz <- danth %>%
-  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
-  mutate(tx_c = ifelse(tr=="Control",TRUE,FALSE),
-         tx_n = ifelse(tr=="Control",FALSE,TRUE),
-         tx = ifelse(tr=="Control","Control","Nutrition"),
-         tx = factor(tx),
-         tx01 = ifelse(tr=="Control",0,1)) %>%
-  group_by(clusterid,tx,tx01,tx_c,tx_n) %>%
-  summarize(Ybar=mean(laz,na.rm=TRUE),
-            nobs=n(), 
-            .groups = "keep") %>%
-  left_join(dgps,by=c("clusterid"))
-  
-
-# joint model of control and nutrition
-(b_fitlaz01 <- spaMM::fitme(Ybar ~  1 + Matern(tx_c|lat + lon) + Matern(tx_n | lat + lon),
-                           data = bcn_laz,
-                           family = gaussian(link = "identity")) )
-# (b_fitlaz01 <- spaMM::fitme(Ybar ~  tx + lat + lon + Matern(1| lat + lon),
-#                            data = bcn_laz,
-#                            family = gaussian(link = "identity")) )
-# (b_fitlaz01 <- spaMM::fitme(Ybar ~  tx*(lat+lon),
-#                            data = bcn_laz,
-#                            family = gaussian(link = "identity")) )
-
-```
-
-```{r spatial diff krige prediction simulate posterior}
+```{r bangladesh diar diff spatial model predictions}
 #--------------------------------------
-# create prediction grid dataset  
+# get model predictions on a grid
+# (see function in washb-geopair-Functions.R)
 #--------------------------------------
-b_6kmgridxy_diff <- b_6kmgridxy %>%
-  as_tibble()
-
-#--------------------------------------
-# parametric bootstrap simulations
-# of the posterior outcome distribution
-# at each point in the grid
-#--------------------------------------
-sims_diff <- simulate(b_fitlaz_diff, 
-                 type = "predVar", 
-                 nsim = 1000,
-                 newdata = b_6kmgridxy_diff,
-                 variances=list(linPred=TRUE,disp=TRUE)
-                 )
-
-sims_diff2 <- simulate(b_fitlaz_diff, 
-                 type = "predVar", 
-                 nsim = 1000,
-                 # newdata = b_6kmgridxy_diff,
-                 variances=list(linPred=TRUE,disp=TRUE)
-                 )
-
-#--------------------------------------
-# mean and 
-# 95% CI of the parametric
-# bootstrap
-#--------------------------------------
-sims_diff_mu <- apply(sims_diff, 1, FUN = function(x) quantile(x, prob=c(0.5)))
-sims_diff_ci <- apply(sims_diff, 1, FUN = function(x) quantile(x, prob=c(0.025,0.975)))
-
-laz_diff_map <- b_6kmgridxy %>%
-  mutate(fit = sims_diff_mu,
-         fit_lb = sims_diff_ci[1,],
-         fit_ub = sims_diff_ci[2,],
-         fit_ci_width=fit_ub-fit_lb)
+b_preds_diar_diff <- get_grid_preds(input_grid=b_boxgrid, 
+                              spamm_model_fit = b_fitdiar_pairdiff)
 
 #--------------------------------------
 # convert predicted surface of mean
-# diff to a raster
+# diff to a raster to make it a regular
+# set of tiles (rather than points), 
+# then to tibble for ggplot2
+# scale prevalence difference by 100
+# to be in units of percent (%)
 #--------------------------------------
-# pred_diff_raster <- rasterFromXYZ(xyz=data.frame(x = b_6kmgridxy_diff$lon,
-#                                             y = b_6kmgridxy_diff$lat,
-#                                             z = sims_diff_mu),
-#                                   crs = 4326)
+b_preds_diar_diff_coords <- st_coordinates(b_preds_diar_diff)
+b_preds_diar_diff_raster <- points_to_raster(
+  x = b_preds_diar_diff_coords[,1],
+  y = b_preds_diar_diff_coords[,2],
+  z = b_preds_diar_diff$pred*100,
+  mask1 = admin_b_study,
+  mask2 = cl_buff,
+  crop1 = admin_b_study
+)
+b_preds_diar_diff_raster2 <- raster_to_tibble(b_preds_diar_diff_raster)
 ```
 
 
-```{r spatial krige prediction simulate posterior}
-#--------------------------------------
-# create prediction grid datasets  
-# for control and nutrition surfaces
-#--------------------------------------
-b_6kmgridxy_c <- b_6kmgridxy %>%
-  mutate(tx = factor("Control"), tx01=0, tx_c = TRUE, tx_n = FALSE) %>%
-  as_tibble()
-
-b_6kmgridxy_n <- b_6kmgridxy %>%
-  mutate(tx = factor("Nutrition"), tx01=1, tx_c = FALSE, tx_n = TRUE) %>%
-  as_tibble()
- 
-#--------------------------------------
-# parametric bootstrap simulations
-# of the posterior outcome distribution
-# at each point in the grid
-# separate simulation for control and
-# nutrition surfaces
-# then, calculate the difference
-#--------------------------------------
-sims_c <- simulate(b_fitlaz0, 
-                 type = "predVar", 
-                 nsim = 1000,
-                 newdata = b_6kmgridxy_c,
-                 variances=list(linPred=TRUE,disp=TRUE)
-                 )
-
-sims_n <- simulate(b_fitlaz1, 
-                 type = "predVar", 
-                 nsim = 1000,
-                 newdata = b_6kmgridxy_n,
-                 variances=list(linPred=TRUE,disp=TRUE)
-                 )
-
-sims_diffnc <- sims_n - sims_c
-
-#--------------------------------------
-# mean and 
-# 95% CI of the parametric
-# bootstrap
-#--------------------------------------
-sims_diffnc_mu <- apply(sims_diffnc, 1, FUN = function(x) quantile(x, prob=c(0.5)))
-sims_diffnc_ci <- apply(sims_diffnc, 1, FUN = function(x) quantile(x, prob=c(0.025,0.975)))
-
-laz_diffnc_map <- b_6kmgridxy %>%
-  mutate(fit = sims_diffnc_mu,
-         fit_lb = sims_diffnc_ci[1,],
-         fit_ub = sims_diffnc_ci[2,],
-         fit_ci_width=fit_ub-fit_lb)
-
-#--------------------------------------
-# diagnostics only: predictions at
-# sampling locations
-#--------------------------------------
-sims_cp <- simulate(b_fitlaz01, 
-                 type = "predVar", 
-                 nsim = 1000,
-                 newdata= bcn_laz %>% mutate(tx01=0, tr_c=TRUE,tr_n=FALSE),
-                 variances=list(linPred=TRUE,disp=TRUE)
-                 )
-
-sims_np <- simulate(b_fitlaz01, 
-                 type = "predVar",
-                 nsim = 1000,
-                 newdata= bcn_laz %>% mutate(tx01=1, tr_c=FALSE,tr_n=TRUE),
-                 variances=list(linPred=TRUE,disp=FALSE)
-                 )
-
-```
-
-
-```{r spatial krige prediction original }
-b_6kmgridxy_c <- b_6kmgridxy %>%
-  mutate(tx = factor("Control"), tx01=0, tx_c = TRUE, tx_n = FALSE)
-b_6kmgridxy_n <- b_6kmgridxy %>%
-  mutate(tx = factor("Nutrition"), tx01=1, tx_c = FALSE, tx_n = TRUE)
-
-b_lazpred0 <- get_grid_preds(input_grid = b_6kmgridxy_c, model_fit = b_fitlaz01) %>%
-  rename(pred0=pred, pred0_var=pred_var)
-
-b_lazpred1 <- get_grid_preds(input_grid = b_6kmgridxy_n, model_fit = b_fitlaz01) %>%
-  rename(pred1=pred, pred1_var=pred_var)
-
-b_lazpred <- b_lazpred0 %>%
-  as.data.frame() %>% 
-  st_as_sf(crs = 4326) %>% 
-  mutate(pred1 = b_lazpred1$pred1,
-         pred1_var = b_lazpred1$pred1_var,
-         diff = pred1-pred0)
-
-```
-
-```{r bangladesh laz spatial model predictions spline model, eval=FALSE}
-# try with a 3-dimensional spline
-# (b_fitlaz01 <- mgcv::gam(Ybar ~ tx + lat + lon + s(tx01,lat,lon, k=-1,bs="gp"), 
-#                    family="gaussian", weights = nobs,
-#                    data=bcn_laz,
-#                    method="REML", select=TRUE) )
-# 
-# 
-# b_lazpred0 <- get_grid_preds(input_grid = b_6kmgridxy_c, model_fit = b_fitlaz01) %>%
-#   rename(pred0=pred)
-# 
-# b_lazpred1 <- get_grid_preds(input_grid = b_6kmgridxy_n, model_fit = b_fitlaz01) %>%
-#   rename(pred1=pred)
-# 
-# b_lazpred <- b_lazpred0 %>%
-#   as.data.frame() %>% 
-#   st_as_sf(crs = 4326) %>% 
-#   mutate(pred1 = b_lazpred1$pred1,
-#          pred1_var = b_lazpred1$pred1_var,
-#          diff = pred1-pred0)
-
-
-```
-
-
-```{r map laz control}
-
-map_laz0 <- ggplot(data=b_lazpred) + 
-  geom_sf(aes(color=pred0)) + 
+```{r map diar predicted ATE from pairs}
+PRGncols <- brewer.pal(n=11,name="PRGn")
+map_diar_pairdiff <- ggplot(data=b_preds_diar_diff_raster2) + 
+  geom_tile(aes(x=x,y=y,fill=value), na.rm=TRUE) +
+  geom_sf(data=admin_b_study,fill=NA) +
   coord_sf(crs = 4326) +
-  scale_color_viridis(option="mako", begin=0.1, limits = c(-2.1,-1.0), breaks=seq(-2.0,-1.0,by=0.5),
-                      guide=guide_colorbar(title="LAZ in control", 
-                                           title.position = "left",
-                                           title.vjust = 1,
+  scale_fill_gradient2(low=PRGncols[10], mid="white", high=PRGncols[2],
+                       limits = c(-8,2),
+                        na.value = NA,
+                        breaks = seq(-8,2,by=2),
+                        guide=guide_colorbar(title="ATE: difference in diarrhea prev. (%)", 
+                                           title.position = "top",
+                                           title.hjust = 0.5,
                                            direction="horizontal",
                                            label.position = "bottom",
-                                           barheight=unit(10,"pt"))) +
-  # scale_color_gradient(low=cbpal[8], high="white", limits = c(-2.5,-1), guide=guide_colorbar(title="LAZ")) +
-  geom_point(data=dbgps_cn %>% filter(tr=="Control"), aes(x=lon,y=lat),pch=20,size=0.2,color="black") +
-  # geom_point(data=dgps, aes(x=lon,y=lat),pch=20,size=0.1,color="black") +
-  labs(x="Latitude",y="Longitude",tag="a") +
-  annotation_scale(location = "bl", width_hint = 0.3) +
-  annotation_north_arrow(location = "bl", which_north = "true", 
-        pad_x = unit(0.05, "in"), pad_y = unit(0.25, "in"),
-        height=unit(0.75,"cm"), width=unit(0.75,"cm"),
-        style = north_arrow_fancy_orienteering
-        ) +
-  theme_bw() +
-  theme(
-    legend.position = "bottom",
-    plot.tag = element_text(face="bold")
-  )
-```
-
-
-```{r map laz nutrition}
-
-map_laz1 <- ggplot(data=b_lazpred) + 
-  geom_sf(aes(color=pred1)) + 
-  coord_sf(crs = 4326) +
-  scale_color_viridis(option="mako", begin=0.1, limits = c(-2.1,-1.0), breaks=seq(-2.0,-1.0,by=0.5),
-                      guide=guide_colorbar(title="LAZ in nutrition", 
-                                           title.position = "left",
-                                           title.vjust = 1,
-                                           direction="horizontal",
-                                           label.position = "bottom",
-                                           barheight=unit(10,"pt"))) +
-  # scale_color_gradient(low=cbpal[8], high="white", limits = c(-2.5,-1), guide=guide_colorbar(title="LAZ")) +
-  geom_point(data=dbgps_cn %>% filter(tr!="Control"), aes(x=lon,y=lat),pch=20,size=0.2,color="black") +
-  # geom_point(data=dgps, aes(x=lon,y=lat),pch=20,size=0.1,color="black") +
-  labs(x="Latitude",y="Longitude",tag="b") +
-  annotation_scale(location = "bl", width_hint = 0.3) +
-  annotation_north_arrow(location = "bl", which_north = "true", 
-        pad_x = unit(0.05, "in"), pad_y = unit(0.25, "in"),
-        height=unit(0.75,"cm"), width=unit(0.75,"cm"),
-        style = north_arrow_fancy_orienteering
-        ) +
-  theme_bw() +
-  theme(
-    legend.position = "bottom",
-    plot.tag = element_text(face="bold")
-  )
-
-```
-
-```{r map laz predicted ATE}
-
-
-map_laz_ate <- ggplot(data=b_lazpred) + 
-  geom_sf(aes(color=diff)) + 
-  scale_color_gradient2(low=cbpal[2], mid="white", high=cbpal[3], limits = c(-0.2,0.4),
-                        breaks = seq(-0.2,0.4,by=0.2),
-                        guide=guide_colorbar(title="Difference in LAZ", 
-                                           title.position = "left",
-                                           title.vjust = 1,
-                                           direction="horizontal",
-                                           label.position = "bottom",
+                                           label.hjust = 0.5,
                                            barheight=unit(10,"pt"),
-                                           ticks.colour = "black",
-                                           ticks.linewidth = 1,
-                                           frame.colour = "black"
-                        )) +
-  geom_point(data=dbgps_cn, aes(x=lon,y=lat),pch=20,size=0.2,color="black") +
-  labs(x="Latitude",y="Longitude",tag="c") +
-  annotation_scale(location = "bl", width_hint = 0.3) +
-  annotation_north_arrow(location = "bl", which_north = "true", 
-        pad_x = unit(0.05, "in"), pad_y = unit(0.25, "in"),
-        height=unit(0.75,"cm"), width=unit(0.75,"cm"),
-        style = north_arrow_fancy_orienteering
-        ) +
-  theme_bw() +
-  theme(
-    legend.position = "bottom",
-    plot.tag = element_text(face="bold")
-  )
-
-```
-
-```{r laz composite map, fig.width=8}
-laz_map_composite <- grid.arrange(map_laz0,map_laz1,map_laz_ate,nrow=1,ncol=3)
-ggsave(filename=here("output","washb-geopair-bangladesh-laz-map.png"),plot = laz_map_composite,device="png",width=15,height=6)
-```
-
-
-```{r map laz predicted ATE from pairs}
-
-# map_laz_diff <- ggplot(data=b_lazpred_diff) + 
-# map_laz_diff <- ggplot(data=laz_diff_map) + 
-map_laz_diff <- ggplot(data=laz_diffnc_map) + 
-  geom_sf(aes(color=fit_lb)) + 
-  coord_sf(crs = 4326) +
-  scale_color_gradient2(low=cbpal[2], mid="white", high=cbpal[3],limits = c(-0.4,0.42),
-                        breaks = seq(-0.4,0.4,by=0.2),
-                        guide=guide_colorbar(title="Difference in LAZ",
-                                           title.position = "left",
-                                           title.vjust = 1,
-                                           direction="horizontal",
-                                           label.position = "bottom",
-                                           barheight=unit(10,"pt"),
+                                           barwidth=unit(200,"pt"),
                                            ticks.colour = "black",
                                            ticks.linewidth = 1,
                                            frame.colour = "black"
                         )
                         ) +
-  geom_point(data=dbgps_cn, aes(x=lon,y=lat),pch=20,size=0.1,color="black") +
-  labs(x="Latitude",y="Longitude",tag="d") +
-  annotation_scale(location = "bl", width_hint = 0.3) +
+  geom_point(data=dbgps_block, aes(x=lon,y=lat),pch=21,size=2,color="black",fill=NA) +
+  labs(x="latitude",y="longitude",tag="b") +
+  annotation_scale(location = "br", width_hint = 0.2) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    plot.tag = element_text(face="bold",size=16)
+  )
+
+map_diar_pairdiff
+```
+
+Use a parametric bootstrap simulation of the model parameters, conditional on the spatial model fit, to estimate an approximate posterior distribution of treatment effects at each location. 
+
+```{r diar simulate posterior}
+#--------------------------------------
+# simulate from the conditional outcome
+# model to get posterior probability of
+# a positive benefit of intervention,
+# ATE > 0, at each location
+#--------------------------------------
+#--------------------------------------
+# create prediction grid dataset  
+#--------------------------------------
+b_boxgrid_coords <- st_coordinates(b_boxgrid)
+b_predgrid <- b_boxgrid %>%
+  as_tibble()
+b_predgrid$lon <- as.double(b_boxgrid_coords[,1])
+b_predgrid$lat <- as.double(b_boxgrid_coords[,2])
+
+#--------------------------------------
+# parametric bootstrap simulations
+# of the posterior outcome distribution
+# at each point in the grid
+#--------------------------------------
+sims_diar <- simulate(b_fitdiar_pairdiff,
+                 type = "predVar",
+                 variances=list(linPred=TRUE,disp=TRUE),
+                 newdata = b_predgrid,
+                 nsim = 1000,
+                 seed = 124701
+                 )
+
+#--------------------------------------
+# mean and 
+# 95% CI of the parametric
+# bootstrap
+#--------------------------------------
+sims_diar_mu <- apply(sims_diar, 1, FUN = function(x) quantile(x, prob=c(0.5)))
+sims_diar_ci <- apply(sims_diar, 1, FUN = function(x) quantile(x, prob=c(0.025,0.975)))
+
+#--------------------------------------
+# posterior probability that the 
+# difference in Diarrhea prev <0
+#--------------------------------------
+sims_diar_probeff <- apply(sims_diar, 1, FUN = function(x) mean(ifelse(x<0,1,0),na.rm=TRUE))
+
+#--------------------------------------
+# combine spatial predictions into a 
+# data frame for mapping
+#--------------------------------------
+sims_diar_map <- b_predgrid %>%
+  mutate(fit = sims_diar_mu,
+         fit_lb = sims_diar_ci[1,],
+         fit_ub = sims_diar_ci[2,],
+         fit_ci_width=fit_ub-fit_lb,
+         fit_probeff = sims_diar_probeff)
+```
+
+```{r diar posterior convert to raster}
+#--------------------------------------
+# convert simulation surfaces to a raster 
+# to make it a regular set of tiles 
+# (rather than points), 
+# then to tibble for ggplot2
+#--------------------------------------
+diar_probeff_raster <- points_to_raster(
+  x = b_predgrid$lon,
+  y = b_predgrid$lat,
+  z = sims_diar_map$fit_probeff,
+  mask1 = admin_b_study,
+  mask2 = cl_buff,
+  crop1 = admin_b_study
+)
+
+diar_probeff_raster2 <- raster_to_tibble(diar_probeff_raster)
+```
+
+```{r map diar posterior}
+map_diar_posterior <- ggplot(data=diar_probeff_raster2) + 
+  geom_tile(aes(x=x,y=y,fill=value), na.rm=TRUE) +
+  geom_sf(data=admin_b_study,fill=NA) +
+  coord_sf(crs = 4326) +
+  scale_fill_viridis(option="G", limits = c(0,1), direction = 1, breaks=seq(0,1,by=0.2), na.value = NA,
+                      guide=guide_colorbar(title="posterior Pr(diarrhea ATE < 0)",
+                                           title.position = "top",
+                                           title.hjust = 0.5,
+                                           direction="horizontal",
+                                           label.position = "bottom",
+                                           label.hjust = 0.5,
+                                           barheight=unit(10,"pt"),
+                                           barwidth=unit(200,"pt"),
+                                           ticks.colour = "white",
+                                           ticks.linewidth = 1)
+                      ) +
+  geom_point(data=dbgps_block, aes(x=lon,y=lat),pch=21,size=2,color="black",fill=NA) +
+  labs(x="latitude",y="longitude",tag="c") +
+  annotation_scale(location = "br", width_hint = 0.2) +
+  annotation_north_arrow(location = "br", which_north = "true", 
+        pad_x = unit(0.05, "in"), pad_y = unit(0.25, "in"),
+        height=unit(0.75,"cm"), width=unit(0.75,"cm"),
+        style = north_arrow_fancy_orienteering
+        ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    plot.tag = element_text(face="bold",size=16)
+  )
+
+map_diar_posterior
+```
+
+# Kenya Ascaris
+
+## Data prep
+
+```{r load kenya data}
+#-------------------------------
+# load the study's GPS coordinates
+# created by 
+# washb-geopair-gps-data-processing.R
+#
+# NOT PUBLICLY AVAILABLE -- 
+# NEED TO USE ACCURATE LON/LAT FOR MAPPING
+#-------------------------------
+
+# Cluster-level GPS locations (centroids of compounds in each cluster)
+dgps_k <- read_rds(file=here("data","kenya_analysis_gps.rds")) %>%
+  # filter out blocks that were not complete for control,N, N+WSH
+  filter(block %in% unique(dcl$block[dcl$country=="Kenya" & dcl$outcome_lab=="Ascaris sp."])) %>%
+  mutate(block = as.character(block),
+         blockf = factor(block)) 
+  
+#----------------------------------
+# Load the Kenya
+# administrative shapefile
+#----------------------------------
+admin_k <- st_read(paste0(Box_geodata_directory,"ken_adm_iebc_20191031_shp"),layer = "ken_admbnda_adm2_iebc_20191031")
+  
+# there are a small number of clusters (n=4) in Kenya 
+# that seem to be geolocated just over the line 
+# into a new sub-county. By hand, recode the 
+# administrative information for these clusters 
+# to be the same as those for the other clusters 
+# in the same randomization block.
+dgps_k <- dgps_k %>%
+  mutate(
+    
+    ADM2_PCODE = ifelse(ADM2_PCODE=="KE037202" & block==3,"KE037205",ADM2_PCODE),
+    ADM2_EN = ifelse(ADM2_PCODE=="KE037202" & block==3,"Mumias East",ADM2_EN),
+    
+    ADM2_PCODE = ifelse(ADM2_PCODE=="KE039220" & block==6,"KE039219",ADM2_PCODE),
+    ADM2_EN = ifelse(ADM2_PCODE=="KE039220" & block==6,"Bumula",ADM2_EN),
+    
+    ADM2_PCODE = ifelse(ADM2_PCODE=="KE042239" & block==61,"KE038214",ADM2_PCODE),
+    ADM2_EN = ifelse(ADM2_PCODE=="KE042239" & block==61,"Luanda",ADM2_EN),
+    
+    ADM2_PCODE = ifelse(ADM2_PCODE=="KE041235" & block==61,"KE038214",ADM2_PCODE),
+    ADM2_EN = ifelse(ADM2_PCODE=="KE041235" & block==61,"Luanda",ADM2_EN)
+  )
+
+# limit sub counties to thos that overlap
+# study block centroids
+# also include Kanduyi (KE039220) because it
+# is narrow and encircled by the study subcounties
+admin_k_study <- admin_k %>%
+  filter(ADM2_PCODE %in% c(dgps_k$ADM2_PCODE,"KE039220"))
+
+```
+
+```{r kenya make spatial data}
+#-------------------------------
+# Identify block centroids for
+# the spatial kriging
+#
+# dataset 1 has all control and
+# nutrition cluster centroids,
+# used for getting a 10km buffer
+# of the control + nutrition clusters (n=316)
+#
+# dataset 2 has block
+# level centroids, computed
+# as the median lon/lat across
+# clusters in each block (n=79)
+#-------------------------------
+dkgps_cn <- dgps_k %>%
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  dplyr::select(clusterid,tr,block,blockf,lon,lat)
+
+dkgps_block <- dgps_k %>%
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  ungroup() %>%
+  dplyr::select(block,blockf,tr,lon,lat) %>%
+  group_by(block,blockf) %>%
+  summarize(lon = median(lon),
+            lat = median(lat), 
+            .groups = "keep") %>%
+  mutate(country = "Kenya") 
+
+# join the block-level GPS coordinates to block-level means
+# (loaded above in the Bangladesh data prep section)
+dkgps <- dkgps_block %>%
+  left_join(dcl, by = c("country","block"))
+```
+
+```{r make kenya prediction grid}
+#---------------------------
+# identify the bounding box
+# around subdistricts that
+# contain the WASHB Bangladesh
+# clusters
+#---------------------------
+k_boxgrid <- st_make_grid(admin_k_study,
+                          n=c(100,100),
+                          what = "centers"
+                          )
+
+#---------------------------
+# create a 10 km buffer around
+# clusters
+# 10 km was chosen as a reasonably
+# short distance over which to
+# make spatial predictions
+#---------------------------
+
+# get cluster centroids
+dkgps_sf_utm <- dkgps_cn %>%
+  ungroup() %>%
+  st_as_sf(coords = c("lon", "lat"), crs=4326) %>%
+  dplyr::select(geometry) %>%
+  # transform to UTM for km units
+  st_transform("+proj=utm +zone=46 +datum=WGS84 +units=km")
+
+# identify a 10km buffer around each cluster
+kcl_buff <- st_buffer(dkgps_sf_utm, dist=10) %>%
+  # identify their union, then convert to a single polygon
+  summarise(geometry = st_union(geometry)) %>%
+  st_cast("POLYGON") %>%
+  # set the CRS back to WGS84
+  st_transform(crs=4326)
+
+```
+
+## Spatial predictions of Ascaris infection and ATE
+
+Use a geostatistical model to krige outcome prevalence and pair-level treatment effect estimates. Assume a Matern spatial covariance. Weight pairs by the number of measurements in each block.
+
+```{r kenya ascaris spatial model fit}
+#-------------------------
+# data frame for
+# Ascaris spatial modeling
+#-------------------------
+kpairs_al <- dkgps %>% filter(outcome_lab=="Ascaris sp.") %>% ungroup()
+
+#-------------------------
+# fit spatial model for
+# pair-level
+# differences in Ascaris infection
+#-------------------------
+# mean difference
+(k_fital <- spaMM::fitme(Y0bar ~  lat + lon + Matern(1|lat + lon),
+                                   weights.form = ~ w,
+                           data = kpairs_al,
+                           family = gaussian(link = "identity")) )
+
+```
+
+```{r kenya plot ascaris correlation by distance}
+# (see function in washb-geopair-Functions.R)
+(al_matern_cor_plot <- plot_matern_corr(k_fital))
+ggsave(filename=here("output","washb-geopair-kenya-al-materncor.png"),plot = al_matern_cor_plot,device="png",width=3.3,height=3.5)
+
+```
+
+```{r kenya ascaris spatial krige predictions}
+#--------------------------------------
+# get model predictions on a grid
+# (see function in washb-geopair-Functions.R)
+#--------------------------------------
+k_preds_al <- get_grid_preds(input_grid=k_boxgrid, 
+                              spamm_model_fit = k_fital)
+
+#--------------------------------------
+# convert predicted surface of mean
+# diff to a raster to make it a regular
+# set of tiles (rather than points), 
+# then to tibble for ggplot2
+#
+# multiple prevalence by 100 to scale
+# units to percent (%)
+#--------------------------------------
+k_preds_al_coords <- st_coordinates(k_preds_al)
+k_preds_al_raster <- points_to_raster(
+  x = k_preds_al_coords[,1],
+  y = k_preds_al_coords[,2],
+  z = k_preds_al$pred*100,
+  mask1 = admin_k_study,
+  mask2 = kcl_buff,
+  crop1 = admin_k_study
+)
+
+k_preds_al_raster2 <- raster_to_tibble(k_preds_al_raster)
+```
+
+```{r map kenya ascaris in control group}
+#--------------------------------------
+# map the spatially kriged Ascaris
+# prevalence
+#--------------------------------------
+map_k_al <- ggplot(data=k_preds_al_raster2) + 
+  geom_tile(aes(x=x,y=y,fill=value), na.rm=TRUE) +
+  geom_sf(data=admin_k_study,fill=NA) +
+  coord_sf(crs = 4326) +
+  scale_fill_viridis(option="D", direction = 1,
+                     limits = c(0,50),
+                        na.value = NA,
+                        breaks = seq(0,50,by=10),
+                        guide=guide_colorbar(title="Ascaris sp. prevalence (%)", 
+                                           title.position = "top",
+                                           title.hjust = 0.5,
+                                           direction="horizontal",
+                                           label.position = "bottom",
+                                           label.hjust = 0.5,
+                                           barheight=unit(10,"pt"),
+                                           barwidth=unit(200,"pt"),
+                                           ticks.colour = "white",
+                                           ticks.linewidth = 1,
+                                           frame.colour = "white"
+                        )
+                        ) +
+  geom_point(data=dkgps_block, aes(x=lon,y=lat),pch=21,size=2,color="black",fill=NA) +
+  labs(x="latitude",y="longitude",tag="d") +
+  annotation_scale(location = "bl", width_hint = 0.3, pad_y=unit(0.1,"cm")) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    plot.tag = element_text(face="bold",size=16)
+  )
+
+map_k_al
+```
+
+
+```{r kenya ascaris spatial model fit of ate}
+#-------------------------
+# fit spatial model for
+# pair-level
+# differences in Ascaris infection
+#-------------------------
+(k_fital_diff <- spaMM::fitme(diff ~  lat + lon + Matern(1|lat + lon),
+                                   weights.form = ~ w,
+                           data = kpairs_al,
+                           family = gaussian(link = "identity")) )
+
+```
+
+```{r kenya plot ascaris diff correlation by distance}
+# (see function in washb-geopair-Functions.R)
+(al_diff_matern_cor_plot <- plot_matern_corr(k_fital_diff))
+ggsave(filename=here("output","washb-geopair-kenya-al-diff-materncor.png"),plot = al_diff_matern_cor_plot,device="png",width=3.3,height=3.5)
+
+```
+
+
+```{r kenya ascaris spatial krige diff predictions}
+#--------------------------------------
+# get model predictions on a grid
+# (see function in washb-geopair-Functions.R)
+#--------------------------------------
+k_preds_al_diff <- get_grid_preds(input_grid=k_boxgrid, 
+                              spamm_model_fit = k_fital_diff)
+
+#--------------------------------------
+# convert predicted surface of mean
+# diff to a raster to make it a regular
+# set of tiles (rather than points), 
+# then to tibble for ggplot2
+#
+# multiple prevalence by 100 to scale
+# units to percent (%)
+#--------------------------------------
+k_preds_al_diff_coords <- st_coordinates(k_preds_al_diff)
+k_preds_al_diff_raster <- points_to_raster(
+  x = k_preds_al_diff_coords[,1],
+  y = k_preds_al_diff_coords[,2],
+  z = k_preds_al_diff$pred*100,
+  mask1 = admin_k_study,
+  mask2 = kcl_buff,
+  crop1 = admin_k_study
+)
+
+k_preds_al_diff_raster2 <- raster_to_tibble(k_preds_al_diff_raster)
+
+```
+
+```{r map kenya ascaris kriged ATE from pairs}
+#--------------------------------------
+# map the spatially kriged treatment
+# effect for Ascaris
+#--------------------------------------
+PRGncols <- brewer.pal(n=11,name="PRGn")
+map_k_al_pairdiff <- ggplot(data=k_preds_al_diff_raster2) + 
+  geom_tile(aes(x=x,y=y,fill=value), na.rm=TRUE) +
+  geom_sf(data=admin_k_study,fill=NA) +
+  coord_sf(crs = 4326) +
+  scale_fill_gradient2(low=PRGncols[10], mid="white", high=PRGncols[2],limits = c(-8,2),
+                        na.value = NA,
+                        breaks = seq(-8,2,by=2),
+                        guide=guide_colorbar(title="ATE: difference in Ascaris sp. prev. (%)",
+                                           title.position = "top",
+                                           title.hjust = 0.5,
+                                           direction="horizontal",
+                                           label.position = "bottom",
+                                           label.hjust = 0.5,
+                                           barheight=unit(10,"pt"),
+                                           barwidth=unit(200,"pt"),
+                                           ticks.colour = "black",
+                                           ticks.linewidth = 1,
+                                           frame.colour = "black"
+                        )
+                        ) +
+  geom_point(data=dkgps_block, aes(x=lon,y=lat),pch=21,size=2,color="black",fill=NA) +
+  labs(x="latitude",y="longitude",tag="e") +
+  annotation_scale(location = "bl", width_hint = 0.3, pad_y=unit(0.1,"cm")) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    plot.tag = element_text(face="bold",size=16)
+  )
+
+map_k_al_pairdiff
+
+```
+
+
+```{r kenya ascaris simulate posterior}
+#--------------------------------------
+# simulate from the conditional outcome
+# model to get posterior probability of
+# a positive benefit of intervention,
+# ATE < 0, at each location
+#--------------------------------------
+#--------------------------------------
+# create prediction grid dataset  
+#--------------------------------------
+k_boxgrid_coords <- st_coordinates(k_boxgrid)
+
+k_predgrid <- k_boxgrid %>%
+  as_tibble()
+k_predgrid$lon <- as.double(k_boxgrid_coords[,1])
+k_predgrid$lat <- as.double(k_boxgrid_coords[,2])
+
+#--------------------------------------
+# parametric bootstrap simulations
+# of the posterior outcome distribution
+# at each point in the grid
+#--------------------------------------
+sims_al <- simulate(k_fital_diff,
+                 type = "predVar",
+                 variances=list(linPred=TRUE,disp=TRUE),
+                 newdata = k_predgrid,
+                 nsim = 1000,
+                 seed = 213123
+                 )
+
+#--------------------------------------
+# mean and 
+# 95% CI of the parametric
+# bootstrap
+#--------------------------------------
+sims_al_mu <- apply(sims_al, 1, FUN = function(x) quantile(x, prob=c(0.5)))
+sims_al_ci <- apply(sims_al, 1, FUN = function(x) quantile(x, prob=c(0.025,0.975)))
+
+#--------------------------------------
+# posterior probability that the 
+# difference in Diarrhea prev <0
+#--------------------------------------
+sims_al_probeff <- apply(sims_al, 1, FUN = function(x) mean(ifelse(x<0,1,0),na.rm=TRUE))
+
+#--------------------------------------
+# combine spatial predictions into a 
+# data frame for mapping
+#--------------------------------------
+sims_al_map <- k_predgrid %>%
+  mutate(fit = sims_al_mu,
+         fit_lb = sims_al_ci[1,],
+         fit_ub = sims_al_ci[2,],
+         fit_ci_width=fit_ub-fit_lb,
+         fit_probeff = sims_al_probeff)
+```
+
+```{r ascaris posterior convert to raster}
+#--------------------------------------
+# convert simulation surfaces to a raster 
+# to make it a regular set of tiles 
+# (rather than points), 
+# then to tibble for ggplot2
+#--------------------------------------
+al_probeff_raster <- points_to_raster(
+  x = k_predgrid$lon,
+  y = k_predgrid$lat,
+  z = sims_al_map$fit_probeff,
+  mask1 = admin_k_study,
+  mask2 = kcl_buff,
+  crop1 = admin_k_study
+)
+
+al_probeff_raster2 <- raster_to_tibble(al_probeff_raster)
+```
+
+```{r map kenya ascaris posterior}
+#--------------------------------------
+# map the probability of nutrition 
+# benefit on Ascaris sp. infection
+#--------------------------------------
+map_k_al_posterior <- ggplot(data=al_probeff_raster2) + 
+  geom_tile(aes(x=x,y=y,fill=value), na.rm=TRUE) +
+  geom_sf(data=admin_k_study,fill=NA) +
+  coord_sf(crs = 4326) +
+  # continuous scale
+  scale_fill_viridis(option="G", limits = c(0,1), direction = 1, breaks=seq(0,1,by=0.2), na.value = NA,
+                      guide=guide_colorbar(title="posterior Pr(Ascaris ATE < 0)",
+                                           title.position = "top",
+                                           title.hjust = 0.5,
+                                           direction="horizontal",
+                                           label.position = "bottom",
+                                           label.hjust = 0.5,
+                                           barheight=unit(10,"pt"),
+                                           barwidth=unit(200,"pt"),
+                                           ticks.colour = "white",
+                                           ticks.linewidth = 1)
+                      ) +
+  geom_point(data=dkgps_block, aes(x=lon,y=lat),pch=21,size=2,color="black",fill=NA) +
+  labs(x="latitude",y="longitude",tag="f") +
+  annotation_scale(location = "bl", width_hint = 0.3, pad_y=unit(0.1,"cm")) +
   annotation_north_arrow(location = "bl", which_north = "true", 
         pad_x = unit(0.05, "in"), pad_y = unit(0.25, "in"),
         height=unit(0.75,"cm"), width=unit(0.75,"cm"),
         style = north_arrow_fancy_orienteering
         ) +
-  theme_bw() +
+  theme_minimal() +
   theme(
     legend.position = "bottom",
-    plot.tag = element_text(face="bold")
+    plot.tag = element_text(face="bold",size=16)
   )
 
+map_k_al_posterior
 ```
 
+# Create a composite figure
 
+Include one outcome from each country: Diarrhea in Bangladesh and Ascaris in Kenya. They provide contrasting examples of no spatial heterogeneity (Ascaris) and some spatial heterogeneity (diarrhea) in the ATE, despite both having underlying spatial heterogeneity in the prevalence of the outcome.
 
-```{r laz composite map with diffs, fig.width=8}
-laz_map_composite <- grid.arrange(map_laz0,map_laz1,map_laz_ate,map_laz_diff, nrow=1,ncol=4)
-ggsave(filename=here("output","washb-geopair-bangladesh-laz-map-with-diff.png"),plot = laz_map_composite,device="png",width=20,height=6)
+```{r kriged ATE composite map, fig.width=8}
+#--------------------------------------
+# create a 2 x 3 composite figure a-f
+#--------------------------------------
+ate_map_composite <- grid.arrange(map_diar,
+                                  map_diar_pairdiff,
+                                  map_diar_posterior,
+                                  map_k_al,
+                                  map_k_al_pairdiff,
+                                  map_k_al_posterior,
+                                  nrow=2,ncol=3)
+ggsave(filename=here("output","washb-geopair-ate-krige-maps.png"),plot = ate_map_composite,device="png",width=12,height=10)
 ```
-
-
-```{r bangladesh geospatial model fits}
-#---------------------------
-# geospatial model predictions
-# low rank gaussian process
-# to smooth between points
-#---------------------------
-library(mgcv)
-
-# LAZ
-geofit_laz <- gam(Y0bar ~ s(lat,lon, k=-1,bs="gp"), 
-                   family="gaussian", weights = n0,
-                   data=dbgps %>% filter(outcome_lab == "length-for-age z"),
-                   method="REML", select=TRUE)
-
-# CDI comprehension
-geofit_cdic <- gam(Y0bar ~ s(lat,lon, k=-1,bs="gp"), 
-                   family="gaussian", weights = n0,
-                   data=dbgps %>% filter(outcome_lab == "CDI comprehension z"),
-                   method="REML", select=TRUE)
-
-# Ascaris
-geofit_al <- gam(cbind(pos0,n0) ~ s(lat,lon, k=-1,bs="gp"), 
-                   family="binomial",
-                   data=dbgps %>% filter(outcome_lab == "Ascaris sp."),
-                   method="REML",
-                   select=TRUE)
-
-```
-
-```{r bangladesh geospatial model predictions}
-#---------------------------
-# model predictions 
-# at village points
-#---------------------------
-dbgps$pred <- NA
-dbgps$pred[dbgps$outcome_lab == "length-for-age z"] <- predict(geofit_laz,type="response")
-dbgps$pred[dbgps$outcome_lab == "CDI comprehension z"] <- predict(geofit_cdic,type="response")
-dbgps$pred[dbgps$outcome_lab == "Ascaris sp."] <- predict(geofit_al,type="response")
-
-
-#---------------------------
-# model predictions over 
-# the entire prediction grid
-#---------------------------
-bpred_laz <- predict(geofit_laz,newdata=b_gridxy,type="response")
-bpred_cdic <- predict(geofit_cdic,newdata=b_gridxy,type="response")
-bpred_al <- predict(geofit_al,newdata=b_gridxy,type="response")
-
-# as rasters
-brast_laz <- SpatialPixelsDataFrame(points=b_gridxy[c("lon","lat")],data=data.frame(fit=bpred_laz),proj4string=CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"))
-
-brast_cdic <- SpatialPixelsDataFrame(points=b_gridxy[c("lon","lat")],data=data.frame(fit=bpred_cdic),proj4string=CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"))
-
-brast_al <- SpatialPixelsDataFrame(points=b_gridxy[c("lon","lat")],data=data.frame(fit=bpred_al*100),proj4string=CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"))
-
-```
-
-
-# Bangladesh Maps
-
-## LAZ
-
-```{r map Bangladesh LAZ, warning = FALSE, out.width = "100%"}
-
-brastp_laz <- raster::raster(brast_laz,layer=1)
-xlon <- median(dbgps_control$lon)
-ylat <- median(dbgps_control$lat)
-
-# define the color palettes for mean 
-# reverse palettes are there just for the legend
-# so that we can present high values on the top
-pal <- colorNumeric(
-  palette = "viridis",
-  domain=c(raster::values(brastp_laz)),
-  na.color = "transparent"
-)
-pal_rev <- colorNumeric(
-  palette = "viridis",
-  domain=c(raster::values(brastp_laz)),
-  na.color = "transparent",
-  reverse = TRUE
-)
-
-# make the map
-mapb_laz <- leaflet(width = "100%") %>% 
-  addProviderTiles("CartoDB.Positron",options=providerTileOptions(opacity=1)) %>%
-  setView(lng = xlon, lat = ylat, zoom = 8) %>%
-  addRasterImage(brastp_laz, colors=pal, opacity=0.9, group="Mean") %>%
-  addCircleMarkers(data = dbgps_control,
-                   lng = ~ lon, lat = ~ lat,
-                   radius = 1,
-                   color = ~"black", fill = ~ "black",  weight=1,fillOpacity = 1
-              ) %>%
-  
-  # add scale bar and legends
-  addScaleBar(position="bottomleft",options=scaleBarOptions(imperial = FALSE)) %>%
-  addLegend(position="bottomright",
-            pal = pal_rev, 
-            values= c(raster::values(brastp_laz)),
-            labFormat = labelFormat(transform = function(x) sort(x, decreasing = TRUE)),
-            title = "LAZ",
-            group = "Mean"
-            )
-
-mapb_laz
-
-```
-
-
-## CDI comprehension
-
-Communicative Development Inventory (comprehension)
-
-```{r map Bangladesh CDI comp, warning = FALSE, out.width = "100%"}
-
-brastp_cdic <- raster::raster(brast_cdic,layer=1)
-xlon <- median(dbgps_control$lon)
-ylat <- median(dbgps_control$lat)
-
-# define the color palettes for mean 
-# reverse palettes are there just for the legend
-# so that we can present high values on the top
-scale_range <- c(-0.2, 0.2)
-rcartopal <- carto_pal(9,"Earth")
-pal <- colorNumeric(
-  palette = rcartopal,
-  domain= scale_range,
-  na.color = "transparent"
-)
-pal_rev <- colorNumeric(
-  palette = rcartopal,
-  domain=scale_range,
-  na.color = "transparent",
-  reverse = TRUE
-)
-
-# make the map
-mapb_cdic <- leaflet(width = "100%") %>% 
-  addProviderTiles("CartoDB.Positron",options=providerTileOptions(opacity=1)) %>%
-  setView(lng = xlon, lat = ylat, zoom = 8) %>%
-  addRasterImage(brastp_cdic, colors=pal, opacity=1, group="Mean") %>%
-  addCircleMarkers(data = dbgps_control,
-                   lng = ~ lon, lat = ~ lat,
-                   radius = 1,
-                   color = ~"black", fill = ~ "black",  weight=1,fillOpacity = 1
-              ) %>%
-  
-  # add scale bar and legends
-  addScaleBar(position="bottomleft",options=scaleBarOptions(imperial = FALSE)) %>%
-  addLegend(position="bottomright",
-            pal = pal_rev, 
-            values= scale_range,
-            labFormat = labelFormat(transform = function(x) sort(x, decreasing = TRUE)),
-            title = "CDI Z-score<br>comprehension",
-            group = "Mean"
-            )
-
-mapb_cdic
-
-
-```
-
-
-## Ascaris sp.
-
-```{r map Bangladesh Ascaris, warning = FALSE, out.width = "100%"}
-
-brastp_al <- raster::raster(brast_al,layer=1)
-xlon <- median(dbgps_control$lon)
-ylat <- median(dbgps_control$lat)
-
-# define the color palettes for mean 
-# reverse palettes are there just for the legend
-# so that we can present high values on the top
-pal <- colorNumeric(
-  palette = "inferno",
-  domain=c(raster::values(brastp_al)),
-  na.color = "transparent"
-)
-pal_rev <- colorNumeric(
-  palette = "inferno",
-  domain=c(raster::values(brastp_al)),
-  na.color = "transparent",
-  reverse = TRUE
-)
-
-# make the map
-mapb_al <- leaflet(width = "100%") %>% 
-  addProviderTiles("CartoDB.Positron",options=providerTileOptions(opacity=1)) %>%
-  setView(lng = xlon, lat = ylat, zoom = 8) %>%
-  addRasterImage(brastp_al, colors=pal, opacity=0.9, group="Prevalence") %>%
-  addCircleMarkers(data = dbgps_control,
-                   lng = ~ lon, lat = ~ lat,
-                   radius = 1,
-                   color = ~"black", fill = ~ "black",  weight=1,fillOpacity = 1
-              ) %>%
-  
-  # add scale bar and legends
-  addScaleBar(position="bottomleft",options=scaleBarOptions(imperial = FALSE)) %>%
-  addLegend(position="bottomright",
-            pal = pal_rev, 
-            values= c(raster::values(brastp_al)),
-            labFormat = labelFormat(transform = function(x) sort(x, decreasing = TRUE)),
-            title = "Ascaris<br>Prevalence (%)",
-            group = "Prevalence"
-            )
-
-mapb_al
-
-```
-
-
 
 # Session Info
 ```{r session info}
-
-#----------------------------
-# detach the raster package
-#----------------------------
-detach("package:raster", unload=TRUE)
-
 sessionInfo()
 ```
-
 
