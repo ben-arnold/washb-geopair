@@ -289,16 +289,16 @@ dreffplot2 <- dreffplot %>%
          country = factor(country)) %>%
   # tedious x and y nudge coordinates for labels to optimize display
   mutate(lab_xnudge = case_when(
-           outcome_lab2 %in% c("WAZ","LAZ","WHZ","HCZ") & country == "Bangladesh" ~ -0.025,
+           outcome_lab2 %in% c("WAZ","LAZ","WHZ","HCZ") & country == "Bangladesh" ~ -0.03,
            outcome_lab2 %in% c("EASQ Communication","EASQ Personal-social","CDI Expression") & country == "Bangladesh" ~ 0.025,
            outcome_lab2 == "CDI Comprehension" & country == "Bangladesh" ~ 0.025,
            outcome_lab2 == "EASQ Gross motor" & country == "Bangladesh" ~ 0.025,
            outcome_lab2 == "Diarrhea" & country == "Bangladesh" ~ 0.025,
            outcome_lab2 == "Trichuris sp." & country == "Bangladesh" ~ 0.025,
-           outcome_lab2 == "Hookworm" & country == "Bangladesh" ~ -0.025,
+           outcome_lab2 == "Hookworm" & country == "Bangladesh" ~ -0.03,
            
            outcome_lab2 %in% c("Diarrhea","Trichuris sp.") & country == "Kenya" ~ 0.025,
-           outcome_lab2 %in% c("LAZ","HCZ") & country == "Kenya" ~ -0.025,
+           outcome_lab2 %in% c("LAZ","HCZ") & country == "Kenya" ~ -0.03,
            outcome_lab2 == "WHZ" & country == "Kenya" ~ 0.02,
            outcome_lab2 == "WAZ" & country == "Kenya" ~ 0.025,
            outcome_lab2 == "HCZ" & country == "Kenya" ~ 0.02,
@@ -325,7 +325,9 @@ dreffplot2 <- dreffplot %>%
          )
 
 # make plot
-pcols <- c("#D9B86A", "#9B9F7C", "#5986B0")
+# pcols <- c("#D9B86A", "#9B9F7C", "#5986B0")
+pcols <- c(cbpal[2],cbpal[4],"gray50")
+
 plot_reff_t <- ggplot(data=dreffplot2, aes(x = eff_u, y = corr_u)) +
   # facet over country
   facet_grid(~country) +
@@ -341,9 +343,8 @@ plot_reff_t <- ggplot(data=dreffplot2, aes(x = eff_u, y = corr_u)) +
   geom_point(aes(color = outcome_group), size = 2.2, alpha=1) + 
   geom_point(pch=21,bg=NA, size=2.2, show.legend = TRUE) +
   # refine aesthetics
-  # scale_color_manual(values = pcols, guide=guide_legend(title="outcome group:")) +
-  scale_color_brewer(palette = "Dark2", guide=guide_legend(title="outcome group:")) +
-  # scale_color_viridis_d(begin = 0.4, end = 0.8, direction = -1, option = "E",  guide=guide_legend(title="Outcome group:")) +
+  scale_color_manual(values = pcols, guide=guide_legend(title="outcome group:")) +
+  # scale_color_brewer(palette = "Dark2", guide=guide_legend(title="outcome group:")) +
   scale_x_continuous(breaks=seq(0.8,2.6,by=0.2))+
   scale_y_continuous(breaks=seq(0,0.6,by=0.1)) +
   coord_cartesian(xlim=c(0.8,2.6),ylim = c(0,0.6)) +
@@ -353,7 +354,7 @@ plot_reff_t <- ggplot(data=dreffplot2, aes(x = eff_u, y = corr_u)) +
     legend.position = "none",
     panel.grid.minor = element_blank(),
     plot.tag = element_text(face = "bold", size=16),
-    strip.text = element_text(size=11)
+    strip.text = element_text(size=12)
   )
 plot_reff_t
 
@@ -366,11 +367,12 @@ Compare the predicted (based on pair-level correlation) versus observed relative
 ```{r predicted vs observed relative efficiency}
 obs_v_pred_reff <- estcomp_res %>% 
   mutate(rel_eff = var_nomatch / var_imai) %>% 
-  ggplot(aes(x = eff_u, y = rel_eff, fill = outcome_group)) +
+  ggplot(aes(x = eff_u, y = rel_eff, color = outcome_group)) +
   geom_abline(intercept=0,slope=1,color="gray70") +
-  geom_point(pch = 21, size = 2.2, alpha = 0.8) +
-  # scale_fill_manual(values = outcome_colors) +
-  scale_fill_brewer(palette = "Dark2", guide=guide_legend(title="outcome group:")) +
+  geom_point(pch = 19, size = 2.2, alpha = 0.8) +
+  # scale_fill_brewer(palette = "Dark2", guide=guide_legend(title="outcome group:")) +
+  # scale_color_brewer(palette = "Dark2", guide=guide_legend(title="outcome group:")) +
+  scale_color_manual(values = pcols, guide=guide_legend(title="outcome group:")) +
   scale_x_continuous(breaks=seq(0.8,2.6,by=0.2))+
   scale_y_continuous(breaks=seq(0.8,2.6,by=0.2))+
   coord_cartesian(xlim=c(0.8,2.6),ylim=c(0.8,2.6))+
@@ -381,11 +383,9 @@ obs_v_pred_reff <- estcomp_res %>%
        fill = "outcome group") +
   theme_minimal() +
   theme(legend.position = "bottom",
-        legend.title = element_text(size = 8),
-        legend.text = element_text(size = 8),
         panel.grid.minor = element_blank(),
         plot.tag = element_text(face = "bold", size=16),
-        strip.text = element_text(size=11)
+        strip.text = element_text(size=12)
         )
 
 obs_v_pred_reff
@@ -410,41 +410,93 @@ breakr10 <- breakrs %>%
   filter(n==10) %>%
   pull(r)
 
-pcols <- c("#D9B86A", "#9B9F7C", "#5986B0")
-plot_corr <- ggplot(data = dreffplot, aes(x = corr_w, y = corr_u)) +
+#----------------------------------
+# create an unweighted vs weighted correlation plot
+# pcols <- c("#D9B86A", "#9B9F7C", "#5986B0")
+plot_corr <- ggplot(data = dreffplot, aes(x = corr_w, y = corr_u, color = outcome_group)) +
   facet_grid(~country) +
   geom_vline(xintercept=breakr10,color = "gray60", lwd=0.5, lty="dashed") + 
   geom_hline(yintercept=breakr10,color = "gray60", lwd=0.5, lty="dashed") + 
   annotate("text",x=breakr10+0.01,y=0.9,label="break-even correlation\nfor n=10 pairs",hjust=0,size=3) +
   geom_abline(intercept = 0, slope = 1, color="gray70") +
-  
-  geom_point(aes(color = outcome_group),size=2.5, alpha=0.9) +
-  geom_point(pch=21, bg=NA, size=2.5, show.legend = TRUE) +
+  geom_point(pch=19, bg=NA, size=2.2, show.legend = TRUE) +
   geom_text(data = dreffplot %>% filter(corr_w - corr_u >0.2), 
-            aes(label = outcome_lab2, color = outcome_group),
+            aes(label = outcome_lab, color = outcome_group),
             size = 2.5, hjust=0, nudge_x = 0.03, nudge_y=0.01,show.legend = FALSE) +
-  # scale_color_manual(values = pcols, guide=guide_legend(title="outcome group:")) +
+  scale_color_manual(values = pcols, guide=guide_legend(title="outcome group:")) +
   # scale_fill_manual(values = pcols) +
-  scale_color_brewer(palette = "Dark2", guide=guide_legend(title="outcome group:")) +
-  scale_fill_brewer(palette = "Dark2") +
+  # scale_color_brewer(palette = "Dark2", guide=guide_legend(title="outcome group:")) +
   scale_x_continuous(breaks=seq(0,1,by=0.1))+
   scale_y_continuous(breaks=seq(0,1,by=0.1))+
-  labs(y = "unweighted correlation", x = "weighted correlation") +
+  labs(y = "unweighted correlation", x = "weighted correlation", tag = "a") +
   coord_cartesian(xlim=c(0,1),ylim = c(0,1)) +
   theme_minimal() +
   theme(
-    legend.position = "bottom",
+    legend.position = "none",
     panel.grid.minor = element_blank(),    
-    strip.text = element_text(size=11)
-
+    plot.tag = element_text(face = "bold", size=16),
+    strip.text = element_text(size=12)
   )
 
 
 plot_corr
 
-ggsave(here("output","washb-geopair-unweight-v-weight-corr.png"),plot_corr,device="png",height=5,width=8)
-
 ```
+
+Compare the predicted (based on pair-level weighted correlation) versus observed relative efficiency gains.
+
+```{r plot obs releff vs weighted releff}
+
+
+d_obs_v_pred_reff <- estcomp_res %>% 
+  mutate(rel_eff = var_nomatch / var_imai)
+
+# identify and label big discrepancies, > 0.4
+obs_v_pred_wreff_labs <- d_obs_v_pred_reff %>%
+  filter(eff_w - rel_eff >0.4) %>%
+  mutate(plot_nudge_x = ifelse(country == "Kenya" & outcome_lab %in% c("Ascaris sp.","length-for-age z"),-0.05,0.05),
+         plot_hjust = ifelse(country == "Kenya" & outcome_lab %in% c("Ascaris sp.","length-for-age z"),1,0))
+
+  
+obs_v_pred_wreff <- 
+  ggplot(data=d_obs_v_pred_reff, aes(x = eff_w, y = rel_eff,color = outcome_group)) +
+  geom_abline(intercept=0,slope=1,color="gray70") +
+  geom_point(aes(),size=2.5, alpha=0.9) +
+  geom_point(pch=21, bg=NA, size=2.5, show.legend = TRUE) +
+  geom_text(data = obs_v_pred_wreff_labs, 
+            aes(label = outcome_lab),
+            size = 2.5, 
+            hjust= obs_v_pred_wreff_labs$plot_hjust,
+            nudge_x = obs_v_pred_wreff_labs$plot_nudge_x, nudge_y=0.01,show.legend = FALSE) +
+  # scale_color_brewer(palette = "Dark2",guide=guide_legend(title="outcome group:")) +
+  scale_color_manual(values = pcols, guide=guide_legend(title="outcome group:")) +
+  scale_x_continuous(breaks=seq(0.8,3.2,by=0.2))+
+  scale_y_continuous(breaks=seq(0.8,3.2,by=0.2))+
+  coord_cartesian(xlim=c(0.8,3.2),ylim=c(0.8,3.2))+
+  facet_wrap(.~country) +
+  labs(x = expression(paste("predicted relative efficiency based on weighted correlation, (1-",italic(r),")")^-1),
+       y = "observed relative efficiency",
+       tag = "b",
+       fill = "outcome group") +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        panel.grid.minor = element_blank(),
+        plot.tag = element_text(face = "bold", size=16),
+        strip.text = element_text(size=12)
+        )
+
+obs_v_pred_wreff
+```
+
+
+
+
+```{r composite correlation plot, fig.height = 9}
+plot_wgt_corr_composite <- grid.arrange(plot_corr,obs_v_pred_wreff,ncol=1,nrow=2,heights=c(0.85,1))
+ggsave(here("output","washb-geopair-unweight-v-weight-corr.png"),plot_wgt_corr_composite,device="png",height=8,width=7)
+```
+
+
 
 # Relative efficiency by Moran's I, ICC, and prevalence
 
@@ -477,11 +529,11 @@ d_reff_prev <- estcomp_res %>%
 ```{r plot reff vs icc}
 plot_reff_icc <- ggplot(data = d_reff_icc, aes(x = icc, y = rel_eff)) +
   geom_smooth(method = "gam", se=FALSE, color="gray80") +
-  geom_point(aes(fill = outcome_group), pch = 21, size = 2.2, alpha = 0.8) +
-  # scale_fill_manual(values = outcome_colors) +
-  scale_fill_brewer(palette = "Dark2", guide=guide_legend(title="outcome group:")) +
+  geom_point(aes(color = outcome_group), pch = 19, size = 2.2, alpha = 0.8) +
+  scale_color_manual(values = pcols, guide=guide_legend(title="outcome group:")) +
+  # scale_fill_brewer(palette = "Dark2", guide=guide_legend(title="outcome group:")) +
   scale_x_continuous(breaks=seq(0,0.12,by=0.04))+
-  scale_y_continuous(breaks=seq(0.8,2.6,by=0.2))+
+  scale_y_continuous(breaks=seq(0.8,2.6,by=0.4))+
   coord_cartesian(xlim=c(0,0.12),ylim=c(0.8,2.6))+
   facet_grid(country~.) +
   labs(x = "intra-cluster correlation (ICC)",
@@ -492,7 +544,7 @@ plot_reff_icc <- ggplot(data = d_reff_icc, aes(x = icc, y = rel_eff)) +
   theme(legend.position = "bottom",
         legend.title = element_text(size = 11),
         legend.text = element_text(size = 11),
-        panel.grid.minor.y = element_blank(),
+        # panel.grid.minor.y = element_blank(),
         plot.tag = element_text(face = "bold", size=16),
         strip.text.y = element_blank()
         )
@@ -504,11 +556,11 @@ plot_reff_icc
 ```{r plot reff vs morani}
 plot_reff_morani <- ggplot(data = d_reff_morani , aes(x = morani_observed, y = rel_eff)) +
   geom_smooth(method = "gam", se=FALSE, color="gray80") +
-  geom_point(aes(fill = outcome_group), pch = 21, size = 2.2, alpha = 0.8) +
-  # scale_fill_manual(values = outcome_colors) +
-  scale_fill_brewer(palette = "Dark2", guide=guide_legend(title="outcome group:")) +
+  geom_point(aes(color = outcome_group), pch = 19, size = 2.2, alpha = 0.8) +
+  scale_color_manual(values = pcols, guide=guide_legend(title="outcome group:")) +
+  # scale_color_brewer(palette = "Dark2", guide=guide_legend(title="outcome group:")) +
   scale_x_continuous(breaks=seq(0,0.16,by=0.04))+
-  scale_y_continuous(breaks=seq(0.8,2.6,by=0.2))+
+  scale_y_continuous(breaks=seq(0.8,2.6,by=0.4))+
   coord_cartesian(xlim=c(0,0.16),ylim=c(0.8,2.6))+
   facet_grid(country~.) +
   labs(x = "global clustering (Moran's I)",
@@ -519,7 +571,7 @@ plot_reff_morani <- ggplot(data = d_reff_morani , aes(x = morani_observed, y = r
   theme(legend.position = "bottom",
         legend.title = element_text(size = 8),
         legend.text = element_text(size = 8),
-        panel.grid.minor.y = element_blank(),
+        # panel.grid.minor.y = element_blank(),
         plot.tag = element_text(face = "bold", size=16),
         strip.text.y = element_blank()
         )
@@ -547,13 +599,13 @@ prevplotd <- d_reff_prev %>%
    )
 
 
-pcols <- brewer.pal(n=3,name="Dark2")[3]
+# pcols <- brewer.pal(n=3,name="Dark2")[3]
 plot_reff_prev <- ggplot(data = d_reff_prev %>% filter(outcome_lab %in% c("Diarrhea","Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm")), aes(x = Y0bar, y = rel_eff)) +
-  geom_point(aes(fill = outcome_group), pch = 21, size = 2.2, alpha = 0.8) +
-  scale_fill_manual(values = pcols) +
+  geom_point(aes(color = outcome_group), pch = 19, size = 2.2, alpha = 0.8) +
+  scale_color_manual(values = pcols[3], guide=guide_legend(title="outcome group:")) +
   # scale_fill_brewer(palette = "Dark2", guide=guide_legend(title="outcome group:")) +
   scale_x_continuous(breaks=seq(0,0.4,by=0.1), labels=sprintf("%1.0f",seq(0,0.4,by=0.1)*100))+
-  scale_y_continuous(breaks=seq(0.8,2.6,by=0.2))+
+  scale_y_continuous(breaks=seq(0.8,2.6,by=0.4))+
   coord_cartesian(xlim=c(0,0.4),ylim=c(0.8,2.6))+
   facet_grid(country~.) +
   labs(x = "outcome prevalence (%)",
@@ -567,7 +619,7 @@ plot_reff_prev <- ggplot(data = d_reff_prev %>% filter(outcome_lab %in% c("Diarr
   theme(legend.position = "bottom",
         legend.title = element_text(size = 8),
         legend.text = element_text(size = 8),
-        panel.grid.minor.y = element_blank(),
+        # panel.grid.minor.y = element_blank(),
         plot.tag = element_text(face = "bold", size=16),
         strip.text.y = element_text(size=11, angle = 0, face = "bold"),
         )
