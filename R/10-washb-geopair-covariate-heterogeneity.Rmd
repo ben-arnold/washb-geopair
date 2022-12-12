@@ -1,0 +1,605 @@
+---
+title: "Assessing effect heterogeneity by spatial covariates in the WASH Benefits trials"
+subtitle: " "
+author: "Francois Rerolle franscois.rerolle@ucsf.edu and Ben Arnold ben.arnold@ucsf.edu"
+date: "updated: `r Sys.time()`"
+output: 
+  html_document:
+    theme: default
+    highlight: default
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+# Summary
+
+**TBD**
+
+# Preamble
+
+```{r preamble, message = FALSE}
+library(here)
+here()
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","washb-geopair-Config.R"))
+
+#----------------------------
+# source the shared functions file
+#----------------------------
+source(here("R","washb-geopair-Functions.R"))
+
+
+#----------------------------
+# Box data file paths
+#----------------------------
+Box_data_directory    <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/final/"
+Box_geodata_directory <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/geodata/"
+```
+
+# Bangladesh diarrhea
+
+## Data prep
+
+```{r load bangladesh data}
+#-------------------------------
+# load the study GPS data
+# data created by
+# washb-geopair-gps-data-processing.R
+#
+# NOT PUBLICLY AVAILABLE
+# NEED TO USE ACCURATE LON/LAT FOR MAPPING
+#-------------------------------
+
+# Cluster-level GPS locations (centroids of compounds in each cluster)
+dgps <- read_rds(paste0(Box_data_directory,"bangl_analysis_gps.rds")) %>%
+  mutate(block = as.character(block),
+         blockf = factor(block))
+
+dgps_block <- dgps %>%
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  ungroup() %>%
+  dplyr::select(block,tr,lon,lat) %>%
+  group_by(block) %>%
+  summarize(lon = median(lon),
+            lat = median(lat), 
+            .groups = "keep") %>%
+  mutate(country = "Bangladesh") 
+
+#----------------------------------
+# Load the Bangladesh
+# administrative level 3 shapefile
+#----------------------------------
+admin3_b <- st_read(paste0(Box_geodata_directory,"bgd_adm_bbs_20201113_SHP"),layer = "bgd_admbnda_adm3_bbs_20201113")
+  
+admin3_b_study <- admin3_b %>%
+  # add in one more zilla that is encircled by study zillas
+  # to allow for the 10km spatial predictions Fulbaria (BD456120)
+  filter(ADM3_PCODE %in% c(dgps$ADM3_PCODE,"BD456120"))
+
+
+#-------------------------------
+# read-in block-level level means
+# these were estimated in the file
+# 02-washb-geopair-relative-efficiency.Rmd
+#
+# join gps coordinates to 
+# block-level means
+#-------------------------------
+dcl_b <- read_rds(here("data","washb_pair_level_summary_estimates.rds")) %>%
+  filter(country=="Bangladesh") %>%
+  left_join(dgps_block, by=c("country","block"))
+
+```
+
+```{r import Bangladesh geospatial layers}
+#----------------------------------
+# Load the Bangladesh
+# administrative shapefile
+# level 1
+#----------------------------------
+admin_b <- st_read(paste0(Box_geodata_directory,"bgd_adm_bbs_20201113_SHP"),layer = "bgd_admbnda_adm1_bbs_20201113")
+bgd_adm_sf <- admin_b %>% 
+  filter(ADM1_EN %in% c("Dhaka","Mymensingh")) %>%
+  st_as_sfc(crs=4326)
+as(bgd_adm_sf,"Spatial")
+
+#----------------------------------
+# Dakha coordinates
+#----------------------------------
+dakha_gps <- data.frame(lon = 90.40744, lat = 23.7104)
+dakha_gps_sp <- SpatialPoints(dakha_gps)
+
+#----------------------------------
+# MAP friction surface
+#----------------------------------
+map_friction <- malariaAtlas::getRaster(
+  surface = "A global friction surface enumerating land-based travel speed for a nominal year 2015",
+  shp = as(bgd_adm_sf,"Spatial"))
+
+b_mins_to_city <- malariaAtlas::getRaster(
+  surface = "A global map of travel time to cities to assess inequalities in accessibility in 2015",
+  shp = as(bgd_adm_sf,"Spatial"))
+
+malariaAtlas::autoplot_MAPraster(map_friction)
+
+```
+
+```{r estimate modeled travel time to dhaka}
+#----------------------------------
+# estimate approximate modeled 
+# travel time in minutes between
+# each matched pair centroid and
+# Dhaka
+#----------------------------------
+# general overview here in the gdistance package: https://agrdatasci.github.io/gdistance/articles/Overview.html
+#
+# Malaria Atlas Project summary in Nature Med here:
+# but source code is long gone!! they failed to use a repo w/ DOI :/
+# https://www.nature.com/articles/s41591-020-1059-1
+#
+# another applied example in this blog
+# https://medium.com/@abertozz/mapping-travel-times-with-malariaatlas-and-friction-surfaces-f4960f584f08
+#----------------------------------
+T <- gdistance::transition(map_friction, transitionFunction = function(x) 1/mean(x), directions=8) 
+T_GC <- gdistance::geoCorrection(T) 
+access_raster <- gdistance::accCost(T_GC, fromCoords = dakha_gps_sp)
+malariaAtlas::autoplot_MAPraster(access_raster)
+
+# Extract distance to Dhaka for each matched pair
+dcl_b$mins_to_dhaka <- extract(x = access_raster, y = dcl_b[,c("lon","lat")])
+dcl_b$mins_to_city <- extract(x = b_mins_to_city, y = dcl_b[,c("lon","lat")])
+dcl_diar <- dcl_b %>%
+  filter(outcome_lab == "Diarrhea")
+
+```
+
+```{r bangladesh travel distance map}
+#--------------------------------------
+# convert predicted travel time surface
+# raster to a tibble for ggplot
+#--------------------------------------
+# access_raster2 <- raster::mask(access_raster,mask = admin_b_study)
+access_raster2 <- malariaAtlas::as.MAPraster(access_raster)
+
+# for visualization, recode distances over 240 mins
+# to 240.
+table(access_raster2$z[is.finite(access_raster2$z)]>240)
+access_raster2$z[is.finite(access_raster2$z) & access_raster2$z>240 ] <- 240
+
+map_traveltime <- ggplot(data=access_raster2) + 
+  geom_tile(aes(x=x,y=y,fill=z), na.rm=TRUE) +
+  geom_sf(data=bgd_adm_sf,fill=NA,color="black") +
+  geom_sf(data=admin3_b_study,fill=NA,color="black") +
+  coord_sf(crs = 4326) +
+  scale_fill_viridis(option = "D", direction = -1,
+                     limits = c(0,240),
+                        na.value = NA,
+                        breaks = seq(0,240,by=60),
+                     labels = c(seq(0,220,by=60),"240+"),
+                        guide=guide_colorbar(title="modeled travel time to Dhaka (mins)", 
+                                           title.position = "top",
+                                           title.hjust = 0.5,
+                                           direction="horizontal",
+                                           label.position = "bottom",
+                                           label.hjust = 0.5,
+                                           barheight=unit(10,"pt"),
+                                           barwidth=unit(200,"pt"),
+                                           ticks.colour = "white",
+                                           ticks.linewidth = 1,
+                                           frame.colour = "white"
+                        )
+                        ) +
+  geom_point(data=dcl_diar, aes(x=lon,y=lat),pch=21,size=1.5,color="white",fill=NA) +
+  geom_text(data=dakha_gps, aes(x=lon,y=lat),label="★", size=6, family = "HiraKakuPro-W3", color="white") +
+  labs(x="latitude",y="longitude",tag="a") +
+  # coord_cartesian(ylim=c(23,25),xlim=c(89.25,91.25)) +
+  # annotation_scale(location = "br", width_hint = 0.2, plot_unit = "km") +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    plot.tag = element_text(face="bold",size=16)
+  )
+
+map_traveltime
+```
+
+
+
+```{r plot diar prev vs distance, message = FALSE}
+
+plot_prev_dist_dhaka <- ggplot(data=dcl_diar, aes(x = mins_to_dhaka,color = mins_to_dhaka)) +
+  geom_smooth(aes(y=Y0bar*100),method = "loess", color="gray20", fill="gray20",lwd=0.5,alpha=0.2) +
+  geom_point(aes(y = Y0bar*100)) +
+  scale_color_viridis(option = "D", direction = -1,
+                     limits = c(0,240),
+                        na.value = NA,
+                        breaks = seq(0,140,by=20),
+                        guide=guide_colorbar(title="travel time (mins)", 
+                                           title.position = "top",
+                                           title.hjust = 0.5,
+                                           direction="horizontal",
+                                           label.position = "bottom",
+                                           label.hjust = 0.5,
+                                           barheight=unit(10,"pt"),
+                                           barwidth=unit(200,"pt"),
+                                           ticks.colour = "white",
+                                           ticks.linewidth = 1,
+                                           frame.colour = "white"
+                        )
+                        ) +
+  scale_x_continuous(breaks=seq(0,140,by=20)) +
+  scale_y_continuous(breaks=seq(0,24,by=4)) +
+  coord_cartesian(xlim=c(40,145)) +
+  labs(x = "modeled travel time to Dhaka (mins)", 
+       y = "diarrhea prevalence in control clusters (%)",
+       tag = "b") +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    panel.grid.minor.x = element_blank(),
+    plot.tag = element_text(face="bold",size=16)
+  )
+              
+
+```
+
+```{r plot diar ate vs distance, message = FALSE}
+
+plot_ate_dist_dhaka <- ggplot(data=dcl_diar, aes(x = mins_to_dhaka,color = mins_to_dhaka)) +
+  geom_hline(yintercept = 0, color = "gray50") +
+  geom_smooth(aes(y=diff*100),method = "loess", color="gray20", fill="gray20",lwd=0.5,alpha=0.2) +
+  geom_point(aes(y = diff*100)) +
+  scale_color_viridis(option = "D", direction = -1,
+                     limits = c(0,240),
+                        na.value = NA,
+                        breaks = seq(0,140,by=20),
+                        guide=guide_colorbar(title="travel time (mins)", 
+                                           title.position = "top",
+                                           title.hjust = 0.5,
+                                           direction="horizontal",
+                                           label.position = "bottom",
+                                           label.hjust = 0.5,
+                                           barheight=unit(10,"pt"),
+                                           barwidth=unit(200,"pt"),
+                                           ticks.colour = "white",
+                                           ticks.linewidth = 1,
+                                           frame.colour = "white"
+                        )
+                        ) +
+  scale_x_continuous(breaks=seq(0,140,by=20)) +
+  coord_cartesian(xlim=c(40,145),ylim=c(-20,15)) +
+  labs(x = "modeled travel time to Dhaka (mins)", 
+       y = "matched pair difference, diarrhea prevalence (%)",
+       tag = "c") +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    panel.grid.minor.x = element_blank(),
+    plot.tag = element_text(face="bold",size=16)
+  )
+              
+
+```
+## Create a composite figure
+
+combine modeled surface layer, prevalence, and ATE estimates into a single composite
+
+```{r travel distance composite map, fig.width=4, fig.height = 8}
+#--------------------------------------
+# create a 1 x 3 composite figure a-c
+# having weird difficulty scaling the
+# map vis-a-vis scatter plots so 
+# saving as separate .png files
+#--------------------------------------
+ggsave(filename=here("output","washb-geopair-map-dist-dhaka.png"),plot = map_traveltime,device="png",width=5.6,height=8)
+
+dist_map_composite <- grid.arrange(plot_prev_dist_dhaka,
+                                  plot_ate_dist_dhaka,
+                                  nrow=2,ncol=1,heights=c(1,1))
+ggsave(filename=here("output","washb-geopair-diar-dist-dhaka.png"),plot = dist_map_composite,device="png",width=3.5,height=8)
+```
+
+# Kenya Ascaris
+
+## Data prep
+
+
+```{r load kenya data}
+#-------------------------------
+# read-in block-level level means
+# these were estimated in the file
+# 02-washb-geopair-relative-efficiency.Rmd
+#
+# join gps coordinates to 
+# block-level means
+#-------------------------------
+dcl_k <- read_rds(here("data","washb_pair_level_summary_estimates.rds")) %>%
+  filter(country=="Kenya")
+
+#-------------------------------
+# load the study's GPS coordinates
+# created by 
+# washb-geopair-gps-data-processing.R
+#
+# NOT PUBLICLY AVAILABLE -- 
+# NEED TO USE ACCURATE LON/LAT FOR MAPPING
+#-------------------------------
+
+# Cluster-level GPS locations (centroids of compounds in each cluster)
+dkgps <- read_rds(file=here("data","kenya_analysis_gps.rds")) %>%
+  # filter out blocks that were not complete for control,N, N+WSH
+  filter(block %in% unique(dcl_k$block[dcl_k$outcome_lab=="Ascaris sp."])) %>%
+  mutate(block = as.character(block),
+         blockf = factor(block)) 
+  
+
+# there are a small number of clusters (n=4) in Kenya 
+# that seem to be geolocated just over the line 
+# into a new sub-county. By hand, recode the 
+# administrative information for these clusters 
+# to be the same as those for the other clusters 
+# in the same randomization block.
+dkgps <- dkgps %>%
+  mutate(
+    
+    ADM2_PCODE = ifelse(ADM2_PCODE=="KE037202" & block==3,"KE037205",ADM2_PCODE),
+    ADM2_EN = ifelse(ADM2_PCODE=="KE037202" & block==3,"Mumias East",ADM2_EN),
+    
+    ADM2_PCODE = ifelse(ADM2_PCODE=="KE039220" & block==6,"KE039219",ADM2_PCODE),
+    ADM2_EN = ifelse(ADM2_PCODE=="KE039220" & block==6,"Bumula",ADM2_EN),
+    
+    ADM2_PCODE = ifelse(ADM2_PCODE=="KE042239" & block==61,"KE038214",ADM2_PCODE),
+    ADM2_EN = ifelse(ADM2_PCODE=="KE042239" & block==61,"Luanda",ADM2_EN),
+    
+    ADM2_PCODE = ifelse(ADM2_PCODE=="KE041235" & block==61,"KE038214",ADM2_PCODE),
+    ADM2_EN = ifelse(ADM2_PCODE=="KE041235" & block==61,"Luanda",ADM2_EN)
+  )
+
+dkgps_block <- dkgps %>%
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  ungroup() %>%
+  dplyr::select(block,tr,lon,lat) %>%
+  group_by(block) %>%
+  summarize(lon = median(lon),
+            lat = median(lat), 
+            .groups = "keep") %>%
+  mutate(country = "Kenya") 
+
+#-------------------------------
+# join gps coordinates to 
+# block-level means
+#-------------------------------
+dcl_k <- dcl_k %>%
+  left_join(dkgps_block, by=c("country","block"))
+
+```
+
+
+```{r import kenya geospatial layers}
+
+
+#----------------------------------
+# Load the Kenya
+# administrative 2 shapefile
+#----------------------------------
+admin2_k <- st_read(paste0(Box_geodata_directory,"ken_adm_iebc_20191031_shp"),layer = "ken_admbnda_adm2_iebc_20191031")
+  
+# limit sub counties to those that overlap
+# study block centroids
+# also include Kanduyi (KE039220) because it
+# is narrow and encircled by the study subcounties
+admin2_k_study <- admin2_k %>%
+  filter(ADM2_PCODE %in% c(dkgps$ADM2_PCODE,"KE039220"))
+
+#----------------------------------
+# Load the kenya
+# administrative shapefile
+# level 1
+# limit to counties in the study region
+#----------------------------------
+admin1_k <- st_read(paste0(Box_geodata_directory,"ken_adm_iebc_20191031_shp"),layer = "ken_admbnda_adm1_iebc_20191031")
+
+ken_adm_sf <- admin1_k %>% 
+  filter(ADM1_EN %in% c("Bungoma","Kakamega","Vihiga","Busia","Siaya","Kisumu","Nandi")) %>%
+  st_as_sfc(crs=4326)
+
+# 
+
+#---------------------------
+# Retrieve elevation data
+#
+# if data are not already
+# downloaded, the raster 
+# package will download them
+# into the /geodata directory
+#---------------------------
+ken_elev <- raster::getData("alt", 
+                            country="Kenya",
+                            path=paste0(Box_geodata_directory, "ken_msk_alt")
+                            )
+
+#---------------------------
+# mask the elevation to the
+# study counties
+#---------------------------
+ken_elev <- raster::mask(ken_elev, mask = as(ken_adm_sf,"Spatial"))
+
+
+#----------------------------------
+# MAP travel time to cities 2015
+#----------------------------------
+ktravel_city <- malariaAtlas::getRaster(
+  surface = "A global map of travel time to cities to assess inequalities in accessibility in 2015",
+  shp = as(ken_adm_sf,"Spatial"))
+
+malariaAtlas::autoplot_MAPraster(ktravel_city)
+
+#----------------------------------
+# Extract altitude and travel time
+# to cities for each matched pair
+#----------------------------------
+dcl_k$mins_to_city <- extract(x = ktravel_city, y = dcl_k[,c("lon","lat")])
+dcl_k$elev <- extract(x = ken_elev, y = dcl_k[,c("lon","lat")])
+
+dcl_al <- dcl_k %>%
+  filter(outcome_lab == "Ascaris sp.")
+
+```
+
+## Create an elevation figure
+
+```{r kenya elevation map}
+#--------------------------------------
+# convert elevation surface
+# raster to a tibble for ggplot
+#--------------------------------------
+ken_elev2 <- malariaAtlas::as.MAPraster(ken_elev)
+
+# for visualization, recode elevations over 2200 m
+# to 2200.
+table(ken_elev2$z[is.finite(ken_elev2$z)]>2200)
+ken_elev2$z[is.finite(ken_elev2$z) & ken_elev2$z>2200 ] <- 2200
+
+
+map_elev <- ggplot(data=ken_elev2) + 
+  geom_tile(aes(x=x,y=y,fill=z), na.rm=TRUE) +
+  geom_sf(data=ken_adm_sf,fill=NA,color="black") +
+  geom_sf(data=admin2_k_study,fill=NA,color="black") +
+  coord_sf(crs = 4326) +
+  scale_fill_viridis(option = "B", direction = 1,
+                     limits = c(1000,2200),
+                        na.value = NA,
+                        breaks = seq(1000,2200,by=200),
+                     labels = c(seq(1000,2000,by=200),"2200+"),
+                        guide=guide_colorbar(title="elevation (m)", 
+                                           title.position = "top",
+                                           title.hjust = 0.5,
+                                           direction="horizontal",
+                                           label.position = "bottom",
+                                           label.hjust = 0.5,
+                                           barheight=unit(10,"pt"),
+                                           barwidth=unit(200,"pt"),
+                                           ticks.colour = "white",
+                                           ticks.linewidth = 1,
+                                           frame.colour = "white"
+                        )
+                        ) +
+  geom_point(data=dcl_al, aes(x=lon,y=lat),pch=21,size=1.5,color="white",fill=NA) +
+  # geom_text(data=dakha_gps, aes(x=lon,y=lat),label="★", size=6, family = "HiraKakuPro-W3", color="white") +
+  labs(x="latitude",y="longitude",tag="a") +
+  # coord_cartesian(ylim=c(23,25),xlim=c(89.25,91.25)) +
+  # annotation_scale(location = "br", width_hint = 0.2, plot_unit = "km") +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    plot.tag = element_text(face="bold",size=16)
+  )
+
+map_elev
+```
+
+```{r plot ascaris prev vs elev, message = FALSE}
+
+plot_alprev_elev <- ggplot(data=dcl_al, aes(x = elev,color = elev)) +
+  geom_smooth(aes(y=Y0bar*100),method = "loess", color="gray20", fill="gray20",lwd=0.5,alpha=0.2) +
+  geom_point(aes(y = Y0bar*100)) +
+  scale_color_viridis(option = "B", direction = 1,
+                     limits = c(1000,2000),
+                        na.value = NA,
+                        breaks = seq(1000,2000,by=200),
+                        guide=guide_colorbar(title="elevation (m)", 
+                                           title.position = "top",
+                                           title.hjust = 0.5,
+                                           direction="horizontal",
+                                           label.position = "bottom",
+                                           label.hjust = 0.5,
+                                           barheight=unit(10,"pt"),
+                                           barwidth=unit(200,"pt"),
+                                           ticks.colour = "white",
+                                           ticks.linewidth = 1,
+                                           frame.colour = "white"
+                        )
+                        ) +
+  scale_x_continuous(breaks=seq(1200,1800,by=200),) +
+  scale_y_continuous(breaks=seq(0,100,by=20)) +
+  coord_cartesian(xlim=c(1200,1800),ylim=c(0,80)) +
+  labs(x = "elevation (m)", 
+       y = "Ascaris sp. prevalence in control clusters (%)",
+       tag = "b") +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    panel.grid.minor.x = element_blank(),
+    plot.tag = element_text(face="bold",size=16)
+  )
+              
+
+```
+
+```{r plot ascaris diff vs elev, message = FALSE}
+
+plot_aldiff_elev <- ggplot(data=dcl_al, aes(x = elev,color = elev)) +
+  geom_hline(yintercept = 0, color = "gray50") +
+  geom_smooth(aes(y=diff*100),method = "loess", color="gray20", fill="gray20",lwd=0.5,alpha=0.2) +
+  geom_point(aes(y = diff*100)) +
+  scale_color_viridis(option = "B", direction = 1,
+                     limits = c(1000,2000),
+                        na.value = NA,
+                        breaks = seq(1000,2000,by=200),
+                        guide=guide_colorbar(title="elevation (m)", 
+                                           title.position = "top",
+                                           title.hjust = 0.5,
+                                           direction="horizontal",
+                                           label.position = "bottom",
+                                           label.hjust = 0.5,
+                                           barheight=unit(10,"pt"),
+                                           barwidth=unit(200,"pt"),
+                                           ticks.colour = "white",
+                                           ticks.linewidth = 1,
+                                           frame.colour = "white"
+                        )
+                        ) +
+  scale_x_continuous(breaks=seq(1200,1800,by=200),) +
+  scale_y_continuous(breaks=seq(-40,20,by=20)) +
+  coord_cartesian(xlim=c(1200,1800)) +
+  labs(x = "elevation (m)", 
+       y = "matched pair difference, Ascaris prevalence (%)",
+       tag = "c") +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    panel.grid.minor.x = element_blank(),
+    plot.tag = element_text(face="bold",size=16)
+  )
+              
+```
+
+combine modeled surface layer, prevalence, and ATE estimates into a single composite
+
+```{r elev composite map, message = FALSE, fig.width=4, fig.height = 8}
+#--------------------------------------
+# create a 1 x 3 composite figure a-c
+# having weird difficulty scaling the
+# map vis-a-vis scatter plots so 
+# saving as separate .png files
+#--------------------------------------
+ggsave(filename=here("output","washb-geopair-map-elev-ken.png"),plot = map_elev,device="png",width=5.6,height=6.5)
+
+elev_map_composite <- grid.arrange(plot_alprev_elev,
+                                  plot_aldiff_elev,
+                                  nrow=2,ncol=1,heights=c(1,1))
+ggsave(filename=here("output","washb-geopair-al-elev-ken.png"),plot = elev_map_composite,device="png",width=3.5,height=8)
+```
+
+
+# Session Info
+```{r session info}
+sessionInfo()
+```
+
