@@ -1,0 +1,109 @@
+---
+title: "Geographic pair-matching in large-scale cluster randomized trials"
+subtitle: "PubMed search results figure"
+author: "Ben Arnold ben.arnold@ucsf.edu"
+date: "updated: `r Sys.time()`"
+output: 
+  html_document:
+    theme: default
+    highlight: default
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+# Summary
+
+Create a chart from a PubMed search query `[("cluster randomized trial") OR ("group randomized trial")]`.
+
+https://pubmed.ncbi.nlm.nih.gov/?term=%5B%28%22cluster+randomized+trial%22%29+OR+%28%22group+randomized+trial%22%29%5D+ 
+
+Results downloaded to a `.csv` file, which is read-in below to chart
+
+# Preamble
+
+```{r preamble, message = FALSE}
+library(here)
+here()
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","washb-geopair-Config.R"))
+
+# add the rentrez package
+# used to query PubMed
+library(rentrez)
+
+#----------------------------
+# source the shared functions file
+#----------------------------
+source(here("R","washb-geopair-Functions.R"))
+
+#----------------------------
+# Box data file paths
+#----------------------------
+Box_data_directory    <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/final/"
+Box_geodata_directory <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/geodata/"
+
+
+```
+
+# PubMed search
+
+```{r pubmed search}
+#-------------------------------
+# load pubmed search 
+#-------------------------------
+pubmed_res <- read_csv(here("data","PubMed_Timeline_Results_by_Year_[(\"cluster randomized trial\") OR (\"group randomized trial\")].csv"), skip = 1) 
+```
+
+# Model fit for trend
+
+```{r model fit for exponential trend}
+#-------------------------------
+# limit the data to 2000 to 2021
+#-------------------------------
+pubmed_res2 <- pubmed_res %>% 
+  filter(Year>=2000 & Year <= 2021)
+
+#-------------------------------
+# fit an exponential model
+# and get predicted values
+#-------------------------------
+pubmed_fit <- lm(log(Count) ~ Year, data = pubmed_res2)
+summary(pubmed_fit)
+pubmed_res2$pred <- exp(predict(pubmed_fit))
+
+```
+
+# Make figure
+
+```{r make pubmed figure, fig.width=4}
+vircols <- viridis(n=9,option="D")
+plotyticks <- seq(0,500,by=100)
+plot_pubmed_res <- ggplot(
+  data = pubmed_res2,
+  aes(x=Year)
+  ) +
+  geom_bar(aes(y=Count),stat = "identity", fill=vircols[2],alpha=0.6, color = NA) + 
+  geom_hline(yintercept = plotyticks[-1], color="white") +
+  geom_line(aes(y=pred), color = "black") + 
+  annotate("text",x=2018,y=450,label="exponential growth",hjust=1) +
+  scale_y_continuous(breaks=plotyticks) +
+  coord_cartesian(xlim=c(2000,2021),ylim=c(0,500)) +
+  labs(x = "year", y = "PubMed search results")+
+  theme_classic()
+
+plot_pubmed_res
+
+ggsave(filename=here("output","washb-geopair-pubmed-search-results.png"),plot = plot_pubmed_res,device="png",width=4,height=4)
+```
+
+# Session Info
+```{r session info}
+sessionInfo()
+```
+
