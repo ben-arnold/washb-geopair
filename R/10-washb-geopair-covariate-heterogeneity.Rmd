@@ -409,27 +409,6 @@ ken_adm_sf <- admin1_k %>%
   filter(ADM1_EN %in% c("Bungoma","Kakamega","Vihiga","Busia","Siaya","Kisumu","Nandi")) %>%
   st_as_sfc(crs=4326)
 
-# 
-
-#---------------------------
-# Retrieve elevation data
-#
-# if data are not already
-# downloaded, the raster 
-# package will download them
-# into the /geodata directory
-#---------------------------
-ken_elev <- raster::getData("alt", 
-                            country="Kenya",
-                            path=paste0(Box_geodata_directory, "ken_msk_alt")
-                            )
-
-#---------------------------
-# mask the elevation to the
-# study counties
-#---------------------------
-ken_elev <- raster::mask(ken_elev, mask = as(ken_adm_sf,"Spatial"))
-
 
 #----------------------------------
 # MAP travel time to cities 2015
@@ -445,39 +424,39 @@ malariaAtlas::autoplot_MAPraster(ktravel_city)
 # to cities for each matched pair
 #----------------------------------
 dcl_k$mins_to_city <- extract(x = ktravel_city, y = dcl_k[,c("lon","lat")])
-dcl_k$elev <- extract(x = ken_elev, y = dcl_k[,c("lon","lat")])
 
 dcl_al <- dcl_k %>%
   filter(outcome_lab == "Ascaris sp.")
 
 ```
 
-## Create an elevation figure
 
-```{r kenya elevation map}
+## Create a travel time to cities figure
+
+```{r kenya travel time map}
 #--------------------------------------
 # convert elevation surface
 # raster to a tibble for ggplot
 #--------------------------------------
-ken_elev2 <- malariaAtlas::as.MAPraster(ken_elev)
+ktravel_city2 <- malariaAtlas::as.MAPraster(ktravel_city)
 
-# for visualization, recode elevations over 2200 m
-# to 2200.
-table(ken_elev2$z[is.finite(ken_elev2$z)]>2200)
-ken_elev2$z[is.finite(ken_elev2$z) & ken_elev2$z>2200 ] <- 2200
+# for visualization, recode times over 100 mins
+# to 100
+table(ktravel_city2$z[is.finite(ktravel_city2$z)]>100)
+ktravel_city2$z[is.finite(ktravel_city2$z) & ktravel_city2$z>100 ] <- 100
 
 
-map_elev <- ggplot(data=ken_elev2) + 
+map_mins_to_city <- ggplot(data=ktravel_city2) + 
   geom_tile(aes(x=x,y=y,fill=z), na.rm=TRUE) +
   geom_sf(data=ken_adm_sf,fill=NA,color="black") +
   geom_sf(data=admin2_k_study,fill=NA,color="black") +
   coord_sf(crs = 4326) +
-  scale_fill_viridis(option = "B", direction = 1,
-                     limits = c(1000,2200),
+  scale_fill_viridis(option = "D", direction = -1,
+                     limits = c(0,100),
                         na.value = NA,
-                        breaks = seq(1000,2200,by=200),
-                     labels = c(seq(1000,2000,by=200),"2200+"),
-                        guide=guide_colorbar(title="elevation (m)", 
+                        breaks = seq(0,100,by=20),
+                     labels = c(seq(0,80,by=20),"100+"),
+                        guide=guide_colorbar(title="modeled travel time to cities (min)", 
                                            title.position = "top",
                                            title.hjust = 0.5,
                                            direction="horizontal",
@@ -501,19 +480,19 @@ map_elev <- ggplot(data=ken_elev2) +
     plot.tag = element_text(face="bold",size=16)
   )
 
-map_elev
+map_mins_to_city
 ```
 
-```{r plot ascaris prev vs elev, message = FALSE}
+```{r plot ascaris prev vs mins_to_city, message = FALSE}
 
-plot_alprev_elev <- ggplot(data=dcl_al, aes(x = elev,color = elev)) +
+plot_alprev_mins_to_city <- ggplot(data=dcl_al, aes(x = mins_to_city,color = mins_to_city)) +
   geom_smooth(aes(y=Y0bar*100),method = "loess", color="gray20", fill="gray20",lwd=0.5,alpha=0.2) +
   geom_point(aes(y = Y0bar*100)) +
-  scale_color_viridis(option = "B", direction = 1,
-                     limits = c(1000,2000),
+  scale_color_viridis(option = "D", direction = -1,
+                     limits = c(0,100),
                         na.value = NA,
-                        breaks = seq(1000,2000,by=200),
-                        guide=guide_colorbar(title="elevation (m)", 
+                        breaks = seq(0,100,by=20),
+                        guide=guide_colorbar(title="modeled travel time to cities (min)", 
                                            title.position = "top",
                                            title.hjust = 0.5,
                                            direction="horizontal",
@@ -526,10 +505,10 @@ plot_alprev_elev <- ggplot(data=dcl_al, aes(x = elev,color = elev)) +
                                            frame.colour = "white"
                         )
                         ) +
-  scale_x_continuous(breaks=seq(1200,1800,by=200),) +
+  scale_x_continuous(breaks=seq(0,50,by=10)) +
   scale_y_continuous(breaks=seq(0,100,by=20)) +
-  coord_cartesian(xlim=c(1200,1800),ylim=c(0,80)) +
-  labs(x = "elevation (m)", 
+  coord_cartesian(xlim=c(0,50),ylim=c(0,80)) +
+  labs(x = "modeled travel time to cities (min)", 
        y = "Ascaris sp. prevalence in control clusters (%)",
        tag = "b") +
   theme_minimal() +
@@ -539,20 +518,19 @@ plot_alprev_elev <- ggplot(data=dcl_al, aes(x = elev,color = elev)) +
     plot.tag = element_text(face="bold",size=16)
   )
               
-
 ```
 
-```{r plot ascaris diff vs elev, message = FALSE}
+```{r plot ascaris diff vs mins_to_city, message = FALSE}
 
-plot_aldiff_elev <- ggplot(data=dcl_al, aes(x = elev,color = elev)) +
+plot_aldiff_mins_to_city <- ggplot(data=dcl_al, aes(x = mins_to_city,color = mins_to_city)) +
   geom_hline(yintercept = 0, color = "gray50") +
   geom_smooth(aes(y=diff*100),method = "loess", color="gray20", fill="gray20",lwd=0.5,alpha=0.2) +
   geom_point(aes(y = diff*100)) +
-  scale_color_viridis(option = "B", direction = 1,
-                     limits = c(1000,2000),
+  scale_color_viridis(option = "D", direction = -1,
+                     limits = c(0,100),
                         na.value = NA,
-                        breaks = seq(1000,2000,by=200),
-                        guide=guide_colorbar(title="elevation (m)", 
+                        breaks = seq(0,100,by=20),
+                        guide=guide_colorbar(title="modeled travel time to cities (min)", 
                                            title.position = "top",
                                            title.hjust = 0.5,
                                            direction="horizontal",
@@ -565,10 +543,10 @@ plot_aldiff_elev <- ggplot(data=dcl_al, aes(x = elev,color = elev)) +
                                            frame.colour = "white"
                         )
                         ) +
-  scale_x_continuous(breaks=seq(1200,1800,by=200),) +
+  scale_x_continuous(breaks=seq(0,50,by=10)) +
   scale_y_continuous(breaks=seq(-40,20,by=20)) +
-  coord_cartesian(xlim=c(1200,1800)) +
-  labs(x = "elevation (m)", 
+  coord_cartesian(xlim=c(0,50)) +
+  labs(x = "modeled travel time to cities (min)", 
        y = "matched pair difference, Ascaris prevalence (%)",
        tag = "c") +
   theme_minimal() +
@@ -580,21 +558,22 @@ plot_aldiff_elev <- ggplot(data=dcl_al, aes(x = elev,color = elev)) +
               
 ```
 
+
 combine modeled surface layer, prevalence, and ATE estimates into a single composite
 
-```{r elev composite map, message = FALSE, fig.width=4, fig.height = 8}
+```{r mins_to_city composite map, message=FALSE,fig.width=4, fig.height = 8}
 #--------------------------------------
 # create a 1 x 3 composite figure a-c
 # having weird difficulty scaling the
 # map vis-a-vis scatter plots so 
 # saving as separate .png files
 #--------------------------------------
-ggsave(filename=here("output","washb-geopair-map-elev-ken.png"),plot = map_elev,device="png",width=5.6,height=6.5)
+ggsave(filename=here("output","washb-geopair-map-mins_to_city-ken.png"),plot = map_mins_to_city,device="png",,width=5.6,height=6.5)
 
-elev_map_composite <- grid.arrange(plot_alprev_elev,
-                                  plot_aldiff_elev,
+elev_map_composite <- grid.arrange(plot_alprev_mins_to_city,
+                                  plot_aldiff_mins_to_city,
                                   nrow=2,ncol=1,heights=c(1,1))
-ggsave(filename=here("output","washb-geopair-al-elev-ken.png"),plot = elev_map_composite,device="png",width=3.5,height=8)
+ggsave(filename=here("output","washb-geopair-al-mins_to_city-ken.png"),plot = elev_map_composite,device="png",width=3.5,height=8)
 ```
 
 
