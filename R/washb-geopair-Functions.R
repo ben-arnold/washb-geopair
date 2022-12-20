@@ -12,7 +12,56 @@
 
 
 #-------------------------------
-# estimate_Imai_ATE
+# estimate_UMCR_ATE()
+# 
+# Estimate the Average Treatment Effect (ATE)
+# for a cluster randomized trial
+# in data structured for a 
+# matched pair cluster RCT
+#
+#
+# It returns the conservative variance
+# estimate for the unmatched ATE
+#
+# The estimator uses the number of children
+# in each cluster as weights
+#
+# See Imai, King, Nall (2009) Sections 5.1 and 5.2
+#
+# Arguments, from environment::ATEcluster()
+# @Y0 : cluster-level means, control (0) clusters
+# @Y1 : cluster-level means, intervention (1) clusters
+# @n0 : number of children in control (0) clusters
+# @n1 : number of children in intervention (0) clusters
+#-------------------------------
+
+estimate_UMCR_ATE <- function(Y0,Y1,n0,n1) {
+  # Y0,Y1 : pair-level mean in control (0) and treated (1) for pair j
+  # n0,n1 : number of children in control (0) and treated (1) for pair j
+  
+  # total number of measurements
+  n  <- sum(c(n0,n1)) 
+  # number of clusters, k = 2m in Imai 2009 section 5.2
+  k  <- length(Y0) + length(Y1) 
+  # cluster level means x weights
+  Y0wj <- Y0*n0 
+  Y1wj <- Y1*n1
+  # estimate weighted means and difference between them
+  mu0 <- sum(Y0wj)/sum(n0)
+  mu1 <- sum(Y1wj)/sum(n1)
+  ate_est <- mu1 - mu0
+  
+  # variance of the unmatched ATE from imai 2009 section 5.2
+  var0 <- var(Y0wj)
+  var1 <- var(Y1wj)
+  ate_var <- 2*k*(1/n^2)*(var1 + var0)
+  
+  return(list(ate_est=ate_est,ate_var=ate_var))
+  
+}
+
+#-------------------------------
+# estimate_MPCR_ATE()
 # convenience wrapper to run the 
 # ATEcluster() function from the
 # experiment package 
@@ -23,6 +72,9 @@
 # It also calculates ATE 95% CIs
 # based on the arithmetic mean 
 # estimator from Imai et al. 2009
+#
+# It returns the conservative variance
+# estimate from the matched pair design
 #
 # It also estimates weighted
 # and unweighted pair-wise
@@ -57,7 +109,7 @@
 #           w_dk:  pair-level weight (geometric mean, per Donner & Klar 1993)
 #-------------------------------
 
-estimate_Imai_ATE <- function(Y,Z,grp,match,data) {
+estimate_MPCR_ATE <- function(Y,Z,grp,match,data) {
   # experiment package
   require(experiment)
   
@@ -89,9 +141,6 @@ estimate_Imai_ATE <- function(Y,Z,grp,match,data) {
     list(est = estATE$est, var = estATE$var, est_min95=est_min95, est_max95=est_max95, corr_w=corr_w, corr_u=corr_u, eff_w= eff_w, eff_u=eff_u,  dcl=dcl)
   )
 }
-
-
-
 
 #----------------------------
 # ATEcluster()
