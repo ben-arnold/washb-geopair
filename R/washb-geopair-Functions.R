@@ -19,7 +19,6 @@
 # in data structured for a 
 # matched pair cluster RCT
 #
-#
 # It returns the conservative variance
 # estimate for the unmatched ATE
 #
@@ -28,24 +27,27 @@
 #
 # See Imai, King, Nall (2009) Sections 5.1 and 5.2
 #
+# The function is kind of designed to take output
+# created by the function estimate_MPCR_ATE(), below
+# and makes the most sense in that context
+#
 # Arguments, from environment::ATEcluster()
-# @Y0 : cluster-level means, control (0) clusters
-# @Y1 : cluster-level means, intervention (1) clusters
-# @n0 : number of children in control (0) clusters
-# @n1 : number of children in intervention (0) clusters
+# @Y0bar : cluster-level means, control (0) clusters
+# @Y1bar : cluster-level means, intervention (1) clusters
+# @n0    : number of children in control (0) clusters
+# @n1    : number of children in intervention (0) clusters
 #-------------------------------
 
-estimate_UMCR_ATE <- function(Y0,Y1,n0,n1) {
-  # Y0,Y1 : pair-level mean in control (0) and treated (1) for pair j
-  # n0,n1 : number of children in control (0) and treated (1) for pair j
-  
+estimate_UMCR_ATE <- function(Y0bar,Y1bar,n0,n1) {
+
   # total number of measurements
   n  <- sum(c(n0,n1)) 
   # number of clusters, k = 2m in Imai 2009 section 5.2
-  k  <- length(Y0) + length(Y1) 
+  k  <- length(Y0bar) + length(Y1bar) 
   # cluster level means x weights
-  Y0wj <- Y0*n0 
-  Y1wj <- Y1*n1
+  Y0wj <- Y0bar*n0 
+  Y1wj <- Y1bar*n1
+  
   # estimate weighted means and difference between them
   mu0 <- sum(Y0wj)/sum(n0)
   mu1 <- sum(Y1wj)/sum(n1)
