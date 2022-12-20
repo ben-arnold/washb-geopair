@@ -87,13 +87,13 @@ dpara <- read_rds(here("data","bangl_analysis_parasite.rds")) %>%
 ## Estimate ATE and relative efficacy
 ```{r estimate ATE and relative efficiency bangladesh}
 #-------------------------------
-# the estimate_Imai_ATE function
+# the estimate_MPCR_ATE function
 # does not allow for missing values
 # in the outcome, so subset each
 # dataset to non-missing values
 # before each estimation
 #
-# the estimate_IMAI_ATE function
+# the estimate_MPCR_ATE function
 # is in washb-geopair-Functions.R
 #-------------------------------
 
@@ -101,85 +101,85 @@ dpara <- read_rds(here("data","bangl_analysis_parasite.rds")) %>%
 # LAZ
 #-------------------------------
 d <- danth %>% filter(!is.na(laz))
-ate_laz <- estimate_Imai_ATE(Y=d$laz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
+ate_laz <- estimate_MPCR_ATE(Y=d$laz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # WAZ
 #-------------------------------
 d <- danth %>% filter(!is.na(waz))
-ate_waz <- estimate_Imai_ATE(Y=d$waz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
+ate_waz <- estimate_MPCR_ATE(Y=d$waz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # WHZ
 #-------------------------------
 d <- danth %>% filter(!is.na(whz))
-ate_whz <- estimate_Imai_ATE(Y=d$whz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
+ate_whz <- estimate_MPCR_ATE(Y=d$whz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # HCZ
 #-------------------------------
 d <- danth %>% filter(!is.na(hcz))
-ate_hcz <- estimate_Imai_ATE(Y=d$hcz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
+ate_hcz <- estimate_MPCR_ATE(Y=d$hcz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # EASQ Communication
 #-------------------------------
 d <- dchdev %>% filter(!is.na(z_easq_com))
-ate_easq_com <- estimate_Imai_ATE(Y=d$z_easq_com,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
+ate_easq_com <- estimate_MPCR_ATE(Y=d$z_easq_com,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # EASQ Gross motor
 #-------------------------------
 d <- dchdev %>% filter(!is.na(z_easq_motor))
-ate_easq_mot <- estimate_Imai_ATE(Y=d$z_easq_motor,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
+ate_easq_mot <- estimate_MPCR_ATE(Y=d$z_easq_motor,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # EASQ Personal-social
 #-------------------------------
 d <- dchdev %>% filter(!is.na(z_easq_pers))
-ate_easq_ps <- estimate_Imai_ATE(Y=d$z_easq_pers,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
+ate_easq_ps <- estimate_MPCR_ATE(Y=d$z_easq_pers,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # CDI comprehension
 #-------------------------------
 d <- dchdev %>% filter(!is.na(z_cdi_comp))
-ate_cdi_comp <- estimate_Imai_ATE(Y=d$z_cdi_comp,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
+ate_cdi_comp <- estimate_MPCR_ATE(Y=d$z_cdi_comp,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # CDI expression
 #-------------------------------
 d <- dchdev %>% filter(!is.na(z_cdi_expr))
-ate_cdi_expr <- estimate_Imai_ATE(Y=d$z_cdi_expr,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
+ate_cdi_expr <- estimate_MPCR_ATE(Y=d$z_cdi_expr,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # Diarrhea
 #-------------------------------
 d <- ddiar %>% filter(!is.na(diar7d))
-ate_diar <- estimate_Imai_ATE(Y=d$diar7d,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
+ate_diar <- estimate_MPCR_ATE(Y=d$diar7d,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # Giardia
 #-------------------------------
 d <- dpara %>% filter(!is.na(giar))
-ate_giar <- estimate_Imai_ATE(Y=d$giar,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
+ate_giar <- estimate_MPCR_ATE(Y=d$giar,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # Ascaris
 #-------------------------------
 d <- dpara %>% filter(!is.na(al))
-ate_al <- estimate_Imai_ATE(Y=d$al,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
+ate_al <- estimate_MPCR_ATE(Y=d$al,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # Trichuris
 #-------------------------------
 d <- dpara %>% filter(!is.na(tt))
-ate_tt <- estimate_Imai_ATE(Y=d$tt,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
+ate_tt <- estimate_MPCR_ATE(Y=d$tt,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # Hookworm
 #-------------------------------
 d <- dpara %>% filter(!is.na(hw))
-ate_hw <- estimate_Imai_ATE(Y=d$hw,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
+ate_hw <- estimate_MPCR_ATE(Y=d$hw,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 ```
 
@@ -268,7 +268,7 @@ dkchdev <- read_rds(here("data","kenya_analysis_chdev.rds")) %>%
 ## Estimate ATE and relative efficiency
 ```{r estimate ATE and relative efficiency kenya}
 #-------------------------------
-# the estimate_Imai_ATE function
+# the estimate_MPCR_ATE function
 # does not allow for missing values
 # in the outcome, so subset each
 # dataset to non-missing values
@@ -279,74 +279,74 @@ dkchdev <- read_rds(here("data","kenya_analysis_chdev.rds")) %>%
 # LAZ
 #-------------------------------
 d <- dkanth %>% filter(!is.na(laz)) 
-k_ate_laz <- estimate_Imai_ATE(Y=d$laz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
+k_ate_laz <- estimate_MPCR_ATE(Y=d$laz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # WAZ
 #-------------------------------
 d <- dkanth %>% filter(!is.na(waz)) 
-k_ate_waz <- estimate_Imai_ATE(Y=d$waz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
+k_ate_waz <- estimate_MPCR_ATE(Y=d$waz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # WHZ
 #-------------------------------
 d <- dkanth %>% filter(!is.na(whz))
-k_ate_whz <- estimate_Imai_ATE(Y=d$whz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
+k_ate_whz <- estimate_MPCR_ATE(Y=d$whz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # HCZ
 #-------------------------------
 d <- dkanth %>% filter(!is.na(hcz))
-k_ate_hcz <- estimate_Imai_ATE(Y=d$hcz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
+k_ate_hcz <- estimate_MPCR_ATE(Y=d$hcz,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # EASQ Communication
 #-------------------------------
 d <- dkchdev %>% filter(!is.na(z_easq_com))
-k_ate_easq_com <- estimate_Imai_ATE(Y=d$z_easq_com,Z=d$tr01,grp=d$clusteridr2,match=d$block,data=d)
+k_ate_easq_com <- estimate_MPCR_ATE(Y=d$z_easq_com,Z=d$tr01,grp=d$clusteridr2,match=d$block,data=d)
 
 #-------------------------------
 # EASQ Gross motor
 #-------------------------------
 d <- dkchdev %>% filter(!is.na(z_easq_motor))
-k_ate_easq_mot <- estimate_Imai_ATE(Y=d$z_easq_motor,Z=d$tr01,grp=d$clusteridr2,match=d$block,data=d)
+k_ate_easq_mot <- estimate_MPCR_ATE(Y=d$z_easq_motor,Z=d$tr01,grp=d$clusteridr2,match=d$block,data=d)
 
 #-------------------------------
 # EASQ Personal-social
 #-------------------------------
 d <- dkchdev %>% filter(!is.na(z_easq_pers))
-k_ate_easq_ps <- estimate_Imai_ATE(Y=d$z_easq_pers,Z=d$tr01,grp=d$clusteridr2,match=d$block,data=d)
+k_ate_easq_ps <- estimate_MPCR_ATE(Y=d$z_easq_pers,Z=d$tr01,grp=d$clusteridr2,match=d$block,data=d)
 
 
 #-------------------------------
 # Diarrhea
 #-------------------------------
 d <- dkdiar %>% filter(!is.na(diar7d))
-k_ate_diar <- estimate_Imai_ATE(Y=d$diar7d,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
+k_ate_diar <- estimate_MPCR_ATE(Y=d$diar7d,Z=d$tr01,grp=d$clusterid,match=d$block,data=d)
 
 #-------------------------------
 # Giardia
 #-------------------------------
 d <- dkpara %>% filter(!is.na(giar))
-k_ate_giar <- estimate_Imai_ATE(Y=d$giar,Z=d$tr01,grp=d$clusteridr2,match=d$block,data=d)
+k_ate_giar <- estimate_MPCR_ATE(Y=d$giar,Z=d$tr01,grp=d$clusteridr2,match=d$block,data=d)
 
 #-------------------------------
 # Ascaris
 #-------------------------------
 d <- dkpara %>% filter(!is.na(al))
-k_ate_al <- estimate_Imai_ATE(Y=d$al,Z=d$tr01,grp=d$clusteridr2,match=d$block,data=d)
+k_ate_al <- estimate_MPCR_ATE(Y=d$al,Z=d$tr01,grp=d$clusteridr2,match=d$block,data=d)
 
 #-------------------------------
 # Trichuris
 #-------------------------------
 d <- dkpara %>% filter(!is.na(tt))
-k_ate_tt <- estimate_Imai_ATE(Y=d$tt,Z=d$tr01,grp=d$clusteridr2,match=d$block,data=d)
+k_ate_tt <- estimate_MPCR_ATE(Y=d$tt,Z=d$tr01,grp=d$clusteridr2,match=d$block,data=d)
 
 #-------------------------------
 # Hookworm
 #-------------------------------
 d <- dkpara %>% filter(!is.na(hw))
-k_ate_hw <- estimate_Imai_ATE(Y=d$hw,Z=d$tr01,grp=d$clusteridr2,match=d$block,data=d)
+k_ate_hw <- estimate_MPCR_ATE(Y=d$hw,Z=d$tr01,grp=d$clusteridr2,match=d$block,data=d)
 
 #-------------------------------
 # detach experiment package
