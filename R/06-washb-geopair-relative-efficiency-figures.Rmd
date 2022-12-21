@@ -88,9 +88,9 @@ options(knitr.kable.NA = "‡")
 
 sumtab <- ate_res %>%
   filter(country=="Bangladesh") %>%
-  select(outcome_lab, bcorr = corr_u, beff = eff_u) %>%
+  select(outcome_lab, bcorr = corr_w, beff = eff_w) %>%
   left_join(ate_res %>% filter(country=="Kenya"), by = "outcome_lab") %>%
-  select(outcome_lab, bcorr, kcorr=corr_u, beff, keff=eff_u)
+  select(outcome_lab, bcorr, kcorr=corr_w, beff, keff=eff_w)
 
 
 knitr::kable(sumtab,
@@ -104,7 +104,7 @@ knitr::kable(sumtab,
   pack_rows("Infectious disease",10,14) %>%
   add_header_above(c(" " = 1, "Pair-wise correlation*" = 2, "Relative Efficiency†" = 2)) %>%
   footnote(symbol = c("Correlation between geographically paired, cluster-level means (unweighted).",
-                      "Relative efficiency of geographic pair-matching compared to an unmatched design, defined as 1/(1-r), where r is the correlation between paired outcomes. A relative efficiency of 2 means that a pair-matched study with 30 clusters per group has the same power as an unmatched study with 60 clusters per group.","Communicative Development Inventory (CDI) measures were not collected in the Kenya trial."))
+                      "Relative efficiency of geographic pair-matching compared to an unmatched design, defined as 1/(1-r), where r is the weighted correlation between paired outcomes. A relative efficiency of 2 means that a pair-matched study with 30 clusters per group has the same power as an unmatched study with 60 clusters per group.","Communicative Development Inventory (CDI) measures were not collected in the Kenya trial."))
 
 ```
 
@@ -245,7 +245,7 @@ dreffplot2 <- dreffplot %>%
 
 # make plot
 pcols <- c("#D9B86A", "#9B9F7C", "#5986B0")
-plot_reff <- ggplot(data=dreffplot2, aes(x = corr_u, y = eff_u)) +
+plot_reff <- ggplot(data=dreffplot2, aes(x = corr_w, y = eff_w)) +
   # facet over country
   facet_grid(~country) +
   # add function line
@@ -260,12 +260,11 @@ plot_reff <- ggplot(data=dreffplot2, aes(x = corr_u, y = eff_u)) +
   geom_point(aes(color = outcome_group), size = 2.2, alpha=1) + 
   geom_point(pch=21,bg=NA, size=2.2, show.legend = TRUE) +
   # refine aesthetics
-  # scale_color_manual(values = pcols, guide=guide_legend(title="Outcome group:")) +
-  scale_color_brewer(palette = "Dark2", guide=guide_legend(title="Outcome group:")) +
-  # scale_color_viridis_d(begin = 0.4, end = 0.8, direction = -1, option = "E",  guide=guide_legend(title="Outcome group:")) +
-  scale_y_continuous(breaks=seq(1,2.6,by=0.2))+
-  scale_x_continuous(breaks=seq(0,0.6,by=0.1)) +
-  coord_cartesian(ylim=c(1,2.6),xlim = c(0,0.6)) +
+  scale_color_manual(values = pcols, guide=guide_legend(title="Outcome group:")) +
+  # scale_color_brewer(palette = "Dark2", guide=guide_legend(title="Outcome group:")) +
+  scale_y_continuous(breaks=seq(1,3.2,by=0.2))+
+  scale_x_continuous(breaks=seq(0,0.7,by=0.1)) +
+  coord_cartesian(ylim=c(1,3.2),xlim = c(0,0.7)) +
   labs(x=expression(paste("Correlation between paired outcomes, (",italic(r),")")),y=expression(paste("Relative efficiency of geographic pair-matching, (1-",italic(r),")")^-1), tag = "a") +
   theme_minimal() +
   theme(
@@ -284,43 +283,24 @@ d_reff <- data.frame(rho = seq(0,1,by=0.01)) %>%
   mutate(reff = 1/(1-rho))
 
 # label nudging (tedious! bespoke! careful!)
+xspacing <- 0.07
 dreffplot2 <- dreffplot %>%
   mutate(outcome_group = factor(outcome_group),
          country = factor(country)) %>%
   # tedious x and y nudge coordinates for labels to optimize display
-  mutate(lab_xnudge = case_when(
-           outcome_lab2 %in% c("WAZ","LAZ","WHZ","HCZ") & country == "Bangladesh" ~ -0.03,
-           outcome_lab2 %in% c("EASQ Communication","EASQ Personal-social","CDI Expression") & country == "Bangladesh" ~ 0.025,
-           outcome_lab2 == "CDI Comprehension" & country == "Bangladesh" ~ 0.025,
-           outcome_lab2 == "EASQ Gross motor" & country == "Bangladesh" ~ 0.025,
-           outcome_lab2 == "Diarrhea" & country == "Bangladesh" ~ 0.025,
-           outcome_lab2 == "Trichuris sp." & country == "Bangladesh" ~ 0.025,
-           outcome_lab2 == "Hookworm" & country == "Bangladesh" ~ -0.03,
-           
-           outcome_lab2 %in% c("Diarrhea","Trichuris sp.") & country == "Kenya" ~ 0.025,
-           outcome_lab2 %in% c("LAZ","HCZ") & country == "Kenya" ~ -0.03,
-           outcome_lab2 == "WHZ" & country == "Kenya" ~ 0.02,
-           outcome_lab2 == "WAZ" & country == "Kenya" ~ 0.025,
-           outcome_lab2 == "HCZ" & country == "Kenya" ~ 0.02,
-           
-           TRUE ~ as.numeric(-0.025)
-         ),
-         lab_ynudge = case_when(
-           
-           # outcome_lab2 == "CDI Comprehension" & country == "Bangladesh" ~ -0.02,
-           outcome_lab2 == "CDI Expression" & country == "Bangladesh" ~ -0.015,
-           outcome_lab2 == "EASQ Personal-social" & country == "Bangladesh" ~ -0.005,
-           # outcome_lab2 == "Diarrhea" & country == "Bangladesh" ~ 0.01,
-           outcome_lab2 == "EASQ Gross motor" & country == "Bangladesh" ~ 0.01,
-           outcome_lab2 == "EASQ Communication" & country == "Bangladesh" ~ -0.015,
-           
-           # outcome_lab2 == "Hookworm" & country == "Kenya" ~ 0.02,
-           # outcome_lab2 == "Trichuris sp." & country == "Kenya" ~ 0.02,
-           outcome_lab2 == "WHZ" & country == "Kenya" ~ -0.02,
-           outcome_lab2 == "EASQ Personal-social" & country == "Kenya" ~ 0.02,
-           
-           TRUE ~ as.numeric(0)
-         ),
+  mutate(
+           lab_xnudge = case_when(
+             outcome_lab %in% c("length-for-age z","head circumference z") ~ xspacing,
+             outcome_lab %in%  c("weight-for-height z","weight-for-age z","Trichuris sp.") & country == "Kenya" ~ xspacing,
+             outcome_group == "Child development" & country == "Bangladesh" ~ xspacing,
+             TRUE ~ as.numeric(-xspacing)
+           ),
+           lab_ynudge = case_when(
+             outcome_lab %in% c("EASQ communication z","Giardia sp.") & country == "Bangladesh" ~ 0.01,
+             outcome_lab == c("Ascaris sp.")  ~ 0.01,
+             outcome_lab == "EASQ gross motor z" & country == "Bangladesh" ~ -0.01,
+             TRUE ~ as.numeric(0)
+           ),
          lab_hjust = ifelse(lab_xnudge < 0 , 1, 0)
          )
 
@@ -328,14 +308,14 @@ dreffplot2 <- dreffplot %>%
 # pcols <- c("#D9B86A", "#9B9F7C", "#5986B0")
 pcols <- c(cbpal[2],cbpal[4],"gray50")
 
-plot_reff_t <- ggplot(data=dreffplot2, aes(x = eff_u, y = corr_u)) +
+plot_reff_t <- ggplot(data=dreffplot2, aes(x = eff_w, y = corr_w)) +
   # facet over country
   facet_grid(~country) +
   # add function line
   geom_line(data=d_reff,aes(y=rho,x=reff),alpha = 0.4, linetype = "dashed", show.legend = FALSE) +
   # plot results
   # this offset is very idiosyncratic to optimize display -- fragile code!
-  geom_text(aes(label = outcome_lab2, color = outcome_group),
+  geom_text(aes(label = outcome_lab, color = outcome_group),
             hjust = dreffplot2$lab_hjust,
             nudge_x = dreffplot2$lab_xnudge,
             nudge_y = dreffplot2$lab_ynudge,
@@ -345,14 +325,14 @@ plot_reff_t <- ggplot(data=dreffplot2, aes(x = eff_u, y = corr_u)) +
   # refine aesthetics
   scale_color_manual(values = pcols, guide=guide_legend(title="outcome group:")) +
   # scale_color_brewer(palette = "Dark2", guide=guide_legend(title="outcome group:")) +
-  scale_x_continuous(breaks=seq(0.8,2.6,by=0.2))+
-  scale_y_continuous(breaks=seq(0,0.6,by=0.1)) +
-  coord_cartesian(xlim=c(0.8,2.6),ylim = c(0,0.6)) +
-  labs(y=expression(paste("correlation between pair-wise outcomes, (",italic(r),")")),x=expression(paste("predicted relative efficiency of geographic pair-matching, (1-",italic(r),")")^-1), tag = "a") +
+  scale_x_continuous(breaks=seq(0.8,3.6,by=0.4))+
+  scale_y_continuous(breaks=seq(0,0.7,by=0.1)) +
+  coord_cartesian(xlim=c(0.8,3.6),ylim = c(0,0.7)) +
+  labs(y=expression(paste("correlation between paired outcomes, (",italic(r),")")),x=expression(paste("predicted relative efficiency of geographic pair-matching, (1-",italic(r),")")^-1), tag = "a") +
   theme_minimal() +
   theme(
     legend.position = "none",
-    panel.grid.minor = element_blank(),
+    panel.grid.minor.y = element_blank(),
     plot.tag = element_text(face = "bold", size=16),
     strip.text = element_text(size=12)
   )
@@ -366,16 +346,16 @@ Compare the predicted (based on pair-level correlation) versus observed relative
 
 ```{r predicted vs observed relative efficiency}
 obs_v_pred_reff <- estcomp_res %>% 
-  mutate(rel_eff = var_nomatch / var_imai) %>% 
-  ggplot(aes(x = eff_u, y = rel_eff, color = outcome_group)) +
+  mutate(rel_eff = var_nomatch / var_mpcr) %>% 
+  ggplot(aes(x = eff_w, y = rel_eff, color = outcome_group)) +
   geom_abline(intercept=0,slope=1,color="gray70") +
   geom_point(pch = 19, size = 2.2, alpha = 0.8) +
   # scale_fill_brewer(palette = "Dark2", guide=guide_legend(title="outcome group:")) +
   # scale_color_brewer(palette = "Dark2", guide=guide_legend(title="outcome group:")) +
   scale_color_manual(values = pcols, guide=guide_legend(title="outcome group:")) +
-  scale_x_continuous(breaks=seq(0.8,2.6,by=0.2))+
-  scale_y_continuous(breaks=seq(0.8,2.6,by=0.2))+
-  coord_cartesian(xlim=c(0.8,2.6),ylim=c(0.8,2.6))+
+  scale_x_continuous(breaks=seq(0.8,3.6,by=0.4))+
+  scale_y_continuous(breaks=seq(0.8,3.6,by=0.4))+
+  coord_cartesian(xlim=c(0.8,3.6),ylim=c(0.8,3.6))+
   facet_wrap(.~country) +
   labs(x = expression(paste("predicted relative efficiency of geographic pair-matching, (1-",italic(r),")")^-1),
        y = "observed relative efficiency",
@@ -383,7 +363,7 @@ obs_v_pred_reff <- estcomp_res %>%
        fill = "outcome group") +
   theme_minimal() +
   theme(legend.position = "bottom",
-        panel.grid.minor = element_blank(),
+        # panel.grid.minor = element_blank(),
         plot.tag = element_text(face = "bold", size=16),
         strip.text = element_text(size=12)
         )
@@ -401,7 +381,7 @@ ggsave(here("output","washb-geopair-reff-ests.png"),plot_reff_composite,device="
 
 # Correlation figure
 
-Compare weighted versus unweighted correlation.  Weighted correlation is generally higher (consistent with results from Imai, King, Nall 2009), but relative efficiency estimates from unweighted correlation (above) align far more closely with empirical estimates of relative efficiency.  For this reason, we use unweighted estimates in the paper's primary comparisons.
+Compare weighted versus unweighted correlation.  Weighted correlation is generally higher (consistent with results from Imai, King, Nall 2009), and relative efficiency estimates from weighted correlation (above) align far more closely with empirical estimates of relative efficiency.  For this reason, we use weighted estimates in the paper's primary comparisons.
 
 ```{r plot correlation}
 
@@ -415,9 +395,9 @@ breakr10 <- breakrs %>%
 # pcols <- c("#D9B86A", "#9B9F7C", "#5986B0")
 plot_corr <- ggplot(data = dreffplot, aes(x = corr_w, y = corr_u, color = outcome_group)) +
   facet_grid(~country) +
-  geom_vline(xintercept=breakr10,color = "gray60", lwd=0.5, lty="dashed") + 
-  geom_hline(yintercept=breakr10,color = "gray60", lwd=0.5, lty="dashed") + 
-  annotate("text",x=breakr10+0.01,y=0.9,label="break-even correlation\nfor n=10 pairs",hjust=0,size=3) +
+  geom_vline(xintercept=breakr10,color = "gray60", lwd=0.5, lty="dashed") +
+  # geom_hline(yintercept=breakr10,color = "gray60", lwd=0.5, lty="dashed") + 
+  annotate("text",x=breakr10+0.02,y=0.9,label="break-even correlation\nfor n=10 pairs",hjust=0,size=3) +
   geom_abline(intercept = 0, slope = 1, color="gray70") +
   geom_point(pch=19, bg=NA, size=2.2, show.legend = TRUE) +
   geom_text(data = dreffplot %>% filter(corr_w - corr_u >0.2), 
@@ -428,7 +408,7 @@ plot_corr <- ggplot(data = dreffplot, aes(x = corr_w, y = corr_u, color = outcom
   # scale_color_brewer(palette = "Dark2", guide=guide_legend(title="outcome group:")) +
   scale_x_continuous(breaks=seq(0,1,by=0.1))+
   scale_y_continuous(breaks=seq(0,1,by=0.1))+
-  labs(y = "unweighted correlation", x = "weighted correlation", tag = "a") +
+  labs(x = "weighted correlation", y = "unweighted correlation", tag = "a") +
   coord_cartesian(xlim=c(0,1),ylim = c(0,1)) +
   theme_minimal() +
   theme(
@@ -443,23 +423,26 @@ plot_corr
 
 ```
 
-Compare the predicted (based on pair-level weighted correlation) versus observed relative efficiency gains.
+Compare the predicted (based on pair-level unweighted correlation) versus observed relative efficiency gains.
 
 ```{r plot obs releff vs weighted releff}
 
 
 d_obs_v_pred_reff <- estcomp_res %>% 
-  mutate(rel_eff = var_nomatch / var_imai)
+  mutate(rel_eff = var_nomatch / var_mpcr)
 
 # identify and label big discrepancies, > 0.4
 obs_v_pred_wreff_labs <- d_obs_v_pred_reff %>%
-  filter(eff_w - rel_eff >0.4) %>%
-  mutate(plot_nudge_x = ifelse(country == "Kenya" & outcome_lab %in% c("Ascaris sp.","length-for-age z"),-0.05,0.05),
-         plot_hjust = ifelse(country == "Kenya" & outcome_lab %in% c("Ascaris sp.","length-for-age z"),1,0))
+  filter(abs(eff_u - rel_eff) >0.4) %>%
+  mutate(plot_nudge_x = ifelse(outcome_lab %in% c("Ascaris sp.","Giardia sp."),-0.05,0.05),
+         plot_nudge_x = ifelse(country=="Kenya" & outcome_lab %in% c("length-for-age z"),-0.05,plot_nudge_x),
+         plot_hjust = ifelse( outcome_lab %in% c("Ascaris sp.","Giardia sp."),1,0),
+         plot_hjust = ifelse( country=="Kenya" & outcome_lab %in% c("length-for-age z"),1,plot_hjust)
+         )
 
   
 obs_v_pred_wreff <- 
-  ggplot(data=d_obs_v_pred_reff, aes(x = eff_w, y = rel_eff,color = outcome_group)) +
+  ggplot(data=d_obs_v_pred_reff, aes(x = rel_eff, y = eff_u,color = outcome_group)) +
   geom_abline(intercept=0,slope=1,color="gray70") +
   geom_point(aes(),size=2.5, alpha=0.9) +
   geom_point(pch=21, bg=NA, size=2.5, show.legend = TRUE) +
@@ -467,15 +450,17 @@ obs_v_pred_wreff <-
             aes(label = outcome_lab),
             size = 2.5, 
             hjust= obs_v_pred_wreff_labs$plot_hjust,
-            nudge_x = obs_v_pred_wreff_labs$plot_nudge_x, nudge_y=0.01,show.legend = FALSE) +
+            nudge_y = obs_v_pred_wreff_labs$plot_nudge_y,
+            nudge_x = obs_v_pred_wreff_labs$plot_nudge_x,
+            show.legend = FALSE) +
   # scale_color_brewer(palette = "Dark2",guide=guide_legend(title="outcome group:")) +
   scale_color_manual(values = pcols, guide=guide_legend(title="outcome group:")) +
-  scale_x_continuous(breaks=seq(0.8,3.2,by=0.2))+
-  scale_y_continuous(breaks=seq(0.8,3.2,by=0.2))+
-  coord_cartesian(xlim=c(0.8,3.2),ylim=c(0.8,3.2))+
+  scale_x_continuous(breaks=seq(0.8,3.6,by=0.4))+
+  scale_y_continuous(breaks=seq(0.8,3.6,by=0.4))+
+  coord_cartesian(xlim=c(0.8,3.6),ylim=c(0.8,3.6))+
   facet_wrap(.~country) +
-  labs(x = expression(paste("predicted relative efficiency based on weighted correlation, (1-",italic(r),")")^-1),
-       y = "observed relative efficiency",
+  labs(y = expression(paste("predicted relative efficiency, unweighted correlation, (1-",italic(r),")")^-1),
+       x = "observed relative efficiency",
        tag = "b",
        fill = "outcome group") +
   theme_minimal() +
@@ -509,32 +494,29 @@ Plot the observed relative efficiency versus Moran's I, block-level ICC, and out
 #--------------------------------
 d_reff_icc <- estcomp_res %>%
   left_join(icc_res %>% rename(outcome_lab = outcome), 
-            by = c("country","outcome_lab")) %>%
-  mutate(rel_eff = var_nomatch/var_imai)
+            by = c("country","outcome_lab")) 
 
 d_reff_morani <- estcomp_res %>%
   left_join(morani_res %>% dplyr::select(country,outcome_lab,starts_with("morani_")), 
-            by = c("country","outcome_lab")) %>%
-  mutate(rel_eff = var_nomatch/var_imai)
+            by = c("country","outcome_lab")) 
 
 d_reff_prev <- estcomp_res %>%
   left_join(ate_res %>% select(country,outcome_lab,Y0bar),
-            by = c("country","outcome_lab")) %>%
-  mutate(rel_eff = var_nomatch/var_imai)
+            by = c("country","outcome_lab")) 
   
 
 ```
 
 
 ```{r plot reff vs icc}
-plot_reff_icc <- ggplot(data = d_reff_icc, aes(x = icc, y = rel_eff)) +
-  geom_smooth(method = "gam", se=FALSE, color="gray80") +
+plot_reff_icc <- ggplot(data = d_reff_icc, aes(x = icc, y = reff_mpcr)) +
+  geom_smooth(method = "glm", se=FALSE, color="gray80") +
   geom_point(aes(color = outcome_group), pch = 19, size = 2.2, alpha = 0.8) +
   scale_color_manual(values = pcols, guide=guide_legend(title="outcome group:")) +
   # scale_fill_brewer(palette = "Dark2", guide=guide_legend(title="outcome group:")) +
   scale_x_continuous(breaks=seq(0,0.12,by=0.04))+
-  scale_y_continuous(breaks=seq(0.8,2.6,by=0.4))+
-  coord_cartesian(xlim=c(0,0.12),ylim=c(0.8,2.6))+
+  scale_y_continuous(breaks=seq(0.8,3.6,by=0.4))+
+  coord_cartesian(xlim=c(0,0.12),ylim=c(0.8,3.6))+
   facet_grid(country~.) +
   labs(x = "intra-cluster correlation (ICC)",
        y = "observed relative efficiency",
@@ -554,14 +536,14 @@ plot_reff_icc
 ```
 
 ```{r plot reff vs morani}
-plot_reff_morani <- ggplot(data = d_reff_morani , aes(x = morani_observed, y = rel_eff)) +
-  geom_smooth(method = "gam", se=FALSE, color="gray80") +
+plot_reff_morani <- ggplot(data = d_reff_morani , aes(x = morani_observed, y = reff_mpcr)) +
+  geom_smooth(method = "glm", se=FALSE, color="gray80") +
   geom_point(aes(color = outcome_group), pch = 19, size = 2.2, alpha = 0.8) +
   scale_color_manual(values = pcols, guide=guide_legend(title="outcome group:")) +
   # scale_color_brewer(palette = "Dark2", guide=guide_legend(title="outcome group:")) +
   scale_x_continuous(breaks=seq(0,0.16,by=0.04))+
-  scale_y_continuous(breaks=seq(0.8,2.6,by=0.4))+
-  coord_cartesian(xlim=c(0,0.16),ylim=c(0.8,2.6))+
+  scale_y_continuous(breaks=seq(0.8,3.6,by=0.4))+
+  coord_cartesian(xlim=c(0,0.16),ylim=c(0.8,3.6))+
   facet_grid(country~.) +
   labs(x = "global clustering (Moran's I)",
        y = "",
@@ -600,13 +582,14 @@ prevplotd <- d_reff_prev %>%
 
 
 # pcols <- brewer.pal(n=3,name="Dark2")[3]
-plot_reff_prev <- ggplot(data = d_reff_prev %>% filter(outcome_lab %in% c("Diarrhea","Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm")), aes(x = Y0bar, y = rel_eff)) +
+plot_reff_prev <- ggplot(data = d_reff_prev %>% filter(outcome_lab %in% c("Diarrhea","Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm")), aes(x = Y0bar, y = reff_mpcr)) +
   geom_point(aes(color = outcome_group), pch = 19, size = 2.2, alpha = 0.8) +
+  geom_smooth(method = "glm", se=FALSE, color="gray80") +
   scale_color_manual(values = pcols[3], guide=guide_legend(title="outcome group:")) +
   # scale_fill_brewer(palette = "Dark2", guide=guide_legend(title="outcome group:")) +
   scale_x_continuous(breaks=seq(0,0.4,by=0.1), labels=sprintf("%1.0f",seq(0,0.4,by=0.1)*100))+
-  scale_y_continuous(breaks=seq(0.8,2.6,by=0.4))+
-  coord_cartesian(xlim=c(0,0.4),ylim=c(0.8,2.6))+
+  scale_y_continuous(breaks=seq(0.8,3.6,by=0.4))+
+  coord_cartesian(xlim=c(0,0.4),ylim=c(0.8,3.6))+
   facet_grid(country~.) +
   labs(x = "outcome prevalence (%)",
        y = "",
@@ -647,12 +630,12 @@ plot_icc_morani_prev_composite <- grid.arrange(
   arrangeGrob(plot_reff_icc + theme(legend.position="none"),
               plot_reff_morani + theme(legend.position="none"),
               plot_reff_prev + theme(legend.position="none"),
-              nrow=1,widths=c(0.75,0.96,1)),
+              nrow=1,widths=c(0.7,0.7,1)), # widths=c(0.75,0.96,1)
   complegend, nrow=2,heights=c(10, 1)
 )
                                                
                                                # plot_reff_morani,plot_reff_icc,plot_reff_prev,ncol=3,nrow=1,widths=c(0.94,0.94,1))
-ggsave(here("output","washb-geopair-reff-icc-morani-prev.png"),plot_icc_morani_prev_composite,device="png",height=6,width=10)
+ggsave(here("output","washb-geopair-reff-icc-morani-prev.png"),plot_icc_morani_prev_composite,device="png",height=6,width=9)
 ```
 
 # Pair-matched and sub-district adjusted estimators
@@ -660,37 +643,34 @@ ggsave(here("output","washb-geopair-reff-icc-morani-prev.png"),plot_icc_morani_p
 Compare relative efficiency of pair matched versus sub-district adjusted estimators of the average treatment effect. 
 
 ```{r estimator comparison bangladesh, fig.width = 5, fig.height = 3.2}
-estcomp_res2 <- estcomp_res %>%
-  mutate(releff_paired = var_nomatch/var_imai,
-         releff_subdreg = var_nomatch/var_subdreg
-         )
 
 # sort by relative efficiency observed for NP (Imai) estimator
-orderb <- estcomp_res2 %>%
+orderb <- estcomp_res %>%
   filter(country == "Bangladesh") %>% 
-  arrange(releff_paired) %>%
+  arrange(reff_mpcr) %>%
   pull(outcome_lab)
-estcomp_res2 <- estcomp_res2 %>%
+
+estcomp_res2 <- estcomp_res %>%
   mutate(outcome_lab = factor(outcome_lab, levels=orderb))
 
 estcomp_plot_b <-   ggplot(estcomp_res2 %>% filter(country=="Bangladesh")) + 
   geom_hline(yintercept=1, linetype = "dashed") +
-  geom_segment( aes(x=outcome_lab, xend=outcome_lab, y=releff_subdreg, yend=releff_paired), color="grey60", lwd=0.7) +
-  geom_point(aes(x = outcome_lab, y = releff_paired), pch=21,
+  geom_segment( aes(x=outcome_lab, xend=outcome_lab, y=reff_subdreg, yend=reff_mpcr), color="grey60", lwd=0.7) +
+  geom_point(aes(x = outcome_lab, y = reff_mpcr), pch=21,
              size = 4, alpha = 1, fill = "black") +
-  geom_point(aes(x = outcome_lab, y = releff_subdreg), pch=21,
+  geom_point(aes(x = outcome_lab, y = reff_subdreg), pch=21,
              size = 4, alpha = 0.9, fill = nytpal2[5]) +
-  scale_y_continuous(breaks = seq(0.8,2.6,by=0.2)) +
-  annotate("text",label="pair-matched",y=2.25,x=15, color="black") +
-  annotate("text",label="subdistrict stratified",y=1.4,x=15, color="gray40") +
+  scale_y_continuous(breaks = seq(0.8,3.6,by=0.4)) +
+  annotate("text",label="pair-matched",y=3.3,x=15, color="black") +
+  annotate("text",label="subdistrict stratified",y=2.1,x=15, color="gray40") +
   labs(x = NULL, y = "relative efficiency compared to unmatched analysis",
        tag = "a") +
-  coord_flip(ylim = c(0.8,2.6),xlim=c(1,15)) +
+  coord_flip(ylim = c(0.8,3.6),xlim=c(1,15)) +
   guides(fill = "none") +
   theme_minimal() +
   theme(
     legend.position = "bottom",
-    panel.grid.minor = element_blank(),
+    # panel.grid.minor = element_blank(),
     plot.tag = element_text(face = "bold", size=16),
     axis.text = element_text(size=12),
     axis.title = element_text(size=12)
@@ -702,33 +682,33 @@ estcomp_plot_b
 
 ```{r estimator comparison kenya, fig.width = 5, fig.height = 3.2}
 
-# sort by relative efficiency observed for NP (Imai) estimator
-orderk <- estcomp_res2 %>%
+# sort by relative efficiency observed for pair-matched estimator
+orderk <- estcomp_res %>%
   filter(country == "Kenya") %>% 
-  arrange(releff_paired) %>%
+  arrange(reff_mpcr) %>%
   pull(outcome_lab)
 
-estcomp_res2 <- estcomp_res2 %>%
+estcomp_res2 <- estcomp_res %>%
   mutate(outcome_lab = factor(outcome_lab, levels=orderk))
 
 estcomp_plot_k <-   ggplot(estcomp_res2 %>% filter(country=="Kenya")) + 
   geom_hline(yintercept=1, linetype = "dashed") +
-  geom_segment( aes(x=outcome_lab, xend=outcome_lab, y=releff_subdreg, yend=releff_paired), color="grey60", lwd=0.8) +
-  geom_point(aes(x = outcome_lab, y = releff_paired), pch=21,
+  geom_segment( aes(x=outcome_lab, xend=outcome_lab, y=reff_subdreg, yend=reff_mpcr), color="grey60", lwd=0.8) +
+  geom_point(aes(x = outcome_lab, y = reff_mpcr), pch=21,
              size = 4, alpha = 1, fill = "black") +
-  geom_point(aes(x = outcome_lab, y = releff_subdreg), pch=21,
+  geom_point(aes(x = outcome_lab, y = reff_subdreg), pch=21,
              size = 4, alpha = 0.9, fill = nytpal[5]) +
-  scale_y_continuous(breaks = seq(0.8,2.6,by=0.2)) +
-  annotate("text",label="pair-matched",y=2.6,x=13, hjust=1, color="black") +
-  annotate("text",label="subdistrict stratified",y=1.9,x=13, hjust=1, color="gray40") +
+  scale_y_continuous(breaks = seq(0.8,3.6,by=0.4)) +
+  annotate("text",label="pair-matched",y=3.5,x=13, hjust=1, color="black") +
+  annotate("text",label="subdistrict stratified",y=2.7,x=13, hjust=1, color="gray40") +
   labs(x = NULL, y = "relative efficiency compared to unmatched analysis",
        tag = "b") +
-  coord_flip(ylim = c(0.8,2.6),xlim=c(1,13)) +
+  coord_flip(ylim = c(0.8,3.6),xlim=c(1,13)) +
   guides(fill = "none") +
   theme_minimal() +
   theme(
     legend.position = "bottom",
-    panel.grid.minor = element_blank(),
+    # panel.grid.minor = element_blank(),
     plot.tag = element_text(face = "bold", size=16),
     axis.text = element_text(size=12),
     axis.title = element_text(size=12)
@@ -742,7 +722,7 @@ Create a composite figure
 
 ```{r composite estimator comp figure, fig.height = 9}
 plot_estcomp_composite <- grid.arrange(estcomp_plot_b,estcomp_plot_k,ncol=1,nrow=2,heights=c(1,0.85)) # shrink kenya b/c 2 fewer outcomes to keep y-axis in proportion
-ggsave(here("output","washb-geopair-estimator-comparison.png"),plot_estcomp_composite,device="png",height=8,width=6)
+ggsave(here("output","washb-geopair-estimator-comparison.png"),plot_estcomp_composite,device="png",height=8,width=7)
 ```
 
 # Session Info
