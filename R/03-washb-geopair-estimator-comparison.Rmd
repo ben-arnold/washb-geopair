@@ -21,7 +21,7 @@ In this analysis, we compare the estimated relative efficiency based on analytic
 
 # Preamble
 
-```{r preamble}
+```{r preamble, message = FALSE}
 library(here)
 here()
 
@@ -108,12 +108,14 @@ dsubdist <- dbgps %>%
               distinct() %>% 
               mutate(country = "Kenya")) %>% 
   group_by(country, block, tr01) %>% 
-  # for now, just select first subdistrict for each block
+  # select first subdistrict for each block
   slice(1) %>% 
   ungroup()
 ```
 
-# Run regression models
+# Estimate ATEs 
+
+Consider 3 estimators: pair-matched, subdistrict-adjusted, and unadjusted (unmatched)
 
 ```{r run regression models}
 # create shorter cluster-level means dataset with variables of interest
@@ -149,6 +151,10 @@ get_reg_results <- function(c, o){
   var_nomatch <- nomatch$ate_var
   
   # matched regression (analogous to a weighted paired t-test)
+  # this is an internal validity check to make sure it is
+  # similar to the non-parametric estimator, so that the
+  # next subdistrict adjusted model is comparable, with just
+  # a coarser level of stratification
   matchreg <- lm(Ybar ~ tr01 + as.factor(block),
                   weights = n,
                   data = temp_dfl)
@@ -197,13 +203,44 @@ all_results <- reg_results %>%
   # subdistrict adjusted estimator
   mutate(reff_mpcr = var_nomatch / var_mpcr,
          reff_subdreg = var_nomatch / var_subdreg)
-  
-
-
 
 ```
 
 # Visualize results
+
+First, just a quick internal validity check to ensure the weighted least squares regression that conditions on matched pairs, equivalent to a weighted t-test, yields identical estimates of the ATE and very close estimates of the variance. The variance won't be identical but it should be very, very close.
+
+```{r compare ate for wls and mpcr, fig.width=6}
+plot_ate_comp <- ggplot(data=all_results, aes(x=ate_mpcr,y=ate_matchreg)) +
+  facet_grid(.~country) + 
+  geom_abline(intercept=0,slope=1, color="gray40") +
+  geom_point() + 
+  labs(x="non-parametric pair-matched",
+       y="weighted t-test",
+       title = "Comparison of ATE estimates across outcomes"
+       ) +
+  theme_minimal()
+  
+plot_ate_comp
+
+
+```
+
+```{r compare variance for wls and mpcr, fig.width=6}
+plot_var_comp <- ggplot(data=all_results, aes(x=var_mpcr,y=var_matchreg)) +
+  facet_grid(.~country) + 
+  geom_abline(intercept=0,slope=1, color="gray40") +
+  geom_point() + 
+  labs(x="non-parametric pair-matched",
+       y="weighted t-test",
+       title = "Comparison of variance estimates across outcomes"
+       ) +
+  theme_minimal()
+  
+plot_var_comp
+
+
+```
 
 Outcomes are arranged in descending order of relative efficiency of the non-parametric estimator compared to the unmatched estimator.
 
@@ -213,18 +250,6 @@ outcome_colors <- c("Child development" = "#D9B86A",
                     "Infectious disease" = "#5986B0")
 
 # determine ordering for outcomes
-# sort by relative efficiency predicted by unweighted correlations
-orderb <- ate_res %>% 
-  filter(country == "Bangladesh") %>% 
-  arrange(desc(corr_u)) %>% 
-  pull(outcome_lab)
-
-orderk <- ate_res %>% 
-  filter(country == "Kenya") %>% 
-  arrange(desc(corr_u)) %>% 
-  pull(outcome_lab)
-
-# or alternatively, 
 # sort by relative efficiency observed for MPCR estimator
 orderb <- all_results %>%
   filter(country == "Bangladesh") %>% 
@@ -246,7 +271,7 @@ all_results %>%
                names_pattern = "var_(.*)",
                names_to = "model",
                values_to = "var") %>%
-  filter(model != "matchreg") %>% # remove matched regression (similar to imai)
+  filter(model != "matchreg") %>% # remove pair-matched regression (same as mpcr, above)
   mutate(rel_eff = var_nomatch/var) %>% # relative efficiency is ratio, comparing variance of unmatched analysis to variance from other analyses
   mutate(outcome_lab = factor(outcome_lab, levels = orderb)) %>% 
   ggplot(aes(x = outcome_lab, y = rel_eff)) + 
@@ -274,7 +299,7 @@ all_results %>%
                names_pattern = "var_(.*)",
                names_to = "model",
                values_to = "var") %>%
-  filter(model != "matchreg") %>% # remove matched regression (similar to imai)
+  filter(model != "matchreg") %>% # remove pair-matched regression (same as mpcr, above)
   mutate(rel_eff = var_nomatch/var) %>% # relative efficiency is ratio, comparing variance of unmatched analysis to variance from other analyses
   mutate(outcome_lab = factor(outcome_lab, levels = orderk)) %>% 
   ggplot(aes(x = outcome_lab, y = rel_eff)) + 
