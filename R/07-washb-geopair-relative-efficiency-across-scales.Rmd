@@ -98,6 +98,9 @@ dcl_k <- dcl %>% filter(country=="Kenya") %>% mutate(outcome_lab = factor(outcom
 # geographically closest blocks 
 # to the sampled block
 #
+# this function is not actually
+# used here, but left for posterity
+#
 # @distframe :  a data frame with pair-wise distances between blocks (first col is block ID)
 # @nclosest  : number of closest blocks to identify
 # 
@@ -130,7 +133,9 @@ geosample <- function(distframe,nclosest) {
 # but rather than randomly sampling
 # a block, simply identify n
 # geographically closest blocks 
-# to an identified block
+# to an identified block this is 
+# useful in an exhaustive search
+# across all blocks
 #
 # @distframe : a data frame with pair-wise distances between blocks (first col is block ID)
 # @blockid   : ID of the block selected
@@ -167,9 +172,9 @@ geofind <- function(distframe,blockid,nclosest) {
 ## Correlation across scales
 For each outcome, estimate the correlation between paired means.
 
-Repeat estimates from 90 down to 10 pairs. 
+Repeat estimates from 10 up to 90 pairs. 
 
-Consider a random sample across the entire study population and a geographically proximate sample.  For geographically proximate samples, compute estimates based on all 90 blocks selected as the initial sampling point, in turn.
+For geographically proximate samples, compute estimates based on all 90 blocks selected as the initial sampling point, in turn (an exaustive sample).
 
 
 ```{r bangladesh pairwise correlation by number of pairs}
@@ -198,34 +203,8 @@ cor_geo_b <- foreach(outi = levels(dcl_b$outcome_lab), .combine = rbind) %dopar%
   }
 }
 
-#-------------------------------
-# randomly sampled pairs
-# (not necessarily geographically proximate)
-# up to N pairs
-#-------------------------------
-
-cor_random_b <- foreach(outi = levels(dcl_b$outcome_lab), .combine = rbind) %dopar% {
-  foreach(npairs = seq(10,90,by=2), .combine = rbind) %:% 
-  foreach(iteri = 1:90, .combine = rbind) %do% {
-    set.seed(iteri)
-    # Randomly sample npairs without replacement
-    sampi <- sample(dcl_b$block[dcl_b$outcome_lab == outi], size = npairs, replace = FALSE)
-    di <- dcl_b %>%
-      filter(block %in% sampi & outcome_lab == outi)
-    # estimate outcome correlation, weighted by pair-wise N
-    wY1bar <- di$Y1bar*di$w
-    wY0bar <- di$Y0bar*di$w
-    corri <- 2*cov(wY1bar,wY0bar) / ( var(wY1bar) + var(wY0bar) )
-    # return results
-    res <- data.frame(outcome_lab = outi, npairs , corr = corri)
-    res
-  }
-}
 
 cor_ests_b <- cor_geo_b %>%
-  mutate(method = "geographically proximate pairs") %>%
-  bind_rows(cor_random_b) %>%
-  mutate(method = ifelse(is.na(method),"randomly sampled pairs",method)) %>%
   mutate(outcome_lab = factor(outcome_lab, levels = levels(dcl_b$outcome_lab)))
 ```
 
@@ -238,7 +217,7 @@ cor_ests_b <- cor_geo_b %>%
 # replicates
 #-------------------------------
 medcor_ests_b <- cor_ests_b %>% 
-  group_by(outcome_lab,method,npairs) %>% 
+  group_by(outcome_lab,npairs) %>% 
   summarize(mediancor = median(corr), 
             p25cor = quantile(corr,probs = 0.25, na.rm=TRUE),
             p75cor = quantile(corr,probs = 0.75, na.rm=TRUE),
@@ -307,8 +286,6 @@ releff_ci_b <- cor_boot_ci_b %>%
 ```
 
 
-
-
 ## Relative efficiency across geographic scales
 
 ### Summary Figure
@@ -317,7 +294,6 @@ releff_ci_b <- cor_boot_ci_b %>%
 
 # calculate relative efficacy from correlation
 dreleff_b <- medcor_ests_b %>%
-  filter(method == "geographically proximate pairs") %>%
   mutate(releff = 1/(1-mediancor),
          releff25 = 1/(1-p25cor),
          releff75 = 1/(1-p75cor)) %>%
@@ -366,7 +342,6 @@ Alternate format
 # from correlation
 #-------------------------------
 dreleff_b <- medcor_ests_b %>%
-  filter(method == "geographically proximate pairs") %>%
   mutate(releff = 1/(1-mediancor),
          releff25 = 1/(1-p25cor),
          releff75 = 1/(1-p75cor)) %>%
@@ -399,28 +374,28 @@ out_labs_print <- cor90ests_b %>%
   mutate(outcome_order = seq_along(outcome_lab)) %>%
   mutate(y_text = 4.0 - outcome_order*0.1) %>% 
   ungroup() %>%
-  mutate(releff_cat = case_when(
-    releff90 <1.2 ~ "<1.2",
-    releff90 >= 1.2 & releff90 < 1.4 ~ "1.2 to 1.4",
-    releff90 >= 1.4 & releff90 < 1.6 ~ "1.4 to 1.6",
-    releff90 >= 1.6 & releff90 < 1.8 ~ "1.6 to 1.8",
-    releff90 >= 1.8 & releff90 < 2.2 ~ "1.8 to 2.2",
-    releff90 >  2.2 ~ ">2.2",
-    TRUE ~ as.character(NA)
-  ),
-  releff_cat = factor(releff_cat, levels=c("<1.2","1.2 to 1.4","1.4 to 1.6","1.6 to 1.8","1.8 to 2.2",">2.2"))
-         ) %>%
   # mutate(releff_cat = case_when(
-  #   releff90 <1.4 ~ "<1.4",
-  #   releff90 >=1.4 & releff90 < 1.6 ~ "1.4 to 1.6",
+  #   releff90 <1.2 ~ "<1.2",
+  #   releff90 >= 1.2 & releff90 < 1.4 ~ "1.2 to 1.4",
+  #   releff90 >= 1.4 & releff90 < 1.6 ~ "1.4 to 1.6",
   #   releff90 >= 1.6 & releff90 < 1.8 ~ "1.6 to 1.8",
-  #   releff90 >= 1.8 & releff90 < 2.0 ~ "1.8 to 2.0",
-  #   releff90 >= 2.0 & releff90 < 2.2 ~ "2.0 to 2.2",
-  #   releff90 >2.2 ~ ">2.2",
+  #   releff90 >= 1.8 & releff90 < 2.2 ~ "1.8 to 2.2",
+  #   releff90 >  2.2 ~ ">2.2",
   #   TRUE ~ as.character(NA)
   # ),
-  # releff_cat = factor(releff_cat, levels=c("<1.4","1.4 to 1.6","1.6 to 1.8","1.8 to 2.0","2.0 to 2.2",">2.2"))
+  # releff_cat = factor(releff_cat, levels=c("<1.2","1.2 to 1.4","1.4 to 1.6","1.6 to 1.8","1.8 to 2.2",">2.2"))
   #        ) %>%
+  mutate(releff_cat = case_when(
+    releff90 <1.4 ~ "<1.4",
+    releff90 >=1.4 & releff90 < 1.6 ~ "1.4 to 1.6",
+    releff90 >= 1.6 & releff90 < 1.8 ~ "1.6 to 1.8",
+    releff90 >= 1.8 & releff90 < 2.0 ~ "1.8 to 2.0",
+    releff90 >= 2.0 & releff90 < 2.2 ~ "2.0 to 2.2",
+    releff90 >2.2 ~ ">2.2",
+    TRUE ~ as.character(NA)
+  ),
+  releff_cat = factor(releff_cat, levels=c("<1.4","1.4 to 1.6","1.6 to 1.8","1.8 to 2.0","2.0 to 2.2",">2.2"))
+         ) %>%
   select(outcome_group,outcome_lab,releff_cat, outcome_order, y_text)
   
 dreleff_b <- dreleff_b %>%
@@ -479,9 +454,9 @@ ggsave(here("output","washb-geopair-relative-efficiency-geographic-scale-banglad
 ## Correlation across scales
 For each outcome, estimate the correlation between paired means.
 
-Repeat estimates from 84 down to 10 pairs. 
+Repeat estimates from 10 up to 79 pairs. 
 
-Consider a random sample across the entire study population and a geographically proximate sample.  For geographically proximate samples, compute estimates based on all 84 blocks selected as the initial sampling point, in turn.
+For geographically proximate samples, compute estimates based on all 79 blocks selected as the initial sampling point, in turn (all permutations).
 
 
 ```{r kenya pairwise correlation by number of pairs}
@@ -510,34 +485,8 @@ cor_geo_k <- foreach(outi = levels(dcl_k$outcome_lab), .combine = rbind) %dopar%
   }
 }
 
-#-------------------------------
-# randomly sampled pairs
-# (not necessarily geographically proximate)
-# up to N pairs
-#-------------------------------
-
-cor_random_k <- foreach(outi = levels(dcl_k$outcome_lab), .combine = rbind) %dopar% {
-  foreach(npairs = c(seq(10,78,by=2),79), .combine = rbind) %:% 
-  foreach(iteri = 1:78, .combine = rbind) %do% {
-    set.seed(iteri)
-    # Randomly sample npairs without replacement
-    sampi <- sample(dcl_k$block[dcl_k$outcome_lab == outi], size = npairs, replace = FALSE)
-    di <- dcl_k %>%
-      filter(block %in% sampi & outcome_lab == outi)
-    # estimate outcome correlation, weighted by pair-wise N
-    wY1bar <- di$Y1bar*di$w
-    wY0bar <- di$Y0bar*di$w
-    corri <- 2*cov(wY1bar,wY0bar) / ( var(wY1bar) + var(wY0bar) )
-    # return results
-    res <- data.frame(outcome_lab = outi, npairs , corr = corri)
-    res
-  }
-}
 
 cor_ests_k <- cor_geo_k %>%
-  mutate(method = "geographically proximate pairs") %>%
-  bind_rows(cor_random_k) %>%
-  mutate(method = ifelse(is.na(method),"randomly sampled pairs",method)) %>%
   mutate(outcome_lab = factor(outcome_lab, levels = levels(dcl_k$outcome_lab)))
 ```
 
@@ -550,7 +499,7 @@ cor_ests_k <- cor_geo_k %>%
 # replicates
 #-------------------------------
 medcor_ests_k <- cor_ests_k %>% 
-  group_by(outcome_lab,method,npairs) %>% 
+  group_by(outcome_lab,npairs) %>% 
   summarize(mediancor = median(corr, na.rm = TRUE), 
             p25cor = quantile(corr,probs = 0.25, na.rm = TRUE),
             p75cor = quantile(corr,probs = 0.75, na.rm = TRUE),
@@ -630,7 +579,6 @@ releff_ci_k <- cor_boot_ci_k %>%
 
 # calculate relative efficacy from correlation
 dreleff_k <- medcor_ests_k %>%
-  filter(method == "geographically proximate pairs") %>%
   mutate(releff = 1/(1-mediancor),
          releff25 = 1/(1-p25cor),
          releff75 = 1/(1-p75cor)) %>%
@@ -679,7 +627,6 @@ Alternate format
 # from correlation
 #-------------------------------
 dreleff_k <- medcor_ests_k %>%
-  filter(method == "geographically proximate pairs") %>%
   mutate(releff = 1/(1-mediancor),
          releff25 = 1/(1-p25cor),
          releff75 = 1/(1-p75cor)) %>%
@@ -712,28 +659,28 @@ out_labs_print_k <- cor79ests_k %>%
   mutate(outcome_order = seq_along(outcome_lab)) %>%
   mutate(y_text = 4.0 - outcome_order*0.1) %>% 
   ungroup() %>%
-  mutate(releff_cat = case_when(
-    releff79 <1.2 ~ "<1.2",
-    releff79 >= 1.2 & releff79 < 1.4 ~ "1.2 to 1.4",
-    releff79 >= 1.4 & releff79 < 1.6 ~ "1.4 to 1.6",
-    releff79 >= 1.6 & releff79 < 1.8 ~ "1.6 to 1.8",
-    releff79 >= 1.8 & releff79 < 2.2 ~ "1.8 to 2.2",
-    releff79 >2.2 ~ ">2.2",
-    TRUE ~ as.character(NA)
-  ),
-  releff_cat = factor(releff_cat, levels=c("<1.2","1.2 to 1.4","1.4 to 1.6","1.6 to 1.8","1.8 to 2.2",">2.2"))
-         ) %>%
   # mutate(releff_cat = case_when(
-  #   releff79 <1.4 ~ "<1.4",
-  #   releff79 >=1.4 & releff79 < 1.6 ~ "1.4 to 1.6",
+  #   releff79 <1.2 ~ "<1.2",
+  #   releff79 >= 1.2 & releff79 < 1.4 ~ "1.2 to 1.4",
+  #   releff79 >= 1.4 & releff79 < 1.6 ~ "1.4 to 1.6",
   #   releff79 >= 1.6 & releff79 < 1.8 ~ "1.6 to 1.8",
-  #   releff79 >= 1.8 & releff79 < 2.0 ~ "1.8 to 2.0",
-  #   releff79 >= 2.0 & releff79 < 2.2 ~ "2.0 to 2.2",
+  #   releff79 >= 1.8 & releff79 < 2.2 ~ "1.8 to 2.2",
   #   releff79 >2.2 ~ ">2.2",
   #   TRUE ~ as.character(NA)
   # ),
-  # releff_cat = factor(releff_cat, levels=c("<1.4","1.4 to 1.6","1.6 to 1.8","1.8 to 2.0","2.0 to 2.2",">2.2"))
-         # ) %>%
+  # releff_cat = factor(releff_cat, levels=c("<1.2","1.2 to 1.4","1.4 to 1.6","1.6 to 1.8","1.8 to 2.2",">2.2"))
+  #        ) %>%
+  mutate(releff_cat = case_when(
+    releff79 <1.4 ~ "<1.4",
+    releff79 >=1.4 & releff79 < 1.6 ~ "1.4 to 1.6",
+    releff79 >= 1.6 & releff79 < 1.8 ~ "1.6 to 1.8",
+    releff79 >= 1.8 & releff79 < 2.0 ~ "1.8 to 2.0",
+    releff79 >= 2.0 & releff79 < 2.2 ~ "2.0 to 2.2",
+    releff79 >2.2 ~ ">2.2",
+    TRUE ~ as.character(NA)
+  ),
+  releff_cat = factor(releff_cat, levels=c("<1.4","1.4 to 1.6","1.6 to 1.8","1.8 to 2.0","2.0 to 2.2",">2.2"))
+  ) %>%
   select(outcome_group,outcome_lab,releff_cat, outcome_order, y_text)
   
 dreleff_k <- dreleff_k %>%
