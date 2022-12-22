@@ -74,43 +74,8 @@ ate_res <- read_rds(here("data", "washb_ATE_releff_estimates.rds"))
 ```{r make spatial data}
 #-------------------------------
 # create gps datasets
-# with different methods of assigning
-# lat/lon to block
-#-------------------------------
-
-#-------------------------------
-# dataset 1 has all control
-# cluster centroids, used for
-# geostatistical model smooths
-# of the control group outcomes (n=180)
-#-------------------------------
-
-dbgps_control <- dbgps %>%
-  filter(tr=="Control") %>%
-  dplyr::select(clusterid,tr,block,blockf,lon,lat)
-
-dkgps_control <- dkgps %>%
-  filter(tr %in% c("Control")) %>%
-  dplyr::select(clusterid,tr,block,blockf,lon,lat)
-
-#-------------------------------
-# dataset 2 has all control and
-# nutrition cluster centroids,
-# used for geostatistical model smooths
-# of the control + nutrition group
-# outcomes in a joint model (n=360)
-#-------------------------------
-
-dbgps_cn <- dbgps %>%
-  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
-  dplyr::select(clusterid,tr,block,blockf,lon,lat)
-
-dkgps_cn <- dkgps %>%
-  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
-  dplyr::select(clusterid,tr,block,blockf,lon,lat)
-
-#-------------------------------
-# dataset 3 has a row for each block
+# 
+# dataset has lon/lat for each block
 # median of control clusters only (n=90)
 #-------------------------------
 
@@ -221,8 +186,8 @@ morani_res <- moranib %>%
 
 ```{r plot morani, fig.width = 8, fig.height = 5}
 morani_res %>%
-  ggplot(aes(y = morani_observed, x = eff_u)) +
-  geom_smooth(method = "gam", se=FALSE, color="gray80") +
+  ggplot(aes(x = morani_observed, y = eff_w)) +
+  geom_smooth(method = "glm", se=FALSE, color="gray80") +
   # geom_errorbar(aes(x = morani_observed,
   #                   ymin = releff_min95,
   #                   ymax = releff_max95,
@@ -232,11 +197,11 @@ morani_res %>%
   
   scale_color_manual(values = outcome_colors,guide=guide_legend(title="outcome group:")) +
   scale_fill_manual(values = outcome_colors) +
-  scale_y_continuous(breaks = seq(0,0.16,by=0.02)) + 
-  scale_x_continuous(breaks = seq(1,4,by=0.5)) + 
-  coord_cartesian(xlim=c(1,2.5)) +
-  labs(y = "global clustering in the control group (Moran's I)", 
-       x = expression(paste("predicted relative efficiency of geographic pair-matching, (1-",italic(r),")")^-1)) +
+  scale_x_continuous(breaks = seq(0,0.16,by=0.02)) + 
+  scale_y_continuous(breaks = seq(1,4,by=0.5)) + 
+  # coord_cartesian(ylim=c(1,2.5)) +
+  labs(x = "global clustering in the control group (Moran's I)", 
+       y = expression(paste("predicted relative efficiency of geographic pair-matching, (1-",italic(r),")")^-1)) +
   facet_wrap(.~country, nrow = 1) +
   theme_minimal() +
   theme(
