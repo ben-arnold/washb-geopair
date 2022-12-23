@@ -453,8 +453,6 @@ dboot <- dcl %>%
   group_by(outcome_lab)
 
 # estimate outcome correlation, weighted by pair-wise N
-# this function is not used below because we are going
-# to go with unweighted correlation, implemented in stats::cor()
 corx <- function(x,y,w) {
     xw <- x*w
     yw <- y*w
@@ -471,7 +469,7 @@ cor_boot_b <- foreach(iteri = 1:1000, .combine = rbind) %dopar% {
   set.seed(iteri)
   di <- dboot %>% 
     slice_sample(prop = 1, replace = TRUE)
-  corest <- di %>% group_map( ~ cor(x=.x$Y1bar, y=.x$Y0bar,method="pearson"))
+  corest <- di %>% group_map( ~ corx(x=.x$Y1bar, y=.x$Y0bar,w = .x$w))
   
   res <- data.frame(iter = iteri, outcome_lab = levels(di$outcome_lab), corr = unlist(corest))
   res
@@ -528,7 +526,7 @@ cor_boot_k <- foreach(iteri = 1:1000, .combine = rbind) %dopar% {
   set.seed(iteri)
   di <- dboot %>% 
     slice_sample(prop = 1, replace = TRUE)
-  corest <- di %>% group_map( ~ cor(x=.x$Y1bar, y=.x$Y0bar,method="pearson"))
+  corest <- di %>% group_map( ~ corx(x=.x$Y1bar, y=.x$Y0bar,w = .x$w))
   
   res <- data.frame(iter = iteri, outcome_lab = levels(di$outcome_lab), corr = unlist(corest))
   res
