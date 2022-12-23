@@ -1,0 +1,199 @@
+---
+title: "Geographic pair matching in large-scale cluster randomized trials"
+subtitle: "Descriptive summaries"
+author: "Ben Arnold ben.arnold@ucsf.edu"
+date: "updated: `r Sys.time()`"
+output: 
+  html_document:
+    theme: default
+    highlight: pygments
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+# Summary
+
+Create some descriptive tables and figures to summarize key outcome and study  characteristics.
+
+# Preamble
+
+```{r preamble, message = FALSE}
+library(here)
+here()
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","washb-geopair-Config.R"))
+
+# detach MASS and experiment packages
+# detach raster and gdistance packages 
+# of conflicts with dplyr::select() and not
+# needed
+detach("package:experiment", unload = TRUE)
+detach("package:MASS", unload = TRUE)
+detach("package:gdistance", unload = TRUE)
+detach("package:raster", unload = TRUE)
+
+
+#----------------------------
+# source the base functions
+#----------------------------
+source(here("R","washb-geopair-Functions.R"))
+
+```
+
+
+# Load previous estimates
+```{r load ate and reff estimates}
+#-------------------------------
+# load previous estimates of 
+# pair-level means and sample
+# sizes
+#
+# matched pair-level data
+#-------------------------------
+dcl <- read_rds(file = here("data","washb_pair_level_summary_estimates.rds"))
+
+#-------------------------------
+# load previous estimates of
+# average treatment effects
+# and relative efficiency
+# 
+# outcome-level data
+#-------------------------------
+ate_res <- read_rds(file = here("data","washb_ATE_releff_estimates.rds"))
+
+#-------------------------------
+# load empirical estimates of
+# relative efficiency for pair-matched
+# and sub-district adjusted estimators
+#-------------------------------
+# estcomp_res <- read_rds(file = here("data","washb_geopair_estimator_comparison.rds"))
+
+#-------------------------------
+# load empirical estimates of
+# Moran's I for outcomes
+#-------------------------------
+morani_res <- read_rds(file = here("data","washb-geopair-morans-I-estimates.rds")) %>%
+  select(country,outcome_lab,morani_observed)
+
+#-------------------------------
+# load empirical estimates of
+# the ICC for outcomes
+#-------------------------------
+icc_res <- read_rds(file = here("data","washb-geopair-icc-estimates.rds")) %>%
+  rename(outcome_lab = outcome)
+```
+
+# Outcome summary table
+
+
+```{r outcome summary table data prep}
+options(knitr.kable.NA = "‡")
+
+# summarize the sample size for each outcome, by group
+sum_ns <- dcl %>%
+  group_by(country, outcome_lab) %>%
+  summarize(n0=sum(n0),
+            n1=sum(n1),
+            .groups="drop"
+            )
+
+# join the various summaries together into a single data.frame
+outtab <- ate_res %>%
+  mutate(ate_print = paste0(sprintf("%1.2f",est)," (", sprintf("%1.2f",est_min95), ", ", sprintf("%1.2f",est_max95),")" )) %>%
+  left_join(sum_ns,by=c("country","outcome_lab")) %>%
+  left_join(icc_res,by=c("country","outcome_lab")) %>%
+  left_join(morani_res,by=c("country","outcome_lab")) %>%
+  select(country,outcome_lab,
+         n0,Y0bar,n1,Y1bar,
+         ate_print,
+         icc_print,
+         morani=morani_observed
+         )
+
+```
+
+```{r outcome summary table bangladesh}
+
+knitr::kable(outtab %>% filter(country=="Bangladesh") %>% select(-country),
+             digits = c(0,0,2,0,2,0,0,2),
+             align = c("lrcrcccc"),
+             col.names = c("Outcome","n","mean","n","mean","ATE (95% CI)*", "ICC (95% CI)†", "Moran's I"),
+             caption = "Summary of outcomes in the WASH Benefits Bangladesh trial",
+             format.args = list(big.mark = ",")
+             ) %>%
+  kable_styling(bootstrap_options = "striped") %>%
+  pack_rows("Child growth",1,4) %>%
+  pack_rows("Child development",5,9) %>%
+  pack_rows("Infectious disease",10,14) %>%
+  add_header_above(c(" " = 1, "Control" = 2, "Nutrition" = 2, " "=3)) %>%
+  footnote(symbol = c("ATE: Average treatment effect of difference in means (Nutrition minus Control), with 95% confidence interval reported for the non-parametric, pair-matched estimator. For infectious disease outcomes, this is the difference in the proportion positive.",
+                      "ICC: Intra-cluster correlation coefficient among outcomes measured in the control group, with 95% confidence interval estimated through bootstrap resampling geographic pairs with replacement (1,000 iterations)."))
+
+```
+
+
+```{r outcome summary table kenya}
+
+knitr::kable(outtab %>% filter(country=="Kenya") %>% select(-country),
+             digits = c(0,0,2,0,2,0,0,2),
+             align = c("lrcrcccc"),
+             col.names = c("Outcome","n","mean","n","mean","ATE (95% CI)*", "ICC (95% CI)†", "Moran's I"),
+             caption = "Summary of outcomes in the WASH Benefits Kenya trial",
+             format.args = list(big.mark = ",")
+             ) %>%
+  kable_styling(bootstrap_options = "striped") %>%
+  pack_rows("Child growth",1,4) %>%
+  pack_rows("Child development",5,7) %>%
+  pack_rows("Infectious disease",8,12) %>%
+  add_header_above(c(" " = 1, "Control" = 2, "Nutrition" = 2, " "=3)) %>%
+  footnote(symbol = c("ATE: Average treatment effect of difference in means (Nutrition minus Control), with 95% confidence interval reported for the non-parametric, pair-matched estimator. For infectious disease outcomes, this is the difference in the proportion positive.",
+                      "ICC: Intra-cluster correlation coefficient among outcomes measured in the control group, with 95% confidence interval estimated through bootstrap resampling geographic pairs with replacement (1,000 iterations).","The mixed effects model did not converge for Trichuris sp. infection in Kenya, so no estimate of the ICC was possible.", "MacArthur-Bates Communicative Development Inventory (CDI) measures were not collected in the Kenya trial."))
+
+```
+
+
+# Correlation and relative efficiency table
+
+```{r summary relative efficacy table}
+options(knitr.kable.NA = "‡")
+
+sumtab <- ate_res %>%
+  mutate(print_corr = paste0(sprintf("%1.2f",corr_w)," (",sprintf("%1.2f",cor_min95),", ",sprintf("%1.2f",cor_max95),")"),
+         print_reff = paste0(sprintf("%1.1f",eff_w)," (",sprintf("%1.1f",releff_min95),", ",sprintf("%1.1f",releff_max95),")"),
+         )
+
+sumtab <- sumtab %>%
+  filter(country=="Bangladesh") %>%
+  select(outcome_lab, bcorr = print_corr, beff = print_reff) %>%
+  left_join(sumtab %>% filter(country=="Kenya"), by = "outcome_lab") %>%
+  select(outcome_lab, bcorr, kcorr=print_corr, beff, keff=print_reff)
+
+
+knitr::kable(sumtab,
+             digits = c(0,2,2,1,1),
+             align = c("lcccc"),
+             col.names = c("Outcome","Bangladesh","Kenya","Bangladesh","Kenya"),
+             caption = "Summary of pair-wise outcome correlation and relative efficacy of geographic pair-matching") %>%
+  kable_styling(bootstrap_options = "striped") %>%
+  pack_rows("Child growth",1,4) %>%
+  pack_rows("Child development",5,9) %>%
+  pack_rows("Infectious disease",10,14) %>%
+  add_header_above(c(" " = 1, "Pair-wise correlation (95% CI)*" = 2, "Relative Efficiency (95% CI)†" = 2)) %>%
+  footnote(symbol = c("Weighted correlation between geographically paired, cluster-level means. 95% confidence interval estimated using a non-parametric bootstrap of pairs.",
+                      "Relative efficiency of geographic pair-matching compared to an unmatched design, defined as 1/(1-r), where r is the weighted correlation between paired outcomes. 95% confidence interval estimated using a non-parametric bootstrap of pairs.","MacArthur-Bates Communicative Development Inventory (CDI) measures were not collected in the Kenya trial."))
+
+```
+
+
+# Session Info
+```{r session info}
+sessionInfo()
+```
+
+
