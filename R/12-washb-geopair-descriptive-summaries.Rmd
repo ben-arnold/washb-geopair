@@ -91,7 +91,6 @@ icc_res <- read_rds(file = here("data","washb-geopair-icc-estimates.rds")) %>%
 
 # Outcome summary table
 
-
 ```{r outcome summary table data prep}
 options(knitr.kable.NA = "‡")
 
@@ -187,6 +186,404 @@ knitr::kable(sumtab,
   add_header_above(c(" " = 1, "Pair-wise correlation (95% CI)*" = 2, "Relative Efficiency (95% CI)†" = 2)) %>%
   footnote(symbol = c("Weighted correlation between geographically paired, cluster-level means. 95% confidence interval estimated using a non-parametric bootstrap of pairs.",
                       "Relative efficiency of geographic pair-matching compared to an unmatched design, defined as 1/(1-r), where r is the weighted correlation between paired outcomes. 95% confidence interval estimated using a non-parametric bootstrap of pairs.","MacArthur-Bates Communicative Development Inventory (CDI) measures were not collected in the Kenya trial."))
+
+```
+
+# Bangladesh cluster sizes
+
+```{r cluster size data prep}
+#---------------------------------
+# create an outcome group var
+#
+# create a shorter outcome group
+# label
+#
+# calculate difference in pair
+# level sample sizes
+#---------------------------------
+dcl2 <- dcl %>%
+  mutate(outcome_group = case_when(
+    outcome_lab %in% c("length-for-age z","weight-for-age z","weight-for-height z", "head circumference z") ~ "Child growth",
+    outcome_lab %in% c("Diarrhea","Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm") ~ "Infectious disease",
+    TRUE ~ "Child development"
+  ),
+  outcome_group = factor(outcome_group),
+  outcome_lab_short = case_when(
+    outcome_lab == "length-for-age z" ~ "LAZ",
+    outcome_lab == "weight-for-age z" ~ "WAZ",
+    outcome_lab == "weight-for-height z" ~ "WHZ",
+    outcome_lab == "head circumference z" ~ "HCZ",
+    outcome_lab == "EASQ communication z" ~ "EASQ com.",
+    outcome_lab == "EASQ gross motor z" ~ "EASQ motor",
+    outcome_lab == "EASQ personal-social z" ~ "EASQ social",
+    outcome_lab == "CDI comprehension z" ~ "CDI comp.",
+    outcome_lab == "CDI expression z" ~ "CDI expr.",
+    TRUE ~ as.character(outcome_lab)
+  ),
+  outcome_lab_short = factor(outcome_lab_short,
+                             levels=c("LAZ","WAZ","WHZ","HCZ","EASQ com.","EASQ motor","EASQ social","CDI comp.","CDI expr.","Diarrhea","Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm")),
+  diffn = n1-n0
+         )
+
+
+#---------------------------------
+# pivot the pair-level data to 
+# long by treatment for plotting
+#---------------------------------
+dcl_long <- dcl2 %>%
+  select(country, outcome_group, outcome_lab_short, n0, n1) %>%
+  pivot_longer(cols=c("n0","n1"),names_prefix = "n",names_to = "tx",values_to = "n") %>%
+  mutate(txlab = ifelse(tx==1,"Nutr.","Control"),
+         txlab = factor(txlab)
+  )
+```
+
+```{r cluster size bangladesh growth}
+#-------------------------------
+# Bangladesh
+# cluster sizes
+# growth
+#-------------------------------
+# pcols <- cbpal[2:3]
+pcols <- cbpal[c(5,4)]
+# pcols <- c("gray70",cbpal[7])
+# vircols <- viridis(n=9)
+# pcols <- c("gray70",vircols[2])
+
+plot_cluster_sizes_growth_b <- ggplot(data=dcl_long %>% filter(country=="Bangladesh" & outcome_group=="Child growth"),
+                               aes(x= txlab, y = n, color = txlab, fill=txlab)) +
+  geom_violin(color="gray30", alpha=0.6, draw_quantiles = c(0.50)) +
+  # facet over outcome
+  facet_wrap(~outcome_lab_short,ncol = 5) +
+  # aesthetics
+  scale_fill_manual(values=pcols) +
+  scale_color_manual(values=pcols) +
+  labs(x="",y="number of children per matched pair",tag="a") +
+  scale_y_continuous(breaks=seq(8,16,by=2)) +
+  coord_cartesian(ylim=c(8,16)) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    plot.tag = element_text(face = "bold",size=16),
+    strip.text = element_text(size=10)
+  )
+
+```
+
+```{r cluster size bangladesh chdev}
+#-------------------------------
+# Bangladesh
+# cluster sizes
+# child development
+#-------------------------------
+plot_cluster_sizes_chdev_b <- ggplot(data=dcl_long %>% filter(country=="Bangladesh" & outcome_group=="Child development"),
+                               aes(x= txlab, y = n, color = txlab, fill=txlab)) +
+  geom_violin(color="gray30", alpha=0.6, draw_quantiles = c(0.50)) +
+  # facet over outcome
+  facet_wrap(~outcome_lab_short,ncol = 5) +
+  # aesthetics
+  scale_fill_manual(values=pcols) +
+  scale_color_manual(values=pcols) +
+  labs(x="",y="number of children per matched pair",tag="b") +
+  scale_y_continuous(breaks=seq(6,16,by=2)) +
+  coord_cartesian(ylim=c(6,16)) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    plot.tag = element_text(face = "bold",size=16),
+    strip.text = element_text(size=10)
+  )
+
+```
+
+```{r cluster size bangladesh ID}
+#-------------------------------
+# Bangladesh
+# cluster sizes
+# infectious disease
+#-------------------------------
+plot_cluster_sizes_infd_b <- ggplot(data=dcl_long %>% filter(country=="Bangladesh" & outcome_group=="Infectious disease"),
+                               aes(x= txlab, y = n, color = txlab, fill=txlab)) +
+  geom_violin(color="gray30", alpha=0.6, draw_quantiles = c(0.50)) +
+  # facet over outcome
+  facet_wrap(~outcome_lab_short,ncol = 5) +
+  # aesthetics
+  scale_fill_manual(values=pcols) +
+  scale_color_manual(values=pcols) +
+  labs(x="",y="number of children per matched pair",tag="c") +
+  scale_y_continuous(breaks=seq(0,70,by=10)) +
+  coord_cartesian(ylim=c(0,70)) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    plot.tag = element_text(face = "bold",size=16),
+    strip.text = element_text(size=10)
+  )
+
+```
+
+
+```{r cluster diff bangladesh growth}
+#-------------------------------
+# Bangladesh 
+# difference in pair-level
+# cluster sizes, growth
+#-------------------------------
+plot_cluster_diff_growth_b <- ggplot(data=dcl2 %>% filter(country=="Bangladesh" & outcome_group=="Child growth"), aes(x = diffn,)) +
+  geom_histogram(binwidth=1,fill=cbpal[6],alpha=0.5,color="gray40") +
+  geom_vline(xintercept=0,color="gray20", linetype = "dashed") +
+  facet_wrap(~outcome_lab_short,ncol = 4) +
+  scale_y_continuous(breaks=seq(0,16,by=4))+
+  scale_x_continuous(breaks=seq(-6,6,by=2))+
+  coord_flip(xlim=c(-6,6),ylim=c(0,18))+
+  labs(y="number of pairs",x = "diff in sample size (nutrition - control)",tag="d")+
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    panel.grid.minor = element_blank(),
+    plot.tag = element_text(face = "bold",size=16),
+    strip.text = element_text(size=10)
+  )
+
+```
+
+```{r cluster diff bangladesh chdev}
+#-------------------------------
+# Bangladesh 
+# difference in pair-level
+# cluster sizes, child development
+#-------------------------------
+plot_cluster_diff_chdev_b <- ggplot(data=dcl2 %>% filter(country=="Bangladesh" & outcome_group=="Child development"), aes(x = diffn,)) +
+  geom_histogram(binwidth=1,fill=cbpal[6],alpha=0.5,color="gray40") +
+  geom_vline(xintercept=0,color="gray20", linetype = "dashed") +
+  facet_wrap(~outcome_lab_short,ncol = 5) +
+  scale_y_continuous(breaks=seq(0,24,by=6))+
+  scale_x_continuous(breaks=seq(-10,6,by=2))+
+  coord_flip(xlim=c(-10,6),ylim=c(0,24))+
+  labs(y="number of pairs",x = "diff in sample size (nutrition - control)",tag="e")+
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    panel.grid.minor = element_blank(),
+    plot.tag = element_text(face = "bold",size=16),
+    strip.text = element_text(size=10)
+  )
+
+```
+
+```{r cluster diff bangladesh ID}
+#-------------------------------
+# Bangladesh 
+# difference in pair-level
+# cluster sizes, infectious disease
+#-------------------------------
+plot_cluster_diff_infd_b <- ggplot(data=dcl2 %>% filter(country=="Bangladesh" & outcome_group=="Infectious disease"), aes(x = diffn,)) +
+  geom_histogram(binwidth=3,fill=cbpal[6],alpha=0.5,color="gray40") +
+  geom_vline(xintercept=0,color="gray20", linetype = "dashed") +
+  facet_wrap(~outcome_lab_short,ncol = 5) +
+  scale_y_continuous(breaks=seq(0,24,by=8))+
+  scale_x_continuous(breaks=seq(-30,30,by=6))+
+  coord_flip(xlim=c(-30,30),ylim=c(0,24))+
+  labs(y="number of pairs",x = "diff in sample size (nutrition - control)",tag="f")+
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    panel.grid.minor = element_blank(),
+    plot.tag = element_text(face = "bold",size=16),
+    strip.text = element_text(size=10)
+  )
+
+```
+
+```{r cluster composite plot bangladesh, fig.width=12, fig.height=12}
+#-------------------------------
+# Bangladesh
+# cluster sizes
+# composite plot
+#-------------------------------
+plot_cluster_b_composite <- grid.arrange(plot_cluster_sizes_growth_b,
+                                         plot_cluster_diff_growth_b,
+                                         plot_cluster_sizes_chdev_b,
+                                         plot_cluster_diff_chdev_b,
+                                         plot_cluster_sizes_infd_b,
+                                         plot_cluster_diff_infd_b,
+                                         ncol=2,nrow=3
+                                         )
+ggsave(here("output","washb-geopair-cluster-sizes-bangl.png"),plot_cluster_b_composite,device="png",height=10,width=10)
+
+```
+
+
+
+# Kenya cluster sizes
+
+```{r cluster size Kenya growth}
+#-------------------------------
+# Kenya
+# cluster sizes
+# growth
+#-------------------------------
+plot_cluster_sizes_growth_k <- ggplot(data=dcl_long %>% filter(country=="Kenya" & outcome_group=="Child growth"),
+                               aes(x= txlab, y = n, color = txlab, fill=txlab)) +
+  geom_violin(color="gray30", alpha=0.6, draw_quantiles = c(0.50)) +
+  # facet over outcome
+  facet_wrap(~outcome_lab_short,ncol = 5) +
+  # aesthetics
+  scale_fill_manual(values=pcols) +
+  scale_color_manual(values=pcols) +
+  labs(x="",y="number of children per matched pair",tag="a") +
+  scale_y_continuous(breaks=seq(0,30,by=5)) +
+  coord_cartesian(ylim=c(3,33)) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    plot.tag = element_text(face = "bold",size=16),
+    strip.text = element_text(size=10)
+  )
+
+```
+
+
+
+```{r cluster size kenya chdev}
+#-------------------------------
+# Kenya
+# cluster sizes
+# child development
+#-------------------------------
+plot_cluster_sizes_chdev_k <- ggplot(data=dcl_long %>% filter(country=="Kenya" & outcome_group=="Child development"),
+                               aes(x= txlab, y = n, color = txlab, fill=txlab)) +
+  geom_violin(color="gray30", alpha=0.6, draw_quantiles = c(0.50)) +
+  # facet over outcome
+  facet_wrap(~outcome_lab_short,ncol = 5) +
+  # aesthetics
+  scale_fill_manual(values=pcols) +
+  scale_color_manual(values=pcols) +
+  labs(x="",y="number of children per matched pair",tag="c") +
+  scale_y_continuous(breaks=seq(0,30,by=5)) +
+  coord_cartesian(ylim=c(3,30)) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    plot.tag = element_text(face = "bold",size=16),
+    strip.text = element_text(size=10)
+  )
+
+```
+
+```{r cluster size kenya ID}
+#-------------------------------
+# Kenya
+# cluster sizes
+# infectious disease
+#-------------------------------
+plot_cluster_sizes_infd_k <- ggplot(data=dcl_long %>% filter(country=="Kenya" & outcome_group=="Infectious disease"),
+                               aes(x= txlab, y = n, color = txlab, fill=txlab)) +
+  geom_violin(color="gray30", alpha=0.6, draw_quantiles = c(0.50)) +
+  # facet over outcome
+  facet_wrap(~outcome_lab_short,ncol = 5) +
+  # aesthetics
+  scale_fill_manual(values=pcols) +
+  scale_color_manual(values=pcols) +
+  labs(x="",y="number of children per matched pair",tag="c") +
+  scale_y_continuous(breaks=seq(0,60,by=10)) +
+  coord_cartesian(ylim=c(0,65)) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    plot.tag = element_text(face = "bold",size=16),
+    strip.text = element_text(size=10)
+  )
+
+```
+
+
+```{r cluster diff kenya growth}
+#-------------------------------
+# Kenya
+# pair-level difference in 
+# cluster sizes, growth
+#-------------------------------
+plot_cluster_diff_growth_k <- ggplot(data=dcl2 %>% filter(country=="Kenya" & outcome_group=="Child growth"), aes(x = diffn,)) +
+  geom_histogram(binwidth=2,fill=cbpal[6],alpha=0.5,color="gray40") +
+  geom_vline(xintercept=0,color="gray20", linetype = "dashed") +
+  facet_wrap(~outcome_lab_short,ncol = 4) +
+  scale_y_continuous(breaks=seq(0,16,by=4))+
+  scale_x_continuous(breaks=seq(-12,14,by=4))+
+  coord_flip(xlim=c(-12,14),ylim=c(0,16))+
+  labs(y="number of pairs",x = "diff in sample size (nutrition - control)",tag="d")+
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    panel.grid.minor = element_blank(),
+    plot.tag = element_text(face = "bold",size=16),
+    strip.text = element_text(size=10)
+  )
+```
+
+```{r cluster diff kenya chdev}
+#-------------------------------
+# Kenya
+# pair-level difference in 
+# cluster sizes, child development
+#-------------------------------
+plot_cluster_diff_chdev_k <- ggplot(data=dcl2 %>% filter(country=="Kenya" & outcome_group=="Child development"), aes(x = diffn,)) +
+  geom_histogram(binwidth=2,fill=cbpal[6],alpha=0.5,color="gray40") +
+  geom_vline(xintercept=0,color="gray20", linetype = "dashed") +
+  facet_wrap(~outcome_lab_short,ncol = 5) +
+  scale_y_continuous(breaks=seq(0,16,by=4))+
+  scale_x_continuous(breaks=seq(-12,14,by=4))+
+  coord_flip(xlim=c(-12,14),ylim=c(0,16))+
+  labs(y="number of pairs",x = "diff in sample size (nutrition - control)",tag="e")+
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    panel.grid.minor = element_blank(),
+    plot.tag = element_text(face = "bold",size=16),
+    strip.text = element_text(size=10)
+  )
+```
+
+
+
+```{r cluster diff kenya ID}
+#-------------------------------
+# Kenya
+# pair-level difference in 
+# cluster sizes, infectious disease
+#-------------------------------
+plot_cluster_diff_infd_k <- ggplot(data=dcl2 %>% filter(country=="Kenya" & outcome_group=="Infectious disease"), aes(x = diffn,)) +
+  geom_histogram(binwidth=3,fill=cbpal[6],alpha=0.5,color="gray40") +
+  geom_vline(xintercept=0,color="gray20", linetype = "dashed") +
+  facet_wrap(~outcome_lab_short,ncol = 5) +
+  scale_y_continuous(breaks=seq(0,16,by=4))+
+  scale_x_continuous(breaks=seq(-18,30,by=6))+
+  coord_flip(xlim=c(-21,33),ylim=c(0,16))+
+  labs(y="number of pairs",x = "diff in sample size (nutrition - control)",tag="f")+
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    panel.grid.minor = element_blank(),
+    plot.tag = element_text(face = "bold",size=16),
+    strip.text = element_text(size=10)
+  )
+
+```
+
+```{r cluster composite plot kenya, fig.width=12, fig.height=12}
+#-------------------------------
+# Kenya
+# cluster size composite plot
+#-------------------------------
+plot_cluster_k_composite <- grid.arrange(plot_cluster_sizes_growth_k,
+                                         plot_cluster_diff_growth_k,
+                                         plot_cluster_sizes_chdev_k,
+                                         plot_cluster_diff_chdev_k,
+                                         plot_cluster_sizes_infd_k,
+                                         plot_cluster_diff_infd_k,
+                                         ncol=2,nrow=3
+                                         )
+ggsave(here("output","washb-geopair-cluster-sizes-kenya.png"),plot_cluster_k_composite,device="png",height=10,width=10)
 
 ```
 
