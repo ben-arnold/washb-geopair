@@ -1,6 +1,6 @@
 ---
 title: "Geographic pair matching in large-scale cluster randomized trials"
-subtitle: "Make relative efficiency figures and tables"
+subtitle: "Make relative efficiency summary figures"
 author: "Ben Arnold ben.arnold@ucsf.edu"
 date: "updated: `r Sys.time()`"
 output: 
@@ -81,36 +81,8 @@ morani_res <- read_rds(file = here("data","washb-geopair-morans-I-estimates.rds"
 icc_res <- read_rds(file = here("data","washb-geopair-icc-estimates.rds"))
 ```
 
-# Relative Efficiency table
-
-```{r summary relative efficacy table}
-options(knitr.kable.NA = "‡")
-
-sumtab <- ate_res %>%
-  filter(country=="Bangladesh") %>%
-  select(outcome_lab, bcorr = corr_w, beff = eff_w) %>%
-  left_join(ate_res %>% filter(country=="Kenya"), by = "outcome_lab") %>%
-  select(outcome_lab, bcorr, kcorr=corr_w, beff, keff=eff_w)
-
-
-knitr::kable(sumtab,
-             digits = c(0,2,2,1,1),
-             align = c("lcccc"),
-             col.names = c("Outcome","Bangladesh","Kenya","Bangladesh","Kenya"),
-             caption = "Summary of pair-wise outcome correlation and relative efficacy of geographic pair-matching") %>%
-  kable_styling(bootstrap_options = "striped") %>%
-  pack_rows("Child growth",1,4) %>%
-  pack_rows("Child development",5,9) %>%
-  pack_rows("Infectious disease",10,14) %>%
-  add_header_above(c(" " = 1, "Pair-wise correlation*" = 2, "Relative Efficiency†" = 2)) %>%
-  footnote(symbol = c("Correlation between geographically paired, cluster-level means (unweighted).",
-                      "Relative efficiency of geographic pair-matching compared to an unmatched design, defined as 1/(1-r), where r is the weighted correlation between paired outcomes. A relative efficiency of 2 means that a pair-matched study with 30 clusters per group has the same power as an unmatched study with 60 clusters per group.","Communicative Development Inventory (CDI) measures were not collected in the Kenya trial."))
-
-```
-
 
 # Break even correlation
-
 
 The power of the matched t-test for a two-tailed 0.05 test where the power of the unmatched test is held at 0.80 and the pairs are uncorrelated
 
