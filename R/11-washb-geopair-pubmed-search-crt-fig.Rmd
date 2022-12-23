@@ -81,7 +81,7 @@ pubmed_res2$pred <- exp(predict(pubmed_fit))
 
 # Make figure
 
-```{r make pubmed figure, fig.width=4}
+```{r make pubmed figure, fig.width=6}
 vircols <- viridis(n=9,option="D")
 plotyticks <- seq(0,500,by=100)
 plot_pubmed_res <- ggplot(
@@ -91,7 +91,7 @@ plot_pubmed_res <- ggplot(
   geom_bar(aes(y=Count),stat = "identity", fill=vircols[2],alpha=0.6, color = NA) + 
   geom_hline(yintercept = plotyticks[-1], color="white") +
   geom_line(aes(y=pred), color = "black") + 
-  annotate("text",x=2018,y=450,label="exponential growth",hjust=1) +
+  annotate("text",x=2018,y=450,label="exponential fit",hjust=1) +
   scale_y_continuous(breaks=plotyticks) +
   coord_cartesian(xlim=c(2000,2021),ylim=c(0,500)) +
   labs(x = "year", y = "PubMed search results")+
