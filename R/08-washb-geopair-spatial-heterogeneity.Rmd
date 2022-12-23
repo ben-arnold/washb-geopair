@@ -181,7 +181,6 @@ bpairs_diar <- dbgps %>% filter(outcome_lab=="Diarrhea") %>% ungroup()
 #-------------------------
 (b_fitdiar <- spaMM::fitme(Y0bar ~  lat + lon + Matern(1|lat + lon),
                            data = bpairs_diar,
-                           weights.form = ~ w,
                            family = gaussian(link = "identity")) )
 ```
 ```{r bangladesh diar correlation by distance}
@@ -264,7 +263,6 @@ Use a geostatistical model to krige pair-level treatment effect estimates. Assum
 #-------------------------
 (b_fitdiar_pairdiff <- spaMM::fitme(diff ~  lat + lon + Matern(1|lat + lon),
                            data = bpairs_diar,
-                           weights.form = ~ w,
                            family = gaussian(link = "identity")) )
 ```
 Plot the estimated correlation function based on model fit parameters.
@@ -600,7 +598,6 @@ kpairs_al <- dkgps %>% filter(outcome_lab=="Ascaris sp.") %>% ungroup()
 #-------------------------
 # mean difference
 (k_fital <- spaMM::fitme(Y0bar ~  lat + lon + Matern(1|lat + lon),
-                                   weights.form = ~ w,
                            data = kpairs_al,
                            family = gaussian(link = "identity")) )
 
@@ -651,7 +648,6 @@ k_preds_al_raster2 <- raster_to_tibble(k_preds_al_raster)
 map_k_al <- ggplot(data=k_preds_al_raster2) + 
   geom_tile(aes(x=x,y=y,fill=value), na.rm=TRUE) +
   geom_sf(data=admin_k_study,fill=NA) +
-  coord_sf(crs = 4326) +
   scale_fill_viridis(option="D", direction = 1,
                      limits = c(0,50),
                         na.value = NA,
@@ -670,6 +666,8 @@ map_k_al <- ggplot(data=k_preds_al_raster2) +
                         )
                         ) +
   geom_point(data=dkgps_block, aes(x=lon,y=lat),pch=21,size=2,color="black",fill=NA) +
+  scale_x_continuous(breaks=seq(34.4,35.0,by=0.2))+
+  coord_sf(crs = 4326,xlim=c(34.3,35.0)) +
   labs(x="latitude",y="longitude",tag="d") +
   annotation_scale(location = "bl", width_hint = 0.3, pad_y=unit(0.1,"cm")) +
   theme_minimal() +
@@ -689,7 +687,6 @@ map_k_al
 # differences in Ascaris infection
 #-------------------------
 (k_fital_diff <- spaMM::fitme(diff ~  lat + lon + Matern(1|lat + lon),
-                                   weights.form = ~ w,
                            data = kpairs_al,
                            family = gaussian(link = "identity")) )
 
@@ -743,7 +740,6 @@ PRGncols <- brewer.pal(n=11,name="PRGn")
 map_k_al_pairdiff <- ggplot(data=k_preds_al_diff_raster2) + 
   geom_tile(aes(x=x,y=y,fill=value), na.rm=TRUE) +
   geom_sf(data=admin_k_study,fill=NA) +
-  coord_sf(crs = 4326) +
   scale_fill_gradient2(low=PRGncols[10], mid="white", high=PRGncols[2],limits = c(-8,2),
                         na.value = NA,
                         breaks = seq(-8,2,by=2),
@@ -761,6 +757,8 @@ map_k_al_pairdiff <- ggplot(data=k_preds_al_diff_raster2) +
                         )
                         ) +
   geom_point(data=dkgps_block, aes(x=lon,y=lat),pch=21,size=2,color="black",fill=NA) +
+  scale_x_continuous(breaks=seq(34.4,35.0,by=0.2))+
+  coord_sf(crs = 4326,xlim=c(34.3,35.0)) +
   labs(x="latitude",y="longitude",tag="e") +
   annotation_scale(location = "bl", width_hint = 0.3, pad_y=unit(0.1,"cm")) +
   theme_minimal() +
@@ -857,7 +855,6 @@ al_probeff_raster2 <- raster_to_tibble(al_probeff_raster)
 map_k_al_posterior <- ggplot(data=al_probeff_raster2) + 
   geom_tile(aes(x=x,y=y,fill=value), na.rm=TRUE) +
   geom_sf(data=admin_k_study,fill=NA) +
-  coord_sf(crs = 4326) +
   # continuous scale
   scale_fill_viridis(option="G", limits = c(0,1), direction = 1, breaks=seq(0,1,by=0.2), na.value = NA,
                       guide=guide_colorbar(title="posterior Pr(Ascaris ATE < 0)",
@@ -873,6 +870,8 @@ map_k_al_posterior <- ggplot(data=al_probeff_raster2) +
                       ) +
   geom_point(data=dkgps_block, aes(x=lon,y=lat),pch=21,size=2,color="black",fill=NA) +
   labs(x="latitude",y="longitude",tag="f") +
+  scale_x_continuous(breaks=seq(34.4,35.0,by=0.2))+
+  coord_sf(crs = 4326,xlim=c(34.3,35.0)) +
   annotation_scale(location = "bl", width_hint = 0.3, pad_y=unit(0.1,"cm")) +
   annotation_north_arrow(location = "bl", which_north = "true", 
         pad_x = unit(0.05, "in"), pad_y = unit(0.25, "in"),
