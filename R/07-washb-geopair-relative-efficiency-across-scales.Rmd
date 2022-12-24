@@ -105,8 +105,7 @@ dcl_b <- dcl %>% filter(country=="Bangladesh")
 
 dcl_k <- dcl %>% filter(country=="Kenya") %>% 
   mutate(outcome_lab = factor(outcome_lab)) #%>%
-  # exclude blocks in Vihiga county (not contiguous)
-  # filter(!block %in% vihiga_blocks)
+
 ```
 
 # Geographic sampling functions
@@ -408,17 +407,6 @@ out_labs_print <- cor90ests_b %>%
   mutate(outcome_order = seq_along(outcome_lab)) %>%
   mutate(y_text = 4.0 - outcome_order*0.1) %>% 
   ungroup() %>%
-  # mutate(releff_cat = case_when(
-  #   releff90 <1.2 ~ "<1.2",
-  #   releff90 >= 1.2 & releff90 < 1.4 ~ "1.2 to 1.4",
-  #   releff90 >= 1.4 & releff90 < 1.6 ~ "1.4 to 1.6",
-  #   releff90 >= 1.6 & releff90 < 1.8 ~ "1.6 to 1.8",
-  #   releff90 >= 1.8 & releff90 < 2.2 ~ "1.8 to 2.2",
-  #   releff90 >  2.2 ~ ">2.2",
-  #   TRUE ~ as.character(NA)
-  # ),
-  # releff_cat = factor(releff_cat, levels=c("<1.2","1.2 to 1.4","1.4 to 1.6","1.6 to 1.8","1.8 to 2.2",">2.2"))
-  #        ) %>%
   mutate(releff_cat = case_when(
     releff90 <1.4 ~ "<1.4",
     releff90 >= 1.4 & releff90 < 1.8 ~ "1.4 to 1.8",
@@ -430,17 +418,6 @@ out_labs_print <- cor90ests_b %>%
   ),
   releff_cat = factor(releff_cat, levels=c("<1.4","1.4 to 1.8","1.8 to 2.2","2.2 to 2.6","2.6 to 3.0",">3.0"))
          ) %>%
-  # mutate(releff_cat = case_when(
-  #   releff90 <1.4 ~ "<1.4",
-  #   releff90 >=1.4 & releff90 < 1.6 ~ "1.4 to 1.6",
-  #   releff90 >= 1.6 & releff90 < 1.8 ~ "1.6 to 1.8",
-  #   releff90 >= 1.8 & releff90 < 2.0 ~ "1.8 to 2.0",
-  #   releff90 >= 2.0 & releff90 < 2.2 ~ "2.0 to 2.2",
-  #   releff90 >2.2 ~ ">2.2",
-  #   TRUE ~ as.character(NA)
-  # ),
-  # releff_cat = factor(releff_cat, levels=c("<1.4","1.4 to 1.6","1.6 to 1.8","1.8 to 2.0","2.0 to 2.2",">2.2"))
-  #        ) %>%
   select(outcome_group,outcome_lab,releff_cat, outcome_order, y_text)
   
 dreleff_b <- dreleff_b %>%
@@ -734,17 +711,6 @@ out_labs_print_k <- cor79ests_k %>%
   ),
   releff_cat = factor(releff_cat, levels=c("<1.4","1.4 to 1.8","1.8 to 2.2","2.2 to 2.6","2.6 to 3.0",">3.0"))
          ) %>%
-  # mutate(releff_cat = case_when(
-  #   releff79 <1.4 ~ "<1.4",
-  #   releff79 >=1.4 & releff79 < 1.6 ~ "1.4 to 1.6",
-  #   releff79 >= 1.6 & releff79 < 1.8 ~ "1.6 to 1.8",
-  #   releff79 >= 1.8 & releff79 < 2.0 ~ "1.8 to 2.0",
-  #   releff79 >= 2.0 & releff79 < 2.2 ~ "2.0 to 2.2",
-  #   releff79 >2.2 ~ ">2.2",
-  #   TRUE ~ as.character(NA)
-  # ),
-  # releff_cat = factor(releff_cat, levels=c("<1.4","1.4 to 1.6","1.6 to 1.8","1.8 to 2.0","2.0 to 2.2",">2.2"))
-  # ) %>%
   select(outcome_group,outcome_lab,releff_cat, outcome_order, y_text)
   
 dreleff_k <- dreleff_k %>%
