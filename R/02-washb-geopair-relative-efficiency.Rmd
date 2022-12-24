@@ -46,6 +46,12 @@ detach("package:raster", unload = TRUE)
 #----------------------------
 source(here("R","washb-geopair-Functions.R"))
 
+#----------------------------
+# Box data directory
+#----------------------------
+Box_data_directory <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/"
+
+
 ```
 
 
@@ -62,23 +68,23 @@ source(here("R","washb-geopair-Functions.R"))
 #-------------------------------
 
 # anthropometry data
-danth <- read_rds(here("data","bangl_analysis_anthro.rds")) %>%
+danth <- read_rds(here(Box_data_directory,"final/bangl_analysis_anthro.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr=="Control",0,1)) 
   
 
 # child development data
-dchdev <- read_rds(here("data","bangl_analysis_chdev.rds")) %>%
+dchdev <- read_rds(here(Box_data_directory,"final/bangl_analysis_chdev.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr=="Control",0,1))
 
 # diarrhea data
-ddiar <- read_rds(here("data","bangl_analysis_diar.rds")) %>%
+ddiar <- read_rds(here(Box_data_directory,"final/bangl_analysis_diar.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr=="Control",0,1))
 
 # giardia data
-dpara <- read_rds(here("data","bangl_analysis_parasite.rds")) %>%
+dpara <- read_rds(here(Box_data_directory,"final/bangl_analysis_parasite.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr=="Control",0,1))
 
@@ -239,26 +245,26 @@ ate_res <- ate_res %>%
 #-------------------------------
 
 # anthropometry data
-dkanth <- read_rds(here("data","kenya_analysis_anthro.rds")) %>%
+dkanth <- read_rds(here(Box_data_directory,"final/kenya_analysis_anthro.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr %in% c("Control","Passive Control"),0,1)) %>%
   filter(!block %in% c(11,13,20,23,33,40,65,72,84,85))
 
 
 # diarrhea data
-dkdiar <- read_rds(here("data","kenya_analysis_diar.rds")) %>%
+dkdiar <- read_rds(here(Box_data_directory,"final/kenya_analysis_diar.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr %in% c("Control"),0,1)) %>%
   filter(!block %in% c(11,13,20,23,33,40,65,72,84,85))
 
 # parasite data
-dkpara <- read_rds(here("data","kenya_analysis_parasite.rds")) %>%
+dkpara <- read_rds(here(Box_data_directory,"final/kenya_analysis_parasite.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr %in% c("Control"),0,1)) %>%
   filter(!block %in% c(11,13,20,23,33,40,65,72,84,85))
 
 # child development data
-dkchdev <- read_rds(here("data","kenya_analysis_chdev.rds")) %>%
+dkchdev <- read_rds(here(Box_data_directory,"final/kenya_analysis_chdev.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr %in% c("Control"),0,1)) %>%
   filter(!block %in% c(11,13,20,23,33,40,65,72,84,85))
