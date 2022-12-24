@@ -1,4 +1,14 @@
-
+#----------------------------
+# washb-geopair-estimate-icc.R
+#
+# Estimate intra-cluster correlation
+# for each outcome
+# 
+# using mixed models with
+# random effects for geographically
+# matched pair. Include only
+# control clusters
+#----------------------------
 
 #----------------------------
 # Preamble
@@ -7,6 +17,11 @@ library(here)
 here()
 # source the config file
 source(here("R","washb-geopair-Config.R"))
+
+#----------------------------
+# Box data directory
+#----------------------------
+Box_data_directory <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/"
 
 #----------------------------
 # Set the seed and 
@@ -27,19 +42,19 @@ nbootreps <- 1000
 #-------------------------------
 
 # anthropometry data
-danth <- read_rds(here("data","bangl_analysis_anthro.rds")) %>%
+danth <- read_rds(here(Box_data_directory,"final/bangl_analysis_anthro.rds")) %>%
   mutate(blockf = factor(block))
 
 # child development data
-dchdev <- read_rds(here("data","bangl_analysis_chdev.rds")) %>%
+dchdev <- read_rds(here(Box_data_directory,"final/bangl_analysis_chdev.rds")) %>%
   mutate(blockf = factor(block))
 
 # diarrhea data
-ddiar <- read_rds(here("data","bangl_analysis_diar.rds")) %>%
+ddiar <- read_rds(here(Box_data_directory,"final/bangl_analysis_diar.rds")) %>%
   mutate(blockf = factor(block))
 
 # giardia data
-dpara <- read_rds(here("data","bangl_analysis_parasite.rds")) %>%
+dpara <- read_rds(here(Box_data_directory,"final/bangl_analysis_parasite.rds")) %>%
   mutate(blockf = factor(block))
 
 #-------------------------------
@@ -127,20 +142,20 @@ icc_tab <- data.frame(
 #-------------------------------
 
 # anthropometry data
-dkanth <- read_rds(here("data","kenya_analysis_anthro.rds")) %>%
+dkanth <- read_rds(here(Box_data_directory,"final/kenya_analysis_anthro.rds")) %>%
   mutate(blockf = factor(block))
 
 # child development data
-dkchdev <- read_rds(here("data","kenya_analysis_chdev.rds")) %>%
+dkchdev <- read_rds(here(Box_data_directory,"final/kenya_analysis_chdev.rds")) %>%
   mutate(blockf = factor(block))
 
 
 # diarrhea data
-dkdiar <- read_rds(here("data","kenya_analysis_diar.rds")) %>%
+dkdiar <- read_rds(here(Box_data_directory,"final/kenya_analysis_diar.rds")) %>%
   mutate(blockf = factor(block))
 
 # giardia data
-dkpara <- read_rds(here("data","kenya_analysis_parasite.rds")) %>%
+dkpara <- read_rds(here(Box_data_directory,"final/kenya_analysis_parasite.rds")) %>%
   mutate(blockf = factor(block))
 
 #-------------------------------
