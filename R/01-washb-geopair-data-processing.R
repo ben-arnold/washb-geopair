@@ -54,15 +54,11 @@ d_sth <- read_csv(file=paste0(Box_data_directory,"untouched/washb-bangladesh-sth
 #
 # filter to years 1+2 (diarrhea)
 # and year 2 (anthropometry)
-#
-# filter to the control and 
-# nutrition-containing intervention
-# arms
 # 
 # limit to relevant variables
 #----------------------------------
 d_anth2 <- d_anth %>%
-  dplyr::select(dataid,childid,tchild,clusterid,svy,waz,laz,whz,hcz) %>%
+  dplyr::select(dataid,childid,tchild,clusterid,svy,agey,waz,laz,whz,hcz) %>%
   left_join(d_tr, by = "clusterid") %>%
   filter(svy==2) %>%
   mutate(tr = factor(tr, levels = c("Control","Water","Sanitation","Handwashing","WSH","Nutrition","Nutrition + WSH"))
@@ -87,7 +83,7 @@ d_easq2 <- d_easq %>%
   
 
 d_cdi2 <- d_cdi %>%
-  dplyr::select(dataid,childid,clusterid,block,tchild,arm, z_cdi_comp = z_endline_CDI_understand, z_cdi_expr = z_endline_CDI_say) %>%
+  dplyr::select(dataid,childid,clusterid,block,tchild, agey=ageyears, arm, z_cdi_comp = z_endline_CDI_understand, z_cdi_expr = z_endline_CDI_say) %>%
   mutate(tr = case_when(
     arm == 1 ~ "Sanitation",
     arm == 2 ~ "Handwashing",
@@ -106,7 +102,7 @@ d_chd2 <- full_join(d_easq2, d_cdi2, by = c("dataid","childid","clusterid","bloc
   dplyr::select(dataid,childid,clusterid,tchild,block,tr,everything())
 
 d_diar2 <- d_diar %>%
-  dplyr::select(dataid,childid,tchild,clusterid,svy,diar7d) %>%
+  dplyr::select(dataid,childid,tchild,clusterid,agey=ageyrs,svy,diar7d) %>%
   left_join(d_tr, by = "clusterid") %>%
   filter(svy > 0) %>%
   mutate(tr = factor(tr, levels = c("Control","Water","Sanitation","Handwashing","WSH","Nutrition","Nutrition + WSH"))
@@ -122,15 +118,17 @@ d_prot2 <- d_prot %>%
   )
 
 d_sth2 <- d_sth %>%
-  dplyr::select(dataid,clusterid,personid,block,tr,al,tt,hw,sth) %>%
+  dplyr::select(dataid,clusterid,personid,block,tr,agey,al,tt,hw,sth) %>%
   # exclude missing values
   filter(!is.na(al)) %>%
   mutate(tr = factor(tr, levels = c("Control","Water","Sanitation","Handwashing","WSH","Nutrition","Nutrition + WSH"))
   )
 
 # merge giardia and STH datasets
-# there were 3 children with giardia measures but no STH measures,
-# and 137 children with STH measrues but no giardia measures
+# there were 5 children with giardia measures but no STH measures,
+# and 293 children with STH measures but no giardia measures
+# these 5 children w/ giardia but not STH will have missing age
+# in the composite dataset
 d_parasite <- d_sth2 %>%
   full_join(d_prot2,by=c("dataid","clusterid","personid","block","tr"))
 
@@ -138,9 +136,16 @@ d_parasite <- d_sth2 %>%
 # save analysis files
 #----------------------------------
 write_rds(d_anth2,file = paste0(Box_data_directory,"final/bangl_analysis_anthro.rds"))
+write_csv(d_anth2,file = paste0(Box_data_directory,"final/bangl_analysis_anthro.csv"))
+
 write_rds(d_chd2, file = paste0(Box_data_directory,"final/bangl_analysis_chdev.rds"))
+write_csv(d_chd2, file = paste0(Box_data_directory,"final/bangl_analysis_chdev.csv"))
+
 write_rds(d_diar2,file = paste0(Box_data_directory,"final/bangl_analysis_diar.rds"))
+write_csv(d_diar2,file = paste0(Box_data_directory,"final/bangl_analysis_diar.csv"))
+
 write_rds(d_parasite,file = paste0(Box_data_directory,"final/bangl_analysis_parasite.rds"))
+write_csv(d_parasite,file = paste0(Box_data_directory,"final/bangl_analysis_parasite.csv"))
 
 
 #----------------------------------
@@ -168,7 +173,6 @@ dk_diar <- read_csv(file=paste0(Box_data_directory,"untouched/washb-kenya-diar-p
 # documentation: https://osf.io/fpxms/
 dk_para <- haven::read_dta(file=paste0(Box_data_directory,"untouched/parasites_kenya_public_ca20201202.dta"))
 
-
 #----------------------------------
 # filter to the control and 
 # nutrition-containing intervention
@@ -177,14 +181,19 @@ dk_para <- haven::read_dta(file=paste0(Box_data_directory,"untouched/parasites_k
 # limit to relevant variables
 #----------------------------------
 dk_anth2 <- dk_anth %>%
-  dplyr::select(clusterid, compoundid, hhid, childid, block, tr, targetchild, laz=haz, waz, whz, hcz, haz_who, waz_who, whz_who)
+  # drop children who were not in the birth cohort
+  filter(targetchild==1) %>%
+  dplyr::select(clusterid, compoundid, hhid, childid, block, tr, targetchild, agey, laz=haz, waz, whz, hcz, haz_who, waz_who, whz_who)
 
 dk_chd2 <- dk_chd %>%
-  dplyr::select(childidr2, hhidr2, clusteridr2, block, tr, z_easq_com = comtotz, z_easq_motor = mottotz, z_easq_pers = pstotz, z_easq_total = globaltotz)
+  dplyr::select(childidr2, hhidr2, clusteridr2, block, tr, childage_dev, z_easq_com = comtotz, z_easq_motor = mottotz, z_easq_pers = pstotz, z_easq_total = globaltotz) %>%
+  mutate(agey=childage_dev/365.25) %>%
+  dplyr::select(-childage_dev)
 
 dk_diar2 <- dk_diar %>%
+  # drop baseline
   filter(time > 0) %>%
-  dplyr::select(clusterid, compoundid, hhid, childid, block, tr, targetchild, diar7d=diarr7) %>%
+  dplyr::select(clusterid, compoundid, hhid, childid, block, tr, targetchild, agey, diar7d=diarr7) %>%
   mutate(childidr2 = (childid+3252)*10,
          clusteridr2 = (clusterid+3252)*10)
 
