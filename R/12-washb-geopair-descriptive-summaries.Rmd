@@ -44,10 +44,79 @@ detach("package:raster", unload = TRUE)
 #----------------------------
 source(here("R","washb-geopair-Functions.R"))
 
+# file path to the Box data directory
+Box_data_directory <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/"
+
 ```
 
 
-# Load previous estimates
+# Load data and previous estimates
+
+```{r load indiv level data}
+#-------------------------------
+# load individual level data
+# 
+# we need this to calculate age
+# summary statistics for each
+# outcome (median, range)
+#-------------------------------
+
+#-------------------------------
+# Bangladesh
+#-------------------------------
+# anthropometry data
+danth <- read_rds(here(Box_data_directory,"final/bangl_analysis_anthro.rds")) %>%
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  mutate(tr01 = ifelse(tr=="Control",0,1)) 
+  
+# child development data
+dchdev <- read_rds(here(Box_data_directory,"final/bangl_analysis_chdev.rds")) %>%
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  mutate(tr01 = ifelse(tr=="Control",0,1))
+
+# diarrhea data
+ddiar <- read_rds(here(Box_data_directory,"final/bangl_analysis_diar.rds")) %>%
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  mutate(tr01 = ifelse(tr=="Control",0,1))
+
+# parasite data
+dpara <- read_rds(here(Box_data_directory,"final/bangl_analysis_parasite.rds")) %>%
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  mutate(tr01 = ifelse(tr=="Control",0,1))
+
+
+
+#-------------------------------
+# Kenya
+#-------------------------------
+# anthropometry data
+dkanth <- read_rds(here(Box_data_directory,"final/kenya_analysis_anthro.rds")) %>%
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  mutate(tr01 = ifelse(tr %in% c("Control","Passive Control"),0,1)) %>%
+  filter(!block %in% c(11,13,20,23,33,40,65,72,84,85))
+
+# diarrhea data
+dkdiar <- read_rds(here(Box_data_directory,"final/kenya_analysis_diar.rds")) %>%
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  mutate(tr01 = ifelse(tr %in% c("Control"),0,1)) %>%
+  filter(!block %in% c(11,13,20,23,33,40,65,72,84,85))
+
+# parasite data
+dkpara <- read_rds(here(Box_data_directory,"final/kenya_analysis_parasite.rds")) %>%
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  mutate(tr01 = ifelse(tr %in% c("Control"),0,1)) %>%
+  filter(!block %in% c(11,13,20,23,33,40,65,72,84,85))
+
+# child development data
+dkchdev <- read_rds(here(Box_data_directory,"final/kenya_analysis_chdev.rds")) %>%
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  filter(!is.na(z_easq_com)) %>%
+  mutate(tr01 = ifelse(tr %in% c("Control"),0,1)) %>%
+  filter(!block %in% c(11,13,20,23,33,40,65,72,84,85))
+
+```
+
+
 ```{r load ate and reff estimates}
 #-------------------------------
 # load previous estimates of 
@@ -69,13 +138,6 @@ ate_res <- read_rds(file = here("data","washb_ATE_releff_estimates.rds"))
 
 #-------------------------------
 # load empirical estimates of
-# relative efficiency for pair-matched
-# and sub-district adjusted estimators
-#-------------------------------
-# estcomp_res <- read_rds(file = here("data","washb_geopair_estimator_comparison.rds"))
-
-#-------------------------------
-# load empirical estimates of
 # Moran's I for outcomes
 #-------------------------------
 morani_res <- read_rds(file = here("data","washb-geopair-morans-I-estimates.rds")) %>%
@@ -92,9 +154,34 @@ icc_res <- read_rds(file = here("data","washb-geopair-icc-estimates.rds")) %>%
 # Outcome summary table
 
 ```{r outcome summary table data prep}
-options(knitr.kable.NA = "‡")
 
-# summarize the sample size for each outcome, by group
+#-------------------------------
+# summarize median age and
+# range by outcome
+#-------------------------------
+get_age <- function(x) {
+  agey <- pull(x,agey)
+  agemed <- median(agey,na.rm=TRUE)
+  agemin <- min(agey, na.rm=TRUE)
+  agemax <- max(agey, na.rm=TRUE)
+  res <- paste0(sprintf("%1.1f",agemed), " (",sprintf("%1.1f",agemin),", ", sprintf("%1.1f",agemax),")" )
+  return(res)
+}
+bdlist <- list(danth,dchdev,ddiar,dpara)
+kdlist <- list(dkanth,dkchdev,dkdiar) # parasite dataset not incl. no age yet
+bages <- map_chr(bdlist, get_age)
+kages <- map_chr(kdlist, get_age)
+
+# for kenya parasite measuress, temporarily use the 
+# weighted avg median reported in Pickering et al. 2019 PLOS Med
+# since age is not currently included in the public dataset
+kpara_med <- (4928*2 + 4149*5) / (4928+4149)
+kages <- c(kages, paste0(sprintf("%1.1f",kpara_med)," (2.0, 15.0)"))
+
+#-------------------------------
+# summarize the sample size 
+# for each outcome, by group
+#-------------------------------
 sum_ns <- dcl %>%
   group_by(country, outcome_lab) %>%
   summarize(n0=sum(n0),
@@ -102,27 +189,51 @@ sum_ns <- dcl %>%
             .groups="drop"
             )
 
-# join the various summaries together into a single data.frame
+#-------------------------------
+# join the various summaries together 
+# into a single data.frame
+#-------------------------------
 outtab <- ate_res %>%
   mutate(ate_print = paste0(sprintf("%1.2f",est)," (", sprintf("%1.2f",est_min95), ", ", sprintf("%1.2f",est_max95),")" )) %>%
   left_join(sum_ns,by=c("country","outcome_lab")) %>%
   left_join(icc_res,by=c("country","outcome_lab")) %>%
   left_join(morani_res,by=c("country","outcome_lab")) %>%
-  select(country,outcome_lab,
+  
+  # add in ages (super clunky!)
+  mutate(age_print = case_when(
+    country=="Bangladesh" & outcome_lab %in% c("length-for-age z","weight-for-age z", "weight-for-height z", "head circumference z") ~ bages[1],
+    country=="Bangladesh" & outcome_lab %in% c("EASQ communication z","EASQ gross motor z", "EASQ personal-social z","CDI comprehension z","CDI expression z") ~ bages[2],
+    country=="Bangladesh" & outcome_lab %in% c("Diarrhea") ~ bages[3],
+    country=="Bangladesh" & outcome_lab %in% c("Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm") ~ bages[4],
+    
+    country=="Kenya" & outcome_lab %in% c("length-for-age z","weight-for-age z", "weight-for-height z", "head circumference z") ~ kages[1],
+    country=="Kenya" & outcome_lab %in% c("EASQ communication z","EASQ gross motor z", "EASQ personal-social z") ~ kages[2],
+    country=="Kenya" & outcome_lab %in% c("Diarrhea") ~ kages[3],
+    country=="Kenya" & outcome_lab %in% c("Giardia sp.","Ascaris sp.","Trichuris sp.","Hookworm") ~ kages[4]
+  )
+         ) %>%
+  select(country,outcome_lab, age_print,
          n0,Y0bar,n1,Y1bar,
          ate_print,
          icc_print,
          morani=morani_observed
          )
 
+
 ```
 
-```{r outcome summary table bangladesh}
 
+
+```{r outcome summary table bangladesh}
+#-------------------------------
+# outcome summary table
+# Bangladesh
+#-------------------------------
+options(knitr.kable.NA = "‡")
 knitr::kable(outtab %>% filter(country=="Bangladesh") %>% select(-country),
-             digits = c(0,0,2,0,2,0,0,2),
-             align = c("lrcrcccc"),
-             col.names = c("Outcome","n","mean","n","mean","ATE (95% CI)*", "ICC (95% CI)†", "Moran's I"),
+             digits = c(0,0,0,2,0,2,0,0,2),
+             align = c("lcrcrcccc"),
+             col.names = c("Outcome","Median age y (range)", "n","mean","n","mean","ATE (95% CI)*", "ICC (95% CI)†", "Moran's I"),
              caption = "Summary of outcomes in the WASH Benefits Bangladesh trial",
              format.args = list(big.mark = ",")
              ) %>%
@@ -130,7 +241,7 @@ knitr::kable(outtab %>% filter(country=="Bangladesh") %>% select(-country),
   pack_rows("Child growth",1,4) %>%
   pack_rows("Child development",5,9) %>%
   pack_rows("Infectious disease",10,14) %>%
-  add_header_above(c(" " = 1, "Control" = 2, "Nutrition" = 2, " "=3)) %>%
+  add_header_above(c(" " = 2, "Control" = 2, "Nutrition" = 2, " "=3)) %>%
   footnote(symbol = c("ATE: Average treatment effect of difference in means (Nutrition minus Control), with 95% confidence interval reported for the non-parametric, pair-matched estimator. For infectious disease outcomes, this is the difference in the proportion positive.",
                       "ICC: Intra-cluster correlation coefficient among outcomes measured in the control group, with 95% confidence interval estimated through bootstrap resampling geographic pairs with replacement (1,000 iterations)."))
 
@@ -140,9 +251,9 @@ knitr::kable(outtab %>% filter(country=="Bangladesh") %>% select(-country),
 ```{r outcome summary table kenya}
 
 knitr::kable(outtab %>% filter(country=="Kenya") %>% select(-country),
-             digits = c(0,0,2,0,2,0,0,2),
-             align = c("lrcrcccc"),
-             col.names = c("Outcome","n","mean","n","mean","ATE (95% CI)*", "ICC (95% CI)†", "Moran's I"),
+             digits = c(0,0,0,2,0,2,0,0,2),
+             align = c("lcrcrcccc"),
+             col.names = c("Outcome","Median age y (range)", "n","mean","n","mean","ATE (95% CI)*", "ICC (95% CI)†", "Moran's I"),
              caption = "Summary of outcomes in the WASH Benefits Kenya trial",
              format.args = list(big.mark = ",")
              ) %>%
@@ -150,7 +261,7 @@ knitr::kable(outtab %>% filter(country=="Kenya") %>% select(-country),
   pack_rows("Child growth",1,4) %>%
   pack_rows("Child development",5,7) %>%
   pack_rows("Infectious disease",8,12) %>%
-  add_header_above(c(" " = 1, "Control" = 2, "Nutrition" = 2, " "=3)) %>%
+  add_header_above(c(" " = 2, "Control" = 2, "Nutrition" = 2, " "=3)) %>%
   footnote(symbol = c("ATE: Average treatment effect of difference in means (Nutrition minus Control), with 95% confidence interval reported for the non-parametric, pair-matched estimator. For infectious disease outcomes, this is the difference in the proportion positive.",
                       "ICC: Intra-cluster correlation coefficient among outcomes measured in the control group, with 95% confidence interval estimated through bootstrap resampling geographic pairs with replacement (1,000 iterations).","The mixed effects model did not converge for Trichuris sp. infection in Kenya, so no estimate of the ICC was possible.", "MacArthur-Bates Communicative Development Inventory (CDI) measures were not collected in the Kenya trial."))
 
