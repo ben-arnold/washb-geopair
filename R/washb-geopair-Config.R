@@ -13,7 +13,6 @@
 #----------------------------
 # load packages
 #----------------------------
-
 library(here)
 library(tidyverse)
 library(lubridate)
@@ -26,12 +25,14 @@ library(table1)
 library(kableExtra)
 library(gridExtra)
 library(ggplot2)
+library(ggcorrplot)
+library(ggspatial)
 
 #----------------------------
 # stats packages
 #----------------------------
-library(sandwich)
-library(lmtest)
+# library(sandwich)
+# library(lmtest)
 library(rptR)
 library(experiment)
 
@@ -41,7 +42,6 @@ library(experiment)
 library(sp)
 library(sf)
 library(geosphere)
-library(ggspatial)
 library(automap)
 library(leaflet)
 library(rcartocolor)

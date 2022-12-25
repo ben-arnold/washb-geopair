@@ -1,0 +1,153 @@
+---
+title: "Geographic pair matching in large-scale cluster randomized trials"
+subtitle: "Plot outcome correlation matrices"
+author: "Ben Arnold ben.arnold@ucsf.edu"
+date: "updated: `r Sys.time()`"
+output: 
+  html_document:
+    theme: default
+    highlight: default
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+# Summary
+
+Estimate the correlation between outcomes measured in the control group. The unit of analysis is pair-level mean, so in Bangladesh there are 90 control means for each outcome and in Kenya there are 79 control means for each outcome.
+
+# Preamble
+
+```{r preamble, message = FALSE}
+library(here)
+here()
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","washb-geopair-Config.R"))
+
+# detach MASS and experiment packages
+# detach raster and gdistance packages 
+# of conflicts with dplyr::select() and not
+# needed
+detach("package:experiment", unload = TRUE)
+detach("package:MASS", unload = TRUE)
+detach("package:gdistance", unload = TRUE)
+detach("package:raster", unload = TRUE)
+
+
+#----------------------------
+# source the base functions
+#----------------------------
+source(here("R","washb-geopair-Functions.R"))
+
+```
+
+
+# Load previous estimates
+```{r load ate and reff estimates}
+#-------------------------------
+# read-in cluster level means
+# these were estimated in the file
+# washb-geopair-relative-efficiency.Rmd
+#-------------------------------
+dcl <- read_rds(here("data", "washb_pair_level_summary_estimates.rds")) 
+
+#-------------------------------
+# reshape wider the pair-level means 
+# in the control group by outcome
+#-------------------------------
+d0 <- dcl %>%
+  select(country,outcome_lab,block,Y0bar) %>%
+  pivot_wider(id_cols=c("country","block"),names_from=outcome_lab,values_from=Y0bar)
+```
+
+# Correlation plots
+
+## Bangladesh
+
+```{r pairs plot bangladesh, fig.width=12, fig.height=12}
+#----------------------------------
+# Subset variables for pairs plot
+#----------------------------------
+bmat <- d0 %>%
+  filter(country=="Bangladesh") %>%
+  ungroup() %>%
+  select(-country,-block)
+
+#----------------------------------
+# estimate correlation and plot 
+# the correlation matrix
+#----------------------------------
+b_corr_ests <- cor(bmat, method="pearson")
+plot_corr_b <- ggcorrplot(b_corr_ests, 
+                               # method = "circle",
+                          legend.title = "Correlation",
+                               type = "lower",
+                               lab = TRUE,
+                               lab_size = 3,
+                               insig = "blank",
+                               colors = c(cbpal[2], "white", cbpal[3])
+                               ) +
+    labs(tag="a") +
+  theme(
+    plot.tag = element_text(face = "bold", size=16),
+  )
+
+plot_corr_b
+
+```
+
+## Kenya 
+
+```{r pairs plot kenya, fig.width=12, fig.height=12}
+#----------------------------------
+# Subset variables for pairs plot
+#
+# CDI not measured in Kenya
+#----------------------------------
+kmat <- d0 %>%
+  filter(country=="Kenya") %>%
+  ungroup() %>%
+  select(-country,-block,-`CDI comprehension z`,-`CDI expression z`)
+
+#----------------------------------
+# estimate correlation and plot 
+# the correlation matrix
+#----------------------------------
+k_corr_ests <- cor(kmat, method="pearson")
+plot_corr_k <- ggcorrplot(k_corr_ests, 
+                               # method = "circle",
+                          legend.title = "Correlation",
+                               type = "lower",
+                               lab = TRUE,
+                               lab_size = 3,
+                               # insig = "blank",
+                               colors = c(cbpal[2], "white", cbpal[3]),
+                               ) +
+  labs(tag="b") +
+  theme(
+    plot.tag = element_text(face = "bold", size=16),
+  )
+
+plot_corr_k
+
+```
+
+```{r composite corr plot, fig.height =12, fig.width=10}
+
+corr_matrix_comp <- grid.arrange(plot_corr_b,plot_corr_k,ncol=1,nrow=2,heights=c(1,1))
+ggsave(here("output","washb-geopair-outcome-correlation-matrix.png"),corr_matrix_comp,device="png",width=8, height = 12)
+
+
+```
+
+# Session Info
+```{r session info}
+sessionInfo()
+```
+
+
