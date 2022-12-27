@@ -524,10 +524,12 @@ admin_k_study <- admin_k %>%
 #-------------------------------
 dkgps_cn <- dgps_k %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85)) %>%
   dplyr::select(clusterid,tr,block,blockf,lon,lat)
 
 dkgps_block <- dgps_k %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85)) %>%
   ungroup() %>%
   dplyr::select(block,blockf,tr,lon,lat) %>%
   group_by(block,blockf) %>%
