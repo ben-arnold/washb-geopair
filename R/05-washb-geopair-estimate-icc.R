@@ -139,24 +139,31 @@ icc_tab <- data.frame(
 # load the formatted analysis
 # data created by
 # washb-geopair-data-processing.R
+#
+# limit to the 72 complete blocks
+# used in the present analyses
 #-------------------------------
 
 # anthropometry data
 dkanth <- read_rds(here(Box_data_directory,"final/kenya_analysis_anthro.rds")) %>%
-  mutate(blockf = factor(block))
+  mutate(blockf = factor(block)) %>%
+  filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 
 # child development data
 dkchdev <- read_rds(here(Box_data_directory,"final/kenya_analysis_chdev.rds")) %>%
-  mutate(blockf = factor(block))
+  mutate(blockf = factor(block)) %>%
+  filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 
 
 # diarrhea data
 dkdiar <- read_rds(here(Box_data_directory,"final/kenya_analysis_diar.rds")) %>%
-  mutate(blockf = factor(block))
+  mutate(blockf = factor(block)) %>%
+  filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 
 # giardia data
 dkpara <- read_rds(here(Box_data_directory,"final/kenya_analysis_parasite.rds")) %>%
-  mutate(blockf = factor(block))
+  mutate(blockf = factor(block)) %>%
+  filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 
 #-------------------------------
 # Estimate outcome ICC within 
