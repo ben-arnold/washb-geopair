@@ -90,7 +90,8 @@ plot_corr_b <- ggcorrplot(b_corr_ests,
                                lab = TRUE,
                                lab_size = 3,
                                insig = "blank",
-                               colors = c(cbpal[2], "white", cbpal[3])
+                               colors = c(cbpal[8], "white", cbpal[4])
+                               # colors = c(cbpal[2], "white", cbpal[3])
                                ) +
     labs(tag="a") +
   theme(
@@ -126,7 +127,8 @@ plot_corr_k <- ggcorrplot(k_corr_ests,
                                lab = TRUE,
                                lab_size = 3,
                                # insig = "blank",
-                               colors = c(cbpal[2], "white", cbpal[3]),
+                               colors = c(cbpal[8], "white", cbpal[4])
+                               # colors = c(cbpal[2], "white", cbpal[3])
                                ) +
   labs(tag="b") +
   theme(
