@@ -49,6 +49,17 @@ source(here("R","washb-geopair-Functions.R"))
 
 # Load previous estimates
 ```{r load ate and reff estimates}
+
+#-------------------------------
+# read-in previous estimates of
+# within-pair correlation and
+# relative efficiency, estimated in
+# washb-geopair-relative-efficiency.Rmd
+#-------------------------------
+ate_ests <- read_rds(here("data", "washb_ATE_releff_estimates.rds")) 
+estcomp <- read_rds(here("data", "washb_geopair_estimator_comparison.rds")) 
+  
+
 #-------------------------------
 # read-in cluster level means
 # these were estimated in the file
@@ -62,7 +73,9 @@ dcl <- read_rds(here("data", "washb_pair_level_summary_estimates.rds"))
 #-------------------------------
 d0 <- dcl %>%
   select(country,outcome_lab,block,Y0bar) %>%
-  pivot_wider(id_cols=c("country","block"),names_from=outcome_lab,values_from=Y0bar)
+  pivot_wider(id_cols=c("country","block"),names_from=outcome_lab,values_from=Y0bar) %>%
+  # reverse the order of the outcomes for plotting convenience
+  select(country,block,rev(levels(dcl$outcome_lab)))
 ```
 
 # Correlation plots
@@ -89,13 +102,12 @@ plot_corr_b <- ggcorrplot(b_corr_ests,
                                type = "lower",
                                lab = TRUE,
                                lab_size = 3,
-                               insig = "blank",
                                colors = c(cbpal[8], "white", cbpal[4])
-                               # colors = c(cbpal[2], "white", cbpal[3])
                                ) +
-    labs(tag="a") +
   theme(
-    plot.tag = element_text(face = "bold", size=16),
+    legend.position = "top",
+    # plot.tag = element_text(face = "bold", size=24),
+    plot.margin = (unit(c(5.5, 1, 5.5, 5.5), "pt"))
   )
 
 plot_corr_b
@@ -126,23 +138,166 @@ plot_corr_k <- ggcorrplot(k_corr_ests,
                                type = "lower",
                                lab = TRUE,
                                lab_size = 3,
-                               # insig = "blank",
                                colors = c(cbpal[8], "white", cbpal[4])
-                               # colors = c(cbpal[2], "white", cbpal[3])
                                ) +
-  labs(tag="b") +
   theme(
-    plot.tag = element_text(face = "bold", size=16),
+    legend.position = "top",
+    # plot.tag = element_text(face = "bold", size=24),
+    plot.margin = (unit(c(5.5, 1, 5.5, 5.5), "pt"))
+        # plot.margin = (unit(c(20, 5.5, 150, 5.5), "pt"))
+
   )
+
 
 plot_corr_k
 
 ```
 
+# Approx efficiency gains from primary outcome match
+
+Martin et al. 1993 (https://pubmed.ncbi.nlm.nih.gov/8456215/) described two related measures of correlation that could be used to assess the potential effectiveness of matching. The first, which has been the primary focus of the present analyses, is the correlation between paired outcomes, which Martin et al. denoted $r_{yy}$. A second, is the correlation between a matching outcome, $x$ and the trial's outcome of interest $y$, denoted $r_{xy}$ and noted that under a perfect match between gropus on $x$ (an optimistic scenario), $r_{yy} = (r_{xy})^2$. 
+
+The estimates of outcome correlation above provide an optimistic estimate of the potential effectiveness of matching on, say, length-for-age z on the paired outcome correlation and thus relative efficiency of the other outcomes. The reason it is an optimistic estimate is that it assumes (a) a perfect match between clusters on mean length-for-age z and (b) that the correlation in contemporary length-for-age z and each outcome is the same as the correlation between length-for-age z measured at baseline and each outcome measured during follow-up (i.e., temporal stability in the correlation).
+
+Below, we provide such estimates and compare them to those estimated through the actual pair-wise outcome correlation of each. 
+
+```{r est reff for laz}
+#---------------------------------
+# estimate approximate 
+# pair-wise outcome correlation
+# r_yy = (r_xy)^2
+# and corresponding relative 
+# efficiency based on pair-matching
+# on length-for-age z
+# with reff = 1/(1-r_yy)
+#---------------------------------
+dc_b <- as.data.frame(b_corr_ests) %>%
+  mutate(outcome_lab = rownames(b_corr_ests),
+         country = "Bangladesh")
+
+dc_k <- as.data.frame(k_corr_ests) %>%
+  mutate(outcome_lab = rownames(k_corr_ests),
+         country = "Kenya")
+
+lazcorr_ests <- bind_rows(dc_b,dc_k) %>%
+  select(country, outcome_lab, cor_laz = `length-for-age z`) %>%
+  filter(outcome_lab != "length-for-age z") %>%
+  mutate(pwcorr = cor_laz^2, 
+         reff_laz = 1/(1 - pwcorr)
+         ) %>%
+  # join to relative efficiency estimates based 
+  # on with-pair correlation based on geography
+  left_join(estcomp %>% select(country,outcome_lab, reff_mpcr), by=c("country","outcome_lab")) %>%
+  mutate(
+    outcome_lab = factor(outcome_lab, levels=rev(levels(dcl$outcome_lab)))
+    ) %>%
+  arrange(country,outcome_lab)
+
+```
+
+## Bangladesh
+
+Compare relative efficiency of geographic pair matched versus pair-matched on length-for-age z (the primary outcome). 
+
+```{r estimator comparison bangladesh, fig.width = 8}
+
+# sort by relative efficiency observed for MPCR estimator 
+# (not used / sorted by outcome label to align with the correlation matrix)
+# orderb <- lazcorr_ests %>%
+#   filter(country == "Bangladesh") %>% 
+#   arrange(reff_mpcr) %>%
+#   pull(outcome_lab)
+# 
+# lazcorr_ests2 <- lazcorr_ests %>%
+#   mutate(outcome_lab = factor(outcome_lab, levels=orderb))
+
+estcomp_plot_b <-   ggplot(lazcorr_ests %>% filter(country=="Bangladesh")) + 
+  geom_hline(yintercept=1, linetype = "dashed") +
+  geom_segment( aes(x=outcome_lab, xend=outcome_lab, y=reff_laz, yend=reff_mpcr), color="grey60", lwd=0.7) +
+  geom_point(aes(x = outcome_lab, y = reff_mpcr), pch=21,
+             size = 4, alpha = 1, fill = "black") +
+  geom_point(aes(x = outcome_lab, y = reff_laz), pch=21,
+             size = 4, alpha = 0.9, fill = nytpal2[5]) +
+  # color the LAZ relative efficiency estimates by the correlation
+  # (not used)
+  # geom_point(aes(x = outcome_lab, y = reff_laz, fill=cor_laz), pch=21,
+  #            size = 4, alpha = 1) +
+  # scale_fill_gradient2(low = cbpal[8],high = cbpal[4], 
+  #       mid = "white", midpoint = 0, limit = c(-1, 1), space = "Lab") +
+  scale_y_continuous(breaks = seq(1,3.4,by=0.4)) +
+  annotate("text",label="pair-matched\ngeography",y=2.4,x=14, color="black") +
+  annotate("text",label="pair-matched\nlength-for-age z",y=3.2,x=14, color="gray40") +
+  labs(x = NULL, y = "relative efficiency compared to unmatched analysis") +
+  coord_flip(ylim = c(1,3.5),xlim=c(1,14)) +
+  guides(fill = "none") +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    # panel.grid.minor = element_blank(),
+    # plot.tag = element_text(face = "bold", size=24),
+    axis.text = element_text(size=12),
+    axis.title = element_text(size=12),
+    plot.margin = (unit(c(30, 5.5, 80, 2), "pt"))
+        )
+
+estcomp_plot_b
+```
+
+## Kenya
+
+Compare relative efficiency of geographic pair matched versus pair-matched on length-for-age z (the primary outcome). 
+
+```{r estimator comparison kenya, fig.width = 8}
+
+# sort by relative efficiency observed for MPCR estimator 
+# (not used / sorted by outcome label to align with the correlation matrix)
+# orderk <- lazcorr_ests %>%
+#   filter(country == "Kenya") %>% 
+#   arrange(reff_mpcr) %>%
+#   pull(outcome_lab)
+# 
+# lazcorr_ests2 <- lazcorr_ests %>%
+#   mutate(outcome_lab = factor(outcome_lab, levels=orderk))
+
+estcomp_plot_k <-   ggplot(lazcorr_ests %>% filter(country=="Kenya")) + 
+  geom_hline(yintercept=1, linetype = "dashed") +
+  geom_segment( aes(x=outcome_lab, xend=outcome_lab, y=reff_laz, yend=reff_mpcr), color="grey60", lwd=0.7) +
+  geom_point(aes(x = outcome_lab, y = reff_mpcr), pch=21,
+             size = 4, alpha = 1, fill = "black") +
+  geom_point(aes(x = outcome_lab, y = reff_laz), pch=21,
+             size = 4, alpha = 0.9, fill = nytpal2[5]) +
+  # color the LAZ relative efficiency estimates by the correlation
+  # (not used)
+  # geom_point(aes(x = outcome_lab, y = reff_laz, fill=cor_laz), pch=21,
+  #            size = 4, alpha = 1) +
+  # scale_fill_gradient2(low = cbpal[8],high = cbpal[4], 
+  #       mid = "white", midpoint = 0, limit = c(-1, 1), space = "Lab") +
+  scale_y_continuous(breaks = seq(1,3.4,by=0.4)) +
+  annotate("text",label="pair-matched\ngeography",y=1.3,x=12, color="black") +
+  annotate("text",label="pair-matched\nlength-for-age z",y=2.1,x=12, color="gray40") +
+  labs(x = NULL, y = "relative efficiency compared to unmatched analysis") +
+  coord_flip(ylim = c(1,3.5),xlim=c(1,12)) +
+  guides(fill = "none") +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    # panel.grid.minor = element_blank(),
+    # plot.tag = element_text(face = "bold", size=24),
+    axis.text = element_text(size=12),
+    axis.title = element_text(size=12),
+    plot.margin = (unit(c(30, 5.5, 80, 2), "pt"))
+        )
+
+estcomp_plot_k
+```
+
+
+
 ```{r composite corr plot, fig.height =12, fig.width=10}
 
-corr_matrix_comp <- grid.arrange(plot_corr_b,plot_corr_k,ncol=1,nrow=2,heights=c(1,1))
-ggsave(here("output","washb-geopair-outcome-correlation-matrix.png"),corr_matrix_comp,device="png",width=8, height = 12)
+# corr_matrix_comp <- grid.arrange(plot_corr_b,estcomp_plot_b,plot_corr_k,estcomp_plot_k, ncol=2,nrow=2,heights=c(1,1),widths=c(1,1))
+corr_matrix_comp <- cowplot::plot_grid(plot_corr_b,estcomp_plot_b,plot_corr_k,estcomp_plot_k,labels = c("a","b","c","d"), label_size = 24)
+ggsave(here("output","washb-geopair-outcome-correlation-matrix.png"),corr_matrix_comp,device="png",width=14,height=14)
 
 
 ```
