@@ -481,9 +481,9 @@ ggsave(here("output","washb-geopair-relative-efficiency-geographic-scale-banglad
 ## Correlation across scales
 For each outcome, estimate the correlation between paired means.
 
-Repeat estimates from 10 up to 79 pairs. 
+Repeat estimates from 10 up to 72 pairs. 
 
-For geographically proximate samples, compute estimates based on all 79 blocks selected as the initial sampling point, in turn (all permutations).
+For geographically proximate samples, compute estimates based on all 72 blocks selected as the initial sampling point, in turn (all permutations).
 
 
 ```{r kenya pairwise correlation by number of pairs}
@@ -491,12 +491,11 @@ For geographically proximate samples, compute estimates based on all 79 blocks s
 # Kenya
 #
 # Geographically proximate 
-# estimates across the 79
+# estimates across the 72
 # possible permutations
 #-------------------------------
 cor_geo_k <- foreach(outi = levels(dcl_k$outcome_lab), .combine = rbind) %dopar% {
-  foreach(npairs = c(seq(10,78,by=2),79), .combine = rbind) %:%
-  # foreach(npairs = seq(10,72,by=2), .combine = rbind) %:% 
+  foreach(npairs = seq(10,72,by=2), .combine = rbind) %:%
   foreach(blockn = unique(dcl_k$block), .combine = rbind) %do% {
     
     # identify the geographically proximate npairs to blockn
@@ -678,35 +677,35 @@ dreleff_k <- medcor_ests_k %>%
 # to color each outcome in the
 # figure
 #-------------------------------
-cor79ests_k <- dreleff_k %>%
+cor72ests_k <- dreleff_k %>%
   ungroup() %>%
-  filter(npairs == 79) %>%
-  select(outcome_group,outcome_lab, cor79 = mediancor, releff79 = releff) %>%
+  filter(npairs == 72) %>%
+  select(outcome_group,outcome_lab, cor72 = mediancor, releff72 = releff) %>%
   # for purely asethetic visualization, bump waz up
   # a teeny tiny bit to be in the next cat 1.39 -> 1.4
-  mutate(releff79 = ifelse(outcome_lab=="weight-for-age z",releff79+0.02,releff79)) %>%
-  arrange(outcome_group, desc(releff79))
+  mutate(releff72 = ifelse(outcome_lab=="weight-for-age z",releff72+0.02,releff72)) %>%
+  arrange(outcome_group, desc(releff72))
 
 dreleff_k <- dreleff_k %>%
-  left_join(cor79ests_k, by = c("outcome_group","outcome_lab"))
+  left_join(cor72ests_k, by = c("outcome_group","outcome_lab"))
 
 #-------------------------------
 # store outcome labels to add to
 # plot
 #-------------------------------
-out_labs_print_k <- cor79ests_k %>%
+out_labs_print_k <- cor72ests_k %>%
   group_by(outcome_group) %>%
-  arrange(outcome_group, desc(releff79)) %>%
+  arrange(outcome_group, desc(releff72)) %>%
   mutate(outcome_order = seq_along(outcome_lab)) %>%
   mutate(y_text = 4.0 - outcome_order*0.1) %>% 
   ungroup() %>%
   mutate(releff_cat = case_when(
-    releff79 <1.4 ~ "<1.4",
-    releff79 >= 1.4 & releff79 < 1.8 ~ "1.4 to 1.8",
-    releff79 >= 1.8 & releff79 < 2.2 ~ "1.8 to 2.2",
-    releff79 >= 2.2 & releff79 < 2.6 ~ "2.2 to 2.6",
-    releff79 >= 2.6 & releff79 < 3.0 ~ "2.6 to 3.0",
-    releff79 >3.0 ~ ">3.0",
+    releff72 <1.4 ~ "<1.4",
+    releff72 >= 1.4 & releff72 < 1.8 ~ "1.4 to 1.8",
+    releff72 >= 1.8 & releff72 < 2.2 ~ "1.8 to 2.2",
+    releff72 >= 2.2 & releff72 < 2.6 ~ "2.2 to 2.6",
+    releff72 >= 2.6 & releff72 < 3.0 ~ "2.6 to 3.0",
+    releff72 >3.0 ~ ">3.0",
     TRUE ~ as.character(NA)
   ),
   releff_cat = factor(releff_cat, levels=c("<1.4","1.4 to 1.8","1.8 to 2.2","2.2 to 2.6","2.6 to 3.0",">3.0"))
@@ -748,7 +747,7 @@ plot_reff_k <- ggplot(data=dreleff_k, aes(x = npairs, y = releff, color = releff
        y="relative efficiency of geographic pair-matching",
        tag = "b"
        ) +
-  guides(colour = guide_legend(title = "relative efficiency with 79 pairs",nrow = 1)) +
+  guides(colour = guide_legend(title = "relative efficiency with 72 pairs",nrow = 1)) +
   theme_minimal() +
   theme(
     legend.position = "bottom",
