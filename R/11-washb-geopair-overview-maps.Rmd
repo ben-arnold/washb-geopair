@@ -92,6 +92,9 @@ gps_k <- gps_k %>%
 # subset the overall GPS data
 # to just control and nutrition
 # containing clusters for convenience
+#
+# in Kenya, limit to the 72
+# complete blocks for C+N
 #----------------------------------
 gps_b_c <- gps_b %>%
   filter(tr == "Control")
@@ -99,9 +102,11 @@ gps_b_n <- gps_b %>%
   filter(tr %in% c("Nutrition","Nutrition + WSH"))
 
 gps_k_c <- gps_k %>%
-  filter(tr == "Control")
+  filter(tr == "Control") %>%
+  filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 gps_k_n <- gps_k %>%
-  filter(tr %in% c("Nutrition","Nutrition + WSH"))
+  filter(tr %in% c("Nutrition","Nutrition + WSH")) %>%
+  filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 
 #---------------------------
 # register Bangladesh data
@@ -191,7 +196,7 @@ map_b <- leaflet(width = "100%",
   addCircleMarkers(data = gps_b,
                    lng = ~ lon, lat = ~ lat,
                    radius = 1.5,
-                   color = ~ nytpal[7], fill = ~ nytpal[7],  weight=1, opacity = 1, fillOpacity = 1,
+                   color = ~ "gray40", fill = ~ "gray40",  weight=1, opacity = 1, fillOpacity = 1,
                    # pop ups with block IDs.
                    popup=paste("Block: ", gps_b$block)
               ) %>%
@@ -242,14 +247,14 @@ map_b_single_cl <- leaflet(width = "100%",
                    lng = ~ lon, lat = ~ lat,
                    # radius = markerscale*sqrt((dvil3_2014$sea_prev*100)/pi),
                    radius = 7,
-                   color = ~ nytpal[7], fillColor = nytpal[7],   weight=1, opacity = 1, fillOpacity = 0.7
+                   color = ~ "black", fillColor = cbpal[5],   weight=1, opacity = 1, fillOpacity = 1
               ) %>%
   # plot nutrition clusters
   addCircleMarkers(data = gps_b %>% filter(block==single_block_id & tr %in% c("Nutrition","Nutrition + WSH")),
                    lng = ~ lon, lat = ~ lat,
                    radius = 7,
-                   color = ~ "black", fill = ~ nytpal[4], fillColor = cbpal[2],
-                   weight=1, opacity =1, fillOpacity = 0.8
+                   color = ~ "black", fill = ~ cbpal[4], fillColor = cbpal[4],
+                   weight=1, opacity =1, fillOpacity = 1
               ) %>%
   # plot remaining clusters
   addCircleMarkers(data = gps_b %>% filter(block==single_block_id & !tr %in% c("Control","Nutrition","Nutrition + WSH")),
@@ -321,7 +326,7 @@ map_k <- leaflet(width = "100%",
   addCircleMarkers(data = gps_k,
                    lng = ~ lon, lat = ~ lat,
                    radius = 1.5,
-                   color = ~ nytpal[7], fill = ~ nytpal[7],  weight=1, opacity = 1, fillOpacity = 1,
+                   color = ~ "gray40", fill = ~ "gray40",  weight=1, opacity = 1, fillOpacity = 1,
                    # pop ups with block IDs.
                    popup=paste("Block: ", gps_k$block)
               ) %>%
@@ -359,20 +364,20 @@ map_k_single_cl <- leaflet(width = "100%",
   # plot control clusters
    addCircleMarkers(data = gps_k %>% filter(block==single_block_id_k & tr == "Control"),
                    lng = ~ lon, lat = ~ lat,
-                   radius = 5,
-                   color = ~ nytpal[7], fillColor = nytpal[7],   weight=1, opacity = 1, fillOpacity = 0.7
+                   radius = 7,
+                   color = ~ "black", fillColor = cbpal[5],   weight=1, opacity = 1, fillOpacity = 1
               ) %>%
   # plot nutrition clusters
   addCircleMarkers(data = gps_k %>% filter(block==single_block_id_k & tr %in% c("Nutrition","Nutrition + WSH")),
                    lng = ~ lon, lat = ~ lat,
-                   radius = 5,
-                   color = ~ "black", fill = ~ nytpal[4], fillColor = cbpal[2],
-                   weight=1, opacity =1, fillOpacity = 0.8
+                   radius = 7,
+                   color = ~ "black", fill = ~ cbpal[4], fillColor = cbpal[4],
+                   weight=1, opacity =1, fillOpacity = 1
               ) %>%
   # plot remaining clusters
   addCircleMarkers(data = gps_k %>% filter(block==single_block_id_k & !tr %in% c("Control","Nutrition","Nutrition + WSH")),
                    lng = ~ lon, lat = ~ lat,
-                   radius = 5,
+                   radius = 7,
                    color = ~ "black", fill = FALSE,  
                    weight=1, opacity = 1, fillOpacity = 1,
                    popup=paste("Block: ", gps_b$block[gps_b$block==single_block_id_k])
@@ -380,7 +385,7 @@ map_k_single_cl <- leaflet(width = "100%",
   # plot all other clusters, not in the highlighted block
   addCircleMarkers(data = gps_k %>% filter(block!=single_block_id_k),
                    lng = ~ lon, lat = ~ lat,
-                   radius = 5,
+                   radius = 7,
                    color = ~ "black", fill = "black",  
                    weight=1, opacity = 0.1, fillOpacity = 0.2, 
                    popup=paste("Block: ", gps_b$block[gps_b$block!=single_block_id_k])
@@ -395,30 +400,6 @@ map_k_single_cl
 
 ```
 
-# summarize sample sizes by outcome
-
-By country, tabulate the number of matched pairs by outcome, then summarize the number of children in each group (control, nutrition) by outcome.  Finally, summarize the distribution of block sizes.
-
-```{r number of clusters by outcome}
-table(dcl$outcome_lab,dcl$country)
-```
-
-```{r number of children by outcome}
-
-n_by_group <- dcl %>% 
-  group_by(country, outcome_lab) %>% 
-  summarize(n1sum=sum(n1),n0sum=sum(n0), .groups="drop")
-
-kbl(n_by_group %>% dplyr::select(-country), 
-    col.names = c("Outcome","Nutrition","Control"),
-    caption = "Number of children included in the analysis by country and outcome",
-    format.args = list(big.mark=",")
-    ) %>%
-  kable_styling(bootstrap_options = "striped") %>%
-  pack_rows(start_row = 1, end_row = 14, group_label = "Bangladesh") %>%
-  pack_rows(start_row = 15, end_row = 26, group_label = "Kenya")
-
-```
 
 # Session Info
 ```{r session info}
