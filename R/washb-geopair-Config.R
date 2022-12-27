@@ -27,6 +27,7 @@ library(gridExtra)
 library(ggplot2)
 library(ggcorrplot)
 library(ggspatial)
+library(cowplot)
 
 #----------------------------
 # stats packages
