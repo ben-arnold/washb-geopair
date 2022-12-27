@@ -232,6 +232,44 @@ ate_res <- ate_res %>%
 
 ## Data prep
 
+```{r kenya identify complete blocks}
+#-------------------------------
+# summarize the number of complete
+# and incomplete blocks in the
+# kenya trial based on the anthro
+# data
+#
+# the code below identifies the
+# 17 of 89 blocks that did not
+# have a balanced design for
+# Control and Nutrition clusters
+# leaving 72 complete blocks of
+# 4 clusters (2 control, 2 nutrition)
+#-------------------------------
+kcl <- read_rds(here(Box_data_directory,"final/kenya_analysis_anthro.rds")) 
+
+kcl2 <- kcl %>%
+  dplyr::select(block,tr,clusterid) %>%
+  group_by(block,tr,clusterid) %>%
+  slice(1) %>%
+  group_by(block,tr) %>%
+  summarize(n=n(), .groups = "drop") %>%
+  pivot_wider(id_cols = "block",names_from="tr",values_from="n") %>%
+  mutate(block_comp = rowSums(across(everything())),
+         block_comp_c = ifelse(Control==2,1,0),
+         block_comp_n = ifelse(`Nutrition` + `Nutrition + WSH` == 2,1,0)
+           )
+
+table(is.na(kcl2$block_comp))
+table(kcl2$block_comp_c,kcl2$block_comp_n, useNA = "ifany")
+
+k_incomplete <- kcl2 %>%
+  filter(block_comp_c==0 | is.na(block_comp_c) | block_comp_n==0 | is.na(block_comp_n) )
+
+k_incomplete$block
+```
+
+
 ```{r load Kenya data}
 #-------------------------------
 # load the formatted analysis
@@ -248,28 +286,30 @@ ate_res <- ate_res %>%
 dkanth <- read_rds(here(Box_data_directory,"final/kenya_analysis_anthro.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr %in% c("Control","Passive Control"),0,1)) %>%
-  filter(!block %in% c(11,13,20,23,33,40,65,72,84,85))
+  filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 
 
 # diarrhea data
 dkdiar <- read_rds(here(Box_data_directory,"final/kenya_analysis_diar.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr %in% c("Control"),0,1)) %>%
-  filter(!block %in% c(11,13,20,23,33,40,65,72,84,85))
+  filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 
 # parasite data
 dkpara <- read_rds(here(Box_data_directory,"final/kenya_analysis_parasite.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr %in% c("Control"),0,1)) %>%
-  filter(!block %in% c(11,13,20,23,33,40,65,72,84,85))
+  filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 
 # child development data
 dkchdev <- read_rds(here(Box_data_directory,"final/kenya_analysis_chdev.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr %in% c("Control"),0,1)) %>%
-  filter(!block %in% c(11,13,20,23,33,40,65,72,84,85))
+  filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 
 ```
+
+
 
 ## Estimate ATE and relative efficiency
 ```{r estimate ATE and relative efficiency kenya}
