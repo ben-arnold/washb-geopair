@@ -63,6 +63,7 @@ Box_data_directory <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/"
 
 #-------------------------------
 # Bangladesh
+# limit to control and nutrition arms
 #-------------------------------
 # anthropometry data
 danth <- read_rds(here(Box_data_directory,"final/bangl_analysis_anthro.rds")) %>%
@@ -88,31 +89,33 @@ dpara <- read_rds(here(Box_data_directory,"final/bangl_analysis_parasite.rds")) 
 
 #-------------------------------
 # Kenya
+# limit to control and nutrition arms
+# limit to complete blocks by these two treatments
 #-------------------------------
 # anthropometry data
 dkanth <- read_rds(here(Box_data_directory,"final/kenya_analysis_anthro.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr %in% c("Control","Passive Control"),0,1)) %>%
-  filter(!block %in% c(11,13,20,23,33,40,65,72,84,85))
+  filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 
 # diarrhea data
 dkdiar <- read_rds(here(Box_data_directory,"final/kenya_analysis_diar.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr %in% c("Control"),0,1)) %>%
-  filter(!block %in% c(11,13,20,23,33,40,65,72,84,85))
+  filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 
 # parasite data
 dkpara <- read_rds(here(Box_data_directory,"final/kenya_analysis_parasite.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr %in% c("Control"),0,1)) %>%
-  filter(!block %in% c(11,13,20,23,33,40,65,72,84,85))
+  filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 
 # child development data
 dkchdev <- read_rds(here(Box_data_directory,"final/kenya_analysis_chdev.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   filter(!is.na(z_easq_com)) %>%
   mutate(tr01 = ifelse(tr %in% c("Control"),0,1)) %>%
-  filter(!block %in% c(11,13,20,23,33,40,65,72,84,85))
+  filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 
 ```
 
