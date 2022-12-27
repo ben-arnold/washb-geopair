@@ -17,7 +17,7 @@ output:
 
 # Summary
 
-Estimate the correlation between outcomes measured in the control group. The unit of analysis is pair-level mean, so in Bangladesh there are 90 control means for each outcome and in Kenya there are 79 control means for each outcome.
+Estimate the correlation between outcomes measured in the control group. The unit of analysis is pair-level mean, so in Bangladesh there are 90 control means for each outcome and in Kenya there are 72 control means for each outcome.
 
 # Preamble
 
