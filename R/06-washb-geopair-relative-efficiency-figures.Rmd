@@ -378,10 +378,10 @@ plot_corr <- ggplot(data = dreffplot, aes(x = corr_w, y = corr_u, color = outcom
   scale_color_manual(values = pcols, guide=guide_legend(title="outcome group:")) +
   # scale_fill_manual(values = pcols) +
   # scale_color_brewer(palette = "Dark2", guide=guide_legend(title="outcome group:")) +
-  scale_x_continuous(breaks=seq(0,1,by=0.1))+
-  scale_y_continuous(breaks=seq(0,1,by=0.1))+
+  scale_x_continuous(breaks=seq(-0.2,1,by=0.2))+
+  scale_y_continuous(breaks=seq(-0.2,1,by=0.2))+
   labs(x = "weighted correlation", y = "unweighted correlation", tag = "a") +
-  coord_cartesian(xlim=c(0,1),ylim = c(0,1)) +
+  coord_cartesian(xlim=c(-0.2,1),ylim = c(-0.2,1)) +
   theme_minimal() +
   theme(
     legend.position = "none",
@@ -429,9 +429,9 @@ obs_v_pred_wreff <-
   scale_color_manual(values = pcols, guide=guide_legend(title="outcome group:")) +
   scale_x_continuous(breaks=seq(1,3.4,by=0.4))+
   scale_y_continuous(breaks=seq(1,3.4,by=0.4))+
-  coord_cartesian(xlim=c(1,3.5),ylim=c(1,3.5))+
+  coord_cartesian(xlim=c(0.8,3.5),ylim=c(0.8,3.5))+
   facet_wrap(.~country) +
-  labs(y = expression(paste("predicted relative efficiency, unweighted correlation, (1-",italic(r),")")^-1),
+  labs(y = "predicted relative efficiency, unweighted correlation",
        x = "observed relative efficiency",
        tag = "b",
        fill = "outcome group") +
