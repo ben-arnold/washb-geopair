@@ -17,7 +17,7 @@ output:
 
 # Summary
 
-Create a chart from a PubMed search query `[("cluster randomized trial") OR ("group randomized trial")]`.
+Create a chart from a PubMed search query `[("cluster randomized trial") OR ("group randomized trial")]`.  Search date: Jan 22, 2023
 
 https://pubmed.ncbi.nlm.nih.gov/?term=%5B%28%22cluster+randomized+trial%22%29+OR+%28%22group+randomized+trial%22%29%5D+ 
 
@@ -45,8 +45,7 @@ source(here("R","washb-geopair-Functions.R"))
 #----------------------------
 # Box data file paths
 #----------------------------
-Box_data_directory    <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/final/"
-Box_geodata_directory <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/geodata/"
+Box_data_directory    <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/"
 
 
 ```
@@ -57,7 +56,9 @@ Box_geodata_directory <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/geod
 #-------------------------------
 # load pubmed search 
 #-------------------------------
-pubmed_res <- read_csv(here("data","PubMed_Timeline_Results_by_Year_[(\"cluster randomized trial\") OR (\"group randomized trial\")].csv"), skip = 1) 
+pubmed_res <- read_csv(here(Box_data_directory,"untouched/PubMed_Timeline_Results_by_Year_[(\"cluster randomized trial\") OR (\"group randomized trial\")].csv"), skip = 1) 
+
+as.data.frame(pubmed_res)
 ```
 
 # Model fit for trend
@@ -67,7 +68,7 @@ pubmed_res <- read_csv(here("data","PubMed_Timeline_Results_by_Year_[(\"cluster 
 # limit the data to 2000 to 2021
 #-------------------------------
 pubmed_res2 <- pubmed_res %>% 
-  filter(Year>=2000 & Year <= 2021)
+  filter(Year>=2000 & Year <= 2022)
 
 #-------------------------------
 # fit an exponential model
@@ -92,7 +93,7 @@ plot_pubmed_res <- ggplot(
   geom_line(aes(y=pred), color = "black") + 
   annotate("text",x=2018,y=450,label="exponential fit",hjust=1) +
   scale_y_continuous(breaks=plotyticks) +
-  coord_cartesian(xlim=c(2000,2021),ylim=c(0,500)) +
+  coord_cartesian(xlim=c(2000,2022),ylim=c(0,500)) +
   labs(x = "year", y = "PubMed search results")+
   theme_classic()
 
