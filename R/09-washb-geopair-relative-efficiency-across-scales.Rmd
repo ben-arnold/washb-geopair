@@ -19,8 +19,6 @@ output:
 
 Summary here: **TBD**
 
-Details of original citations and data sources here: **TBD**
-
 
 # Preamble
 
@@ -210,8 +208,8 @@ For geographically proximate samples, compute estimates based on all 90 blocks s
 #-------------------------------
 start_time <- Sys.time()
 cor_geo_b <- foreach(outi = levels(dcl_b$outcome_lab), .combine = rbind) %dopar% {
-  foreach(npairs = seq(10,90,by=5), .combine = rbind) %:% 
-  foreach(booti = 1:200, .combine = rbind) %do% {
+  foreach(npairs = seq(10,90,by=2), .combine = rbind) %:% 
+  foreach(booti = 1:1000, .combine = rbind) %do% {
     
     # randomly sample a block and select the n closest pairs
     # identify the geographically n proximate npairs to
@@ -447,7 +445,7 @@ out_labs_print <- cor90ests_b %>%
   group_by(outcome_group) %>%
   arrange(outcome_group, desc(releff90)) %>%
   mutate(outcome_order = seq_along(outcome_lab)) %>%
-  mutate(y_text = 3.2 - outcome_order*0.1) %>% 
+  mutate(y_text = 3.6 - outcome_order*0.1) %>% 
   ungroup() %>%
   mutate(releff_cat = case_when(
     releff90 <1.4 ~ "<1.4",
@@ -490,9 +488,9 @@ plot_reff_b <- ggplot(data=dreleff_b, aes(x = npairs, y = releff, color = releff
             size=3,
             inherit.aes = FALSE, show.legend = FALSE) +
   #
-  scale_y_continuous(breaks=seq(1,3.0,by=0.4))+
+  scale_y_continuous(breaks=seq(1,3.4,by=0.4))+
   scale_x_continuous(breaks=seq(10,90,by=20)) +
-  coord_cartesian(ylim=c(1,3.0)) +
+  coord_cartesian(ylim=c(1,3.4)) +
   labs(x="trial size: number of geographically contiguous matched pairs",
        y="relative efficiency of geographic pair-matching",
        ) +
@@ -562,8 +560,8 @@ For geographically proximate samples, compute estimates based on all 72 blocks s
 #-------------------------------
 start_time <- Sys.time()
 cor_geo_k <- foreach(outi = levels(dcl_k$outcome_lab), .combine = rbind) %dopar% {
-  foreach(npairs = c(seq(10,70,by=5),72), .combine = rbind) %:% 
-  foreach(booti = 1:200, .combine = rbind) %do% {
+  foreach(npairs = c(seq(10,70,by=2),72), .combine = rbind) %:% 
+  foreach(booti = 1:1000, .combine = rbind) %do% {
     
     # randomly sample a block and select the n closest pairs
     # identify the geographically n proximate npairs to
@@ -865,6 +863,7 @@ plot_reff_k
 
 
 ```
+
 ```{r plot trial size kenya}
 #-------------------------------
 # plot average max distance
