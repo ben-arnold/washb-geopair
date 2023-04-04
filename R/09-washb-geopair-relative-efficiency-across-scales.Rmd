@@ -207,23 +207,33 @@ For geographically proximate samples, compute estimates based on all 90 blocks s
 # proximity
 #-------------------------------
 start_time <- Sys.time()
-cor_geo_b <- foreach(outi = levels(dcl_b$outcome_lab), .combine = rbind) %dopar% {
+cor_geo_b <- foreach(outi = levels(dcl_b$outcome_lab)[1:2], .combine = rbind) %do% {
   foreach(npairs = seq(10,90,by=2), .combine = rbind) %:% 
-  foreach(booti = 1:1000, .combine = rbind) %do% {
+  foreach(booti = 1:1000, .combine = rbind) %dopar% {
+    
+    # set seed within %dopar% for perfect reproducibility
+    set.seed(booti)
     
     # randomly sample a block and select the n closest pairs
     # identify the geographically n proximate npairs to
     sampi <- geosample(distframe = distmat_b, nclosest = npairs)
-    di <- dcl_b %>%
-      filter(block %in% sampi$block_select & outcome_lab == outi)
+    
+    # then draw a bootstrap resample from the set of n closest pairs
+    bsampi <- sample(1:npairs,size=npairs,replace=TRUE)
+    bsamp  <- sampi$block_select[bsampi]
+    bdist  <- sampi$block_dist[bsampi]
+    
+    di <- data.frame(block=as.character(bsamp), outcome_lab = outi) %>%
+      left_join(dcl_b, by=c("outcome_lab","block"))
+    
     # estimate outcome correlation, weighted by pair-wise N
     wY1bar <- di$Y1bar*di$w
     wY0bar <- di$Y0bar*di$w
     corri <- 2*cov(wY1bar,wY0bar) / ( var(wY1bar) + var(wY0bar) )
     
     # save the minimum and maximum distances between clusters
-    mindisti <- min(sampi$block_dist[as.numeric(sampi$block_dist)>0])
-    maxdisti <- max(sampi$block_dist)
+    mindisti <- min(bdist[as.numeric(bdist)>0])
+    maxdisti <- max(bdist)
     
     # return results
     res <- data.frame(outcome_lab = outi, npairs , mindist = mindisti, maxdist = maxdisti, corr = corri)
@@ -389,8 +399,9 @@ plot_reff <- ggplot(data=dreleff_b, aes(x = npairs, color = outcome_group, fill 
   scale_fill_manual(values = pcols) +
   # scale_color_brewer(palette = "Dark2") +
   # scale_fill_brewer(palette = "Dark2") +
-  scale_y_continuous(breaks=seq(1,3.4,by=0.4))+
+  scale_y_continuous(breaks=seq(1,4,by=0.4))+
   scale_x_continuous(breaks=seq(10,90,by=20)) +
+  coord_cartesian(xlim=c(10,90),ylim=c(1,4)) +
   labs(x=expression(paste("number of geographically contiguous matched pairs")),y=expression(paste("relative efficiency of geographic pair-matching, (1-",italic(r),")")^-1)) +
   guides(colour = guide_legend(title = "N pairs",nrow = 1)) +
   theme_minimal() +
@@ -559,23 +570,33 @@ For geographically proximate samples, compute estimates based on all 72 blocks s
 # possible permutations
 #-------------------------------
 start_time <- Sys.time()
-cor_geo_k <- foreach(outi = levels(dcl_k$outcome_lab), .combine = rbind) %dopar% {
+cor_geo_k <- foreach(outi = levels(dcl_k$outcome_lab), .combine = rbind) %do% {
   foreach(npairs = c(seq(10,70,by=2),72), .combine = rbind) %:% 
-  foreach(booti = 1:1000, .combine = rbind) %do% {
+  foreach(booti = 1:1000, .combine = rbind) %dopar% {
+    
+    # set seed within %dopar% for perfect reproducibility
+    set.seed(booti)
     
     # randomly sample a block and select the n closest pairs
     # identify the geographically n proximate npairs to
     sampi <- geosample(distframe = distmat_k, nclosest = npairs)
-    di <- dcl_k %>%
-      filter(block %in% sampi$block_select & outcome_lab == outi)
+    
+    # then draw a bootstrap resample from the set of n closest pairs
+    bsampi <- sample(1:npairs,size=npairs,replace=TRUE)
+    bsamp  <- sampi$block_select[bsampi]
+    bdist  <- sampi$block_dist[bsampi]
+    
+    di <- data.frame(block=as.character(bsamp), outcome_lab = outi) %>%
+      left_join(dcl_k, by=c("outcome_lab","block"))
+    
     # estimate outcome correlation, weighted by pair-wise N
     wY1bar <- di$Y1bar*di$w
     wY0bar <- di$Y0bar*di$w
     corri <- 2*cov(wY1bar,wY0bar) / ( var(wY1bar) + var(wY0bar) )
     
     # save the minimum and maximum distances between clusters
-    mindisti <- min(sampi$block_dist[as.numeric(sampi$block_dist)>0])
-    maxdisti <- max(sampi$block_dist)
+    mindisti <- min(bdist[as.numeric(bdist)>0])
+    maxdisti <- max(bdist)
     
     # return results
     res <- data.frame(outcome_lab = outi, npairs, mindist = mindisti, maxdist = maxdisti, corr = corri)
@@ -744,11 +765,11 @@ plot_reff_k <- ggplot(data=dreleff_k, aes(x = npairs, y = releff, color = outcom
   scale_fill_manual(values = pcols) +
   # scale_color_brewer(palette = "Dark2") +
   # scale_fill_brewer(palette = "Dark2") +
-  scale_y_continuous(breaks=seq(1,3.8,by=0.4))+
+  scale_y_continuous(breaks=seq(1,4,by=0.4))+
   scale_x_continuous(breaks=seq(10,90,by=20)) +
   labs(x=expression(paste("Number of geographically contiguous matched pairs")),y=expression(paste("Relative efficacy of geographic pair-matching, (1-",italic(r),")")^-1)) +
   guides(colour = guide_legend(title = "N pairs",nrow = 1)) +
-  coord_cartesian(ylim=c(1,3.8))+
+  coord_cartesian(ylim=c(1,4),xlim=c(10,72))+
   theme_minimal() +
   theme(
     legend.position = "none"  
