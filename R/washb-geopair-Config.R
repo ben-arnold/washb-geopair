@@ -42,6 +42,7 @@ library(experiment)
 #----------------------------
 library(sp)
 library(sf)
+library(ape)
 library(geosphere)
 library(automap)
 library(leaflet)

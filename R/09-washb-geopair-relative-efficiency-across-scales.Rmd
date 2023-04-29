@@ -885,7 +885,7 @@ reff_comp <- plot_grid(plot_reff_b,
                        hjust = 0
                          )
 
-ggsave(here("output","washb-geopair-relative-efficiency-geographic-scale.png"), reff_comp, device = "png", width = 12, height = 10)
+ggsave(here("output","washb-geopair-relative-efficiency-geographic-scale.pdf"), reff_comp, device = "pdf", width = 9, height = 9.2)
 ```
 # Session Info
 ```{r session info}
