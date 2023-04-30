@@ -193,9 +193,7 @@ dk_chd2 <- dk_chd %>%
 dk_diar2 <- dk_diar %>%
   # drop baseline
   filter(time > 0) %>%
-  dplyr::select(clusterid, compoundid, hhid, childid, block, tr, targetchild, agey, diar7d=diarr7) %>%
-  mutate(childidr2 = (childid+3252)*10,
-         clusteridr2 = (clusterid+3252)*10)
+  dplyr::select(clusterid, compoundid, hhid, childid, block, tr, targetchild, agey, diar7d=diarr7) 
 
 dk_para2 <- dk_para %>%
   mutate(tr2 = case_when(
