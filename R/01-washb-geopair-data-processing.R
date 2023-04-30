@@ -215,7 +215,18 @@ dk_para2 <- dk_para %>%
 # save analysis files
 #----------------------------------
 write_rds(dk_anth2,file = paste0(Box_data_directory,"final/kenya_analysis_anthro.rds"))
-write_rds(dk_chd2, file = paste0(Box_data_directory,"final/kenya_analysis_chdev.rds"))
-write_rds(dk_diar2,file = paste0(Box_data_directory,"final/kenya_analysis_diar.rds"))
-write_rds(dk_para2,file = paste0(Box_data_directory,"final/kenya_analysis_parasite.rds"))
+write_csv(dk_anth2,file = paste0(Box_data_directory,"final/kenya_analysis_anthro.csv"))
 
+write_rds(dk_chd2, file = paste0(Box_data_directory,"final/kenya_analysis_chdev.rds"))
+write_csv(dk_chd2, file = paste0(Box_data_directory,"final/kenya_analysis_chdev.csv"))
+
+write_rds(dk_diar2,file = paste0(Box_data_directory,"final/kenya_analysis_diar.rds"))
+write_csv(dk_diar2,file = paste0(Box_data_directory,"final/kenya_analysis_diar.csv"))
+
+write_rds(dk_para2,file = paste0(Box_data_directory,"final/kenya_analysis_parasite.rds"))
+write_csv(dk_para2,file = paste0(Box_data_directory,"final/kenya_analysis_parasite.csv"))
+
+#----------------------------------
+# Session info
+#----------------------------------
+sessionInfo()
