@@ -672,7 +672,7 @@ estcomp_plot_k <-   ggplot(estcomp_res2 %>% filter(country=="Kenya")) +
              size = 4, alpha = 0.9, fill = nytpal[5]) +
   scale_y_continuous(breaks = seq(1,3.4,by=0.4)) +
   annotate("text",label="pair-matched",y=3.5,x=13, hjust=1, color="black") +
-  annotate("text",label="subdistrict stratified",y=2.7,x=13, hjust=1, color="gray40") +
+  annotate("text",label="subdistrict stratified",y=1.9,x=13, hjust=0.5, color="gray40") +
   labs(x = NULL, y = "relative efficiency compared to unmatched analysis",
        tag = "b") +
   coord_flip(ylim = c(1,3.5),xlim=c(1,13)) +
@@ -694,7 +694,7 @@ Create a composite figure
 
 ```{r composite estimator comp figure, fig.height = 9}
 plot_estcomp_composite <- grid.arrange(estcomp_plot_b,estcomp_plot_k,ncol=1,nrow=2,heights=c(1,0.85)) # shrink kenya b/c 2 fewer outcomes to keep y-axis in proportion
-ggsave(here("output","washb-geopair-estimator-comparison.png"),plot_estcomp_composite,device="png",height=8,width=6.3)
+ggsave(here("output","washb-geopair-estimator-comparison.pdf"),plot_estcomp_composite,device="pdf",height=8,width=6.3)
 ```
 
 # Session Info

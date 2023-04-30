@@ -34,6 +34,7 @@ source(here("R","washb-geopair-Config.R"))
 # of conflicts with dplyr::select() and not
 # needed
 detach("package:experiment", unload = TRUE)
+detach("package:spaMM", unload = TRUE)
 detach("package:MASS", unload = TRUE)
 detach("package:gdistance", unload = TRUE)
 detach("package:raster", unload = TRUE)
@@ -98,6 +99,13 @@ dkanth <- read_rds(here(Box_data_directory,"final/kenya_analysis_anthro.rds")) %
   mutate(tr01 = ifelse(tr %in% c("Control","Passive Control"),0,1)) %>%
   filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 
+# child development data
+dkchdev <- read_rds(here(Box_data_directory,"final/kenya_analysis_chdev.rds")) %>%
+  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
+  filter(!is.na(z_easq_com)) %>%
+  mutate(tr01 = ifelse(tr %in% c("Control"),0,1)) %>%
+  filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
+
 # diarrhea data
 dkdiar <- read_rds(here(Box_data_directory,"final/kenya_analysis_diar.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
@@ -107,13 +115,6 @@ dkdiar <- read_rds(here(Box_data_directory,"final/kenya_analysis_diar.rds")) %>%
 # parasite data
 dkpara <- read_rds(here(Box_data_directory,"final/kenya_analysis_parasite.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
-  mutate(tr01 = ifelse(tr %in% c("Control"),0,1)) %>%
-  filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
-
-# child development data
-dkchdev <- read_rds(here(Box_data_directory,"final/kenya_analysis_chdev.rds")) %>%
-  filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
-  filter(!is.na(z_easq_com)) %>%
   mutate(tr01 = ifelse(tr %in% c("Control"),0,1)) %>%
   filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 
@@ -193,12 +194,104 @@ sum_ns <- dcl %>%
             )
 
 #-------------------------------
+# summarize the SD
+# for each outcome, by group
+# this requires indiv data
+# there is a separate file for
+# Bangladesh and Kenya for each
+# group of outcomes
+#-------------------------------
+# anthropometry
+sd_anth_b <- danth %>%
+  select(tr01,waz,laz,whz,hcz) %>%
+  pivot_longer(cols=c(waz,laz,whz,hcz), names_to = "outcome", values_to= "value") %>%
+  mutate(country="Bangladesh")
+sd_anth_k <- dkanth %>%
+  select(tr01,waz,laz,whz,hcz) %>%
+  pivot_longer(cols=c(waz,laz,whz,hcz), names_to = "outcome", values_to= "value") %>%
+  mutate(country="Kenya")
+sd_anth <- sd_anth_b %>%
+  bind_rows(sd_anth_k) %>%
+  group_by(country,outcome,tr01) %>%
+  summarize(sdy = sd(value, na.rm = TRUE), .groups="drop")
+
+# child development
+sd_chdev_b <- dchdev %>% 
+  select(tr01, starts_with("z_")) %>%
+  pivot_longer(cols= starts_with("z_"), names_to = "outcome", values_to= "value") %>%
+  mutate(country="Bangladesh")
+sd_chdev_k <- dkchdev %>% 
+  select(tr01, starts_with("z_")) %>%
+  pivot_longer(cols= starts_with("z_"), names_to = "outcome", values_to= "value") %>%
+  mutate(country="Kenya")
+sd_chdev <- sd_chdev_b %>%
+  bind_rows(sd_chdev_k) %>%
+  group_by(country, outcome,tr01) %>%
+  summarize(sdy = sd(value, na.rm = TRUE), .groups="drop") %>%
+  filter(outcome != "z_easq_total")
+
+# diarrhea
+sd_diar_b <- ddiar %>%
+  select(tr01, diar7d) %>%
+  mutate(country = "Bangladesh")
+sd_diar_k <- dkdiar %>%
+  select(tr01, diar7d) %>%
+  mutate(country = "Kenya")
+sd_diar <- sd_diar_b %>%
+  bind_rows(sd_diar_k) %>%
+  mutate(outcome = "diar7d") %>%
+  rename(value=diar7d) %>%
+  group_by(country, outcome,tr01) %>%
+  summarize(sdy = sd(value, na.rm = TRUE), .groups="drop")
+
+# parasite infection
+sd_para_b <- dpara %>%
+  select(tr01, al, tt, hw, giar) %>%
+  pivot_longer(cols= c(al, tt, hw, giar), names_to = "outcome", values_to= "value") %>%
+  mutate(country = "Bangladesh")
+sd_para_k <- dkpara %>%
+  select(tr01, al, tt, hw, giar) %>%
+  pivot_longer(cols= c(al, tt, hw, giar), names_to = "outcome", values_to= "value") %>%
+  mutate(country = "Kenya")
+sd_para <- sd_para_b %>%
+  bind_rows(sd_para_k) %>%
+  group_by(country, outcome,tr01) %>%
+  summarize(sdy = sd(value, na.rm = TRUE), .groups="drop")
+
+# stack all of the SD estimates together
+# pivot wider for treatment groups
+# format outcome labels so can merge to 
+# the ATE estimates and all other data
+sd_ests <- bind_rows(sd_anth,sd_chdev,sd_diar,sd_para) %>%
+  pivot_wider(id_cols=c(country,outcome), names_from = tr01, names_prefix = "sd", values_from="sdy") %>%
+  mutate(outcome_lab = case_when(
+    outcome == "laz" ~ "length-for-age z",
+    outcome == "waz" ~ "weight-for-age z",
+    outcome == "whz" ~ "weight-for-height z",
+    outcome == "hcz" ~ "head circumference z",
+    outcome == "z_easq_com" ~ "EASQ communication z",
+    outcome == "z_easq_motor" ~ "EASQ gross motor z",
+    outcome == "z_easq_pers" ~ "EASQ personal-social z",
+    outcome == "z_cdi_comp" ~ "CDI comprehension z",
+    outcome == "z_cdi_expr" ~ "CDI expression z",
+    outcome == "diar7d" ~ "Diarrhea",
+    outcome == "giar" ~ "Giardia sp.",
+    outcome == "al" ~ "Ascaris sp.",
+    outcome == "tt" ~ "Trichuris sp.",
+    outcome == "hw" ~ "Hookworm"
+  ),
+  outcome_lab = factor(outcome_lab, levels=levels(dcl$outcome_lab))
+         ) %>%
+  select(-outcome)
+
+#-------------------------------
 # join the various summaries together 
 # into a single data.frame
 #-------------------------------
 outtab <- ate_res %>%
   mutate(ate_print = paste0(sprintf("%1.2f",est)," (", sprintf("%1.2f",est_min95), ", ", sprintf("%1.2f",est_max95),")" )) %>%
   left_join(sum_ns,by=c("country","outcome_lab")) %>%
+  left_join(sd_ests, by = c("country","outcome_lab")) %>%
   left_join(icc_res,by=c("country","outcome_lab")) %>%
   left_join(morani_res,by=c("country","outcome_lab")) %>%
   
@@ -216,7 +309,7 @@ outtab <- ate_res %>%
   )
          ) %>%
   select(country,outcome_lab, age_print,
-         n0,Y0bar,n1,Y1bar,
+         n0,Y0bar,sd0, n1,Y1bar,sd1,
          ate_print,
          icc_print,
          morani=morani_observed
@@ -234,9 +327,9 @@ outtab <- ate_res %>%
 #-------------------------------
 options(knitr.kable.NA = "‡")
 knitr::kable(outtab %>% filter(country=="Bangladesh") %>% select(-country),
-             digits = c(0,0,0,2,0,2,0,0,2),
-             align = c("lcrcrcccc"),
-             col.names = c("Outcome","Median age y (range)", "n","mean","n","mean","ATE (95% CI)*", "ICC (95% CI)†", "Moran's I"),
+             digits = c(0,0,0,2,2,0,2,2,0,0,2),
+             align = c("lcrccrccccc"),
+             col.names = c("Outcome","Median age y (range)", "n","mean","sd","n","mean","sd","ATE (95% CI)*", "ICC (95% CI)†", "Moran's I"),
              caption = "Summary of outcomes in the WASH Benefits Bangladesh trial",
              format.args = list(big.mark = ",")
              ) %>%
@@ -244,7 +337,7 @@ knitr::kable(outtab %>% filter(country=="Bangladesh") %>% select(-country),
   pack_rows("Child growth",1,4) %>%
   pack_rows("Child development",5,9) %>%
   pack_rows("Infectious disease",10,14) %>%
-  add_header_above(c(" " = 2, "Control" = 2, "Nutrition" = 2, " "=3)) %>%
+  add_header_above(c(" " = 2, "Control" = 3, "Nutrition" = 3, " "=3)) %>%
   footnote(symbol = c("ATE: Average treatment effect of difference in means (Nutrition minus Control), with 95% confidence interval reported for the non-parametric, pair-matched estimator. For infectious disease outcomes, this is the difference in the proportion positive.",
                       "ICC: Intra-cluster correlation coefficient among outcomes measured in the control group, with 95% confidence interval estimated through bootstrap resampling geographic pairs with replacement (1,000 iterations)."))
 
@@ -254,9 +347,9 @@ knitr::kable(outtab %>% filter(country=="Bangladesh") %>% select(-country),
 ```{r outcome summary table kenya}
 
 knitr::kable(outtab %>% filter(country=="Kenya") %>% select(-country),
-             digits = c(0,0,0,2,0,2,0,0,2),
-             align = c("lcrcrcccc"),
-             col.names = c("Outcome","Median age y (range)", "n","mean","n","mean","ATE (95% CI)*", "ICC (95% CI)†", "Moran's I"),
+             digits = c(0,0,0,2,2,0,2,2,0,0,2),
+             align = c("lcrccrccccc"),
+             col.names = c("Outcome","Median age y (range)", "n","mean","sd","n","mean","sd","ATE (95% CI)*", "ICC (95% CI)†", "Moran's I"),
              caption = "Summary of outcomes in the WASH Benefits Kenya trial",
              format.args = list(big.mark = ",")
              ) %>%
@@ -264,7 +357,7 @@ knitr::kable(outtab %>% filter(country=="Kenya") %>% select(-country),
   pack_rows("Child growth",1,4) %>%
   pack_rows("Child development",5,7) %>%
   pack_rows("Infectious disease",8,12) %>%
-  add_header_above(c(" " = 2, "Control" = 2, "Nutrition" = 2, " "=3)) %>%
+  add_header_above(c(" " = 2, "Control" = 3, "Nutrition" = 3, " "=3)) %>%
   footnote(symbol = c("ATE: Average treatment effect of difference in means (Nutrition minus Control), with 95% confidence interval reported for the non-parametric, pair-matched estimator. For infectious disease outcomes, this is the difference in the proportion positive.",
                       "ICC: Intra-cluster correlation coefficient among outcomes measured in the control group, with 95% confidence interval estimated through bootstrap resampling geographic pairs with replacement (1,000 iterations).","The mixed effects model did not converge for Trichuris sp. infection in Kenya, so no estimate of the ICC was possible.", "MacArthur-Bates Communicative Development Inventory (CDI) measures were not collected in the Kenya trial."))
 
