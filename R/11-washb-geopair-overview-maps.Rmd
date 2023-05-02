@@ -1,5 +1,6 @@
 ---
-title: "WASH Benefits maps"
+title: "Geographic pair matching in large-scale cluster randomized trials"
+subtitle: "Make overview maps"
 author: "Ben Arnold ben.arnold@ucsf.edu"
 date: "updated `r Sys.time()`"
 output:

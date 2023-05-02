@@ -17,12 +17,7 @@ output:
 
 # Summary
 
-Summary here: **TBD**
-
 Relative efficacy based on non-parametric estimator from Imai, King, and Nall (2009)
-
-Details of original citations and data sources here: **TBD**
-
 
 # Preamble
 

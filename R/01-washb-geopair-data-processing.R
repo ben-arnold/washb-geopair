@@ -1,4 +1,6 @@
 #----------------------------------
+# Geographic pair matching in large-scale cluster randomized trials
+#
 # washb-pairmatching-data-processing.R
 #
 # process the public datasets into

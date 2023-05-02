@@ -1,6 +1,6 @@
 ---
-title: "Assessing effect heterogeneity by spatial covariates in the WASH Benefits trials"
-subtitle: " "
+title: "Geographic pair matching in large-scale cluster randomized trials"
+subtitle: "Assessing effect heterogeneity by spatial covariates in the WASH Benefits trials"
 author: "Francois Rerolle franscois.rerolle@ucsf.edu and Ben Arnold ben.arnold@ucsf.edu"
 date: "updated: `r Sys.time()`"
 output: 
