@@ -1,6 +1,6 @@
 ---
-title: "Geographic pair-matching in large-scale cluster randomized trials"
-subtitle: "PubMed search results figure"
+title: "Geographic pair matching in large-scale cluster randomized trials"
+subtitle: "PubMed search results for CRTs"
 author: "Ben Arnold ben.arnold@ucsf.edu"
 date: "updated: `r Sys.time()`"
 output: 
@@ -33,9 +33,6 @@ here()
 #----------------------------
 source(here("R","washb-geopair-Config.R"))
 
-# add the rentrez package
-# used to query PubMed
-library(rentrez)
 
 #----------------------------
 # source the shared functions file

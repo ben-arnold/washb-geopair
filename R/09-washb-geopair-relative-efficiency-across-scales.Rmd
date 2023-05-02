@@ -1,6 +1,6 @@
 ---
-title: "Relative efficiency of geographic pair matching in the WASH Benefits trials"
-subtitle: "Analysis across geographic scales"
+title: "Geographic pair matching in large-scale cluster randomized trials."
+subtitle: "Relative efficiency  across geographic scales"
 author: "Ben Arnold ben.arnold@ucsf.edu"
 date: "updated: `r Sys.time()`"
 output: 
@@ -17,8 +17,7 @@ output:
 
 # Summary
 
-Summary here: **TBD**
-
+In this analysis, we took advantage of the large scale of the Bangladesh and Kenya trials to study the relative efficiency of pair matching at different trial sizes, which correspond with different geographic scales. We studied releative efficiency of different trials sizes from 10 matched pairs up to the full trial size in each country (90 in Bangladesh, 72 in Kenya) down-sample the matched pairs
 
 # Preamble
 

@@ -1,4 +1,6 @@
 #----------------------------
+# Geographic pair matching in large-scale cluster randomized trials
+# 
 # washb-geopair-estimate-icc.R
 #
 # Estimate intra-cluster correlation

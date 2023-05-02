@@ -17,7 +17,7 @@ output:
 
 # Summary
 
-Create some descriptive tables and figures to summarize key outcome and study  characteristics.
+Create some descriptive tables and figures to summarize key outcomes and study characteristics.
 
 # Preamble
 
@@ -320,7 +320,7 @@ outtab <- ate_res %>%
 
 
 
-```{r outcome summary table bangladesh}
+```{r outcome summary table bangladesh, out.width=12}
 #-------------------------------
 # outcome summary table
 # Bangladesh
@@ -344,7 +344,7 @@ knitr::kable(outtab %>% filter(country=="Bangladesh") %>% select(-country),
 ```
 
 
-```{r outcome summary table kenya}
+```{r outcome summary table kenya, out.width=12}
 
 knitr::kable(outtab %>% filter(country=="Kenya") %>% select(-country),
              digits = c(0,0,0,2,2,0,2,2,0,0,2),
@@ -666,7 +666,7 @@ plot_cluster_sizes_chdev_k <- ggplot(data=dcl_long %>% filter(country=="Kenya" &
   # aesthetics
   scale_fill_manual(values=pcols) +
   scale_color_manual(values=pcols) +
-  labs(x="",y="number of children per matched pair",tag="c") +
+  labs(x="",y="number of children per matched pair",tag="b") +
   scale_y_continuous(breaks=seq(0,30,by=5)) +
   coord_cartesian(ylim=c(3,30)) +
   theme_minimal() +

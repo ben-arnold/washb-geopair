@@ -17,12 +17,7 @@ output:
 
 # Summary
 
-Summary here: **TBD**
-
-Relative efficacy based on non-parametric estimator from Imai, King, and Nall (2009)
-
-Details of original citations and data sources here: **TBD**
-
+This script relies on output files created by upstream analysis files to make summary figures. The upstream analysis files include: `02-washb-geopair-relative-efficiency.Rmd`, `03-washb-geopair-estimator-comparison.Rmd`, `04-washb-geopair-moransi.Rmd`, and `05-washb-geopair-estimate-icc.R`. 
 
 # Preamble
 
