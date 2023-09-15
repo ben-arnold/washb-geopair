@@ -29,11 +29,12 @@ here()
 #----------------------------
 source(here("R","washb-geopair-Config.R"))
 
-# detach MASS and experiment packages
+# detach MASS and spaMM/experiment packages
 # detach raster and gdistance packages 
 # of conflicts with dplyr::select() and not
 # needed
 detach("package:experiment", unload = TRUE)
+detach("package:spaMM", unload = TRUE)
 detach("package:MASS", unload = TRUE)
 detach("package:gdistance", unload = TRUE)
 detach("package:raster", unload = TRUE)

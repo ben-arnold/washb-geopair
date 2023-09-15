@@ -390,11 +390,12 @@ d <- dkpara %>% filter(!is.na(hw))
 k_ate_hw <- estimate_MPCR_ATE(Y=d$hw,Z=d$tr01,grp=d$clusteridr2,match=d$block,data=d)
 
 #-------------------------------
-# detach experiment package
-# because it uses MASS, which
+# detach experiment and spaMM packages
+# because they uses MASS, which
 # conflicts with dplyr::select()
 #-------------------------------
 detach("package:experiment", unload = TRUE)
+detach("package:spaMM", unload = TRUE)
 detach("package:MASS", unload = TRUE)
 
 
