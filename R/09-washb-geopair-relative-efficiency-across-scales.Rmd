@@ -869,7 +869,12 @@ plot_dist <- ggplot(data=maxdist_ests, aes(x=npairs, y=maxdist_mu, color=country
 
 plot_dist
 
-ggsave(here("output","washb-geopair-maxdist-by-size.png"), plot_dist, device = "png", width = 5, height = 5)
+ggsave(here("output","washb-geopair-maxdist-by-size.pdf"), 
+       plot_dist, 
+       device = "pdf", 
+       width = 140, 
+       height = 140,
+       units = "mm")
 ```
 
 # Figure 3 REFF by size
