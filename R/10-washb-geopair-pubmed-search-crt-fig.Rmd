@@ -17,7 +17,7 @@ output:
 
 # Summary
 
-Create a chart from a PubMed search query `[("cluster randomized trial") OR ("group randomized trial")]`.  Search date: Jan 22, 2023
+Create a chart from a PubMed search query `[("cluster randomized trial") OR ("group randomized trial")]`.  Search date: Sep 15, 2023
 
 https://pubmed.ncbi.nlm.nih.gov/?term=%5B%28%22cluster+randomized+trial%22%29+OR+%28%22group+randomized+trial%22%29%5D+ 
 
@@ -91,12 +91,12 @@ plot_pubmed_res <- ggplot(
   annotate("text",x=2018,y=450,label="exponential fit",hjust=1) +
   scale_y_continuous(breaks=plotyticks) +
   coord_cartesian(xlim=c(2000,2022),ylim=c(0,500)) +
-  labs(x = "year", y = "PubMed search results")+
+  labs(x = "Year", y = "PubMed search results")+
   theme_classic()
 
 plot_pubmed_res
 
-ggsave(filename=here("output","washb-geopair-pubmed-search-results.png"),plot = plot_pubmed_res,device="png",width=4,height=4)
+ggsave(filename=here("output","washb-geopair-pubmed-search-results.pdf"),plot = plot_pubmed_res,device="pdf",width=4,height=4)
 ```
 
 # Session Info
