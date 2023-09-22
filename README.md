@@ -1,6 +1,6 @@
 # washb-geopair
 
-Geographic pair matching in large-scale cluster randomized trials
+## Geographic pair matching in large-scale cluster randomized trials
 
 
 This repository includes R code to run all of the analysis for the paper:
@@ -9,7 +9,7 @@ Arnold et al. **Geographic pair matching in large-scale cluster randomized trial
 
 This work was funded by the National Institute of Allery and Infectious Diseases (R01-AI166671) and the original trials were funded by the Bill & Melinda Gates Foundation (OPPGD759).
 
-Should you have any questions about the files in this repository, please contact Ben Arnold at UCSF (ben.arnold@ucsf.edu).
+If you have any questions about the files in this repository, please contact Ben Arnold at UCSF (ben.arnold@ucsf.edu).
 
 ## Linked Repositories and Additional Resources
 
@@ -17,7 +17,6 @@ Should you have any questions about the files in this repository, please contact
 This GitHub repository is mirrored on the Open Science Framework (OSF).  The OSF project page includes additional study-related resources, including the compiled HTML computational notebooks created from the `.Rmd` files, and the final analysis datasets that are created by `01-washb-geopair-data-processing.R`.
 
 https://osf.io/cxb5e/
-
 
 ## _Nature_ Research Code Submission Items
 
@@ -59,7 +58,7 @@ For example, in the location on your computer where you would like to clone the 
 
 You can do this by opening the R project file ([washb-geopair.Rproj](https://github.com/ben-arnold/washb-geopair/blob/main/washb-geopair.Rproj)) in RStudio, loading the `renv` package, and typing `renv::restore()` to restore the package environment from the projects [renv.lock](https://github.com/ben-arnold/washb-geopair/blob/main/renv.lock) file. 
 
-3. All of the analysis scripts should run smoothly (scripts `02-xx.Rmd` to `10-xx.Rmd`).  Note that scripts `11-13` rely on geographic coordinates of study clusters that constitute personally identifiable information. Therefore, those scripts will not run (GPS data not publicly available), but the scripts have been provided for transparency.
+3. All of the analysis scripts should run smoothly (scripts `02-xx.Rmd` to `08-xx.Rmd`).  Note that scripts `09-13` rely on geographic coordinates of study clusters that constitute personally identifiable information. Therefore, those scripts will not run (GPS data not publicly available), but the scripts have been provided for transparency.
 
 ### Installation Guide and Instructions for Use (Docker / RStudio Server)
 
@@ -69,9 +68,9 @@ TBD
 
 The first data processing script will download harmonized datasets from OSF and will create the final analysis datasets.
 
-The data analyses on the above Mac desktop configuration required 9 minutes to run. 
+The data analyses on the above Mac desktop configuration required 13 minutes to run. 
 
-Note that the only script that takes very long from those that will run on publicly available data (through script `10`) is `05-washb-geopair-estimate-icc.R` because bootstrapping mixed models using REML is computationally slow.
+Note that the only script that takes very long from those that will run on publicly available data (through script `08`) is `05-washb-geopair-estimate-icc.R` because bootstrapping mixed models using REML is computationally slow.
 
 ### License
 
