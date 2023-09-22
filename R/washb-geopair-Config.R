@@ -11,12 +11,13 @@
 
 
 #----------------------------
-# load packages
+# worker packages
 #----------------------------
 library(here)
 library(tidyverse)
 library(lubridate)
 library(haven)
+library(renv)
 
 #----------------------------
 # display packages
@@ -32,8 +33,6 @@ library(cowplot)
 #----------------------------
 # stats packages
 #----------------------------
-# library(sandwich)
-# library(lmtest)
 library(rptR)
 library(experiment)
 
