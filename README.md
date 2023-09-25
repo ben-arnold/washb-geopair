@@ -24,7 +24,7 @@ Following: https://www.nature.com/documents/nr-software-policy.pdf
 
 ### System Requirements
 
-All analyses were run using R software version 4.2.2 on Mac OSX Big Sur using the RStudio IDE (https://www.rstudio.com).
+All analyses were run using R software version 4.3.0 on Mac OSX Big Sur using the RStudio IDE (https://www.rstudio.com).
 
 `> sessionInfo()`
 
@@ -52,7 +52,7 @@ To reproduce all analyses in the paper, we recommend that you:
 
 For example, in the location on your computer where you would like to clone the repository, you could type into the Terminal command:
 
-`git clone https://github.com/proctor-ucsf/trachoma-sero-transmission.git`
+`git clone https://github.com/ben-arnold/washb-geopair.git`
 
 2. Recreate the exact package environment using the `renv` package. 
 
