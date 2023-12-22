@@ -38,6 +38,12 @@ detach("package:experiment", unload = TRUE)
 detach("package:spaMM", unload = TRUE)
 detach("package:MASS", unload = TRUE)
 
+#----------------------------
+# Box data directory
+#----------------------------
+Box_data_directory <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/"
+
+
 ```
 
 
@@ -46,7 +52,6 @@ detach("package:MASS", unload = TRUE)
 # Data prep
 
 ```{r load data}
-
 #-------------------------------
 # load the pair-level summary
 # estimates, created by
@@ -61,11 +66,11 @@ dcl <- read_rds(here("data","washb_pair_level_summary_estimates.rds"))
 # created by
 # washb-geopair-gps-data-processing.R
 #-------------------------------
-distmat_b <- read_rds(here("data","bangl_analysis_block_dists.rds"))
+distmat_b <- read_rds(here(Box_data_directory,"final/bangl_analysis_block_dists.rds"))
 
 kblocks <- unique(dcl$block[dcl$country=="Kenya" & dcl$outcome_lab=="Ascaris sp."])
 
-distmat_k <- read_rds(here("data","kenya_analysis_block_dists.rds")) %>%
+distmat_k <- read_rds(here(Box_data_directory,"final/kenya_analysis_block_dists.rds")) %>%
   # filter out blocks that were not complete for control,N, N+WSH
   # ATTENTION:
   # this should probably be done earlier, in the GPS data processing workflow.
@@ -900,6 +905,22 @@ ggsave(here("output","washb-geopair-maxdist-by-size.pdf"),
 ```
 
 
+# Save estimates
+```{r save estimates}
+#-------------------------------
+# save the estimates for later
+# reuse
+#-------------------------------
+dreleff <- dreleff_b %>%
+  mutate(country="Bangladesh") %>%
+  bind_rows(dreleff_k) %>%
+  mutate(country = ifelse(is.na(country),"Kenya",country))
+
+write_rds(dreleff, file = here("data","washb_releff_ests_by_number_of_pairs.rds"))
+write_csv(dreleff, file = here("data","washb_releff_ests_by_number_of_pairs.csv"))
+
+
+```
 
 # Session Info
 ```{r session info}
