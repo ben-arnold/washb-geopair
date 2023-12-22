@@ -464,7 +464,7 @@ map_diar_posterior
 #-------------------------------
 
 # Cluster-level GPS locations (centroids of compounds in each cluster)
-dgps_k <- read_rds(file=here("data","kenya_analysis_gps.rds")) %>%
+dgps_k <- read_rds(file=here(Box_data_directory,"kenya_analysis_gps.rds")) %>%
   # filter out blocks that were not complete for control,N, N+WSH
   filter(block %in% unique(dcl$block[dcl$country=="Kenya" & dcl$outcome_lab=="Ascaris sp."])) %>%
   mutate(block = as.character(block),
@@ -905,6 +905,129 @@ ate_map_composite <- grid.arrange(map_diar,
                                   map_k_al_posterior,
                                   nrow=2,ncol=3)
 ggsave(filename=here("output","washb-geopair-ate-krige-maps.png"),plot = ate_map_composite,device="png",width=12,height=10)
+```
+
+
+# Plot Matern functions for all outcomes
+
+Estimate and plot the Matern correlation function for all outcomes
+
+## Bangladesh
+
+```{r est matern for all outcomes bangladesh}
+#-------------------------
+# fit generalized kriege
+# for each outcome and 
+# store fits as a list
+#-------------------------
+outcomes <- unique(dbgps$outcome_lab)
+boutfits <- foreach(outi = outcomes) %do% {
+  di <- dbgps %>% filter(outcome_lab == outi) %>% ungroup()
+  fiti <- spaMM::fitme(Y0bar ~  lat + lon + Matern(1|lat + lon),
+                       data = di,
+                       family = gaussian(link = "identity"))
+  return(fiti)
+}
+
+```
+
+```{r plot matern functions bangladesh}
+#-----------------------------------
+# note: the plot_matern_corr()
+# function is defined in
+# washb-geopair-Functions.R
+#-----------------------------------
+# plot kriege fits for each outcome
+outcomes <- unique(dbgps$outcome_lab)
+plot_materns_b <- foreach(outi = 1:length(outcomes)) %do% {
+  ploti <- plot_matern_corr(boutfits[[outi]]) +
+    # modify slightly from original fn for this 
+    # small replicates version of the plot
+    geom_line(aes(x=pdistkm, y = materncor)) +
+    labs(title = paste0(outcomes[outi])) +
+    theme(title = element_text(hjust=0.5,face="bold", size=14),
+          axis.title = element_text(face="plain"))
+  
+}
+
+# create composite from the stored list
+plot_materns_b_comp <- grid.arrange(
+  plot_materns_b[[1]], 
+  plot_materns_b[[2]],
+  plot_materns_b[[3]],
+  plot_materns_b[[4]],
+  plot_materns_b[[5]],
+  plot_materns_b[[6]],
+  plot_materns_b[[7]],
+  plot_materns_b[[8]],
+  plot_materns_b[[9]],
+  plot_materns_b[[10]],
+  plot_materns_b[[11]],
+  plot_materns_b[[12]],
+  plot_materns_b[[13]],
+  plot_materns_b[[14]],
+  nrow=5,ncol=3
+)
+
+ggsave(filename=here("output","washb-geopair-matern-corrs-bangladesh.png"),plot = plot_materns_b_comp,device="png",width=12,height=20)
+```
+
+
+## Kenya
+
+```{r est matern for all outcomes kenya}
+#-------------------------
+# fit generalized kriege
+# for each outcome and 
+# store fits as a list
+#-------------------------
+outcomes <- unique(dkgps$outcome_lab)
+koutfits <- foreach(outi = outcomes) %do% {
+  di <- dkgps %>% filter(outcome_lab == outi) %>% ungroup()
+  fiti <- spaMM::fitme(Y0bar ~  lat + lon + Matern(1|lat + lon),
+                       data = di,
+                       family = gaussian(link = "identity"))
+  return(fiti)
+}
+
+```
+
+```{r plot matern functions kenya}
+#-----------------------------------
+# note: the plot_matern_corr()
+# function is defined in
+# washb-geopair-Functions.R
+#-----------------------------------
+# plot kriege fits for each outcome
+plot_materns_k <- foreach(outi = 1:length(outcomes)) %do% {
+  ploti <- plot_matern_corr(koutfits[[outi]]) +
+    # modify slightly from original fn for this 
+    # small replicates version of the plot
+    geom_line(aes(x=pdistkm, y = materncor)) +
+    labs(title = paste0(outcomes[outi])) +
+    theme(title = element_text(hjust=0.5,face="bold", size=14),
+          axis.title = element_text(face="plain"))
+  
+}
+
+# create composite from the stored list
+plot_materns_k_comp <- grid.arrange(
+  plot_materns_k[[1]], 
+  plot_materns_k[[2]],
+  plot_materns_k[[3]],
+  plot_materns_k[[4]],
+  plot_materns_k[[5]],
+  plot_materns_k[[6]],
+  plot_materns_k[[7]],
+  plot_materns_k[[8]],
+  plot_materns_k[[9]],
+  plot_materns_k[[10]],
+  plot_materns_k[[11]],
+  plot_materns_k[[12]],
+  nrow=4,ncol=3
+)
+
+ggsave(filename=here("output","washb-geopair-matern-corrs-kenya.png"),plot = plot_materns_k_comp,device="png",width=12,height=16)
 ```
 
 # Session Info

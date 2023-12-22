@@ -417,7 +417,7 @@ plot_matern_corr <- function(spamm_model_fit) {
     # geom_vline(xintercept= 3 ,color="gray60", lwd=0.1) +
     scale_y_continuous(breaks=seq(0,1,by=0.2)) +
     scale_x_continuous(breaks=c(0,seq(10,40,by=10))) +
-    coord_cartesian(xlim=c(0,40)) +
+    coord_cartesian(xlim=c(0,40),ylim=c(0,1)) +
     labs(x="distance (km)",y = "Matern correlation") +
     annotate("text",x=15,y=0.9,label=paste("nu ==", deparse(sprintf("%1.1f",est_nu))),parse=TRUE, hjust =0, size=8)+
     annotate("text",x=15,y=0.7,label=paste("rho ==", deparse(sprintf("%1.1f",est_rho))),parse=TRUE, hjust =0, size=8)+
