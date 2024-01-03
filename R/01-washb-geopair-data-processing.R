@@ -60,16 +60,17 @@ d_sth <- read_csv(file=paste0(Box_data_directory,"untouched/washb-bangladesh-sth
 # limit to relevant variables
 #----------------------------------
 d_anth2 <- d_anth %>%
-  dplyr::select(dataid,childid,tchild,clusterid,svy,agey,waz,laz,whz,hcz) %>%
+  dplyr::select(dataid,childid,clusterid,svy,agey,sex,waz,laz,whz,hcz) %>%
   left_join(d_tr, by = "clusterid") %>%
   filter(svy==2) %>%
   mutate(tr = factor(tr, levels = c("Control","Water","Sanitation","Handwashing","WSH","Nutrition","Nutrition + WSH"))
   ) %>%
-  dplyr::select(-svy)
+  dplyr::select(-svy) %>%
+  dplyr::select(block,clusterid,tr,dataid,childid,agey,sex,waz,laz,whz,hcz)
   
 
 d_easq2 <- d_easq %>%
-  dplyr::select(dataid,childid,clusterid,block,tchild,arm, z_easq_com = z_com, z_easq_motor = z_motor, z_easq_pers = z_personal, z_easq_total = z_combined) %>%
+  dplyr::select(dataid,childid,clusterid,block,tchild,arm, sex, z_easq_com = z_com, z_easq_motor = z_motor, z_easq_pers = z_personal, z_easq_total = z_combined) %>%
   mutate(tr = case_when(
     arm == 1 ~ "Sanitation",
     arm == 2 ~ "Handwashing",
@@ -85,7 +86,7 @@ d_easq2 <- d_easq %>%
   
 
 d_cdi2 <- d_cdi %>%
-  dplyr::select(dataid,childid,clusterid,block,tchild, agey=ageyears, arm, z_cdi_comp = z_endline_CDI_understand, z_cdi_expr = z_endline_CDI_say) %>%
+  dplyr::select(dataid,childid,clusterid,block,tchild, arm, agey=ageyears, sex,  z_cdi_comp = z_endline_CDI_understand, z_cdi_expr = z_endline_CDI_say) %>%
   mutate(tr = case_when(
     arm == 1 ~ "Sanitation",
     arm == 2 ~ "Handwashing",
@@ -100,11 +101,20 @@ d_cdi2 <- d_cdi %>%
   dplyr::select(-arm)
   
 
-d_chd2 <- full_join(d_easq2, d_cdi2, by = c("dataid","childid","clusterid","block","tchild","tr")) %>%
-  dplyr::select(dataid,childid,clusterid,tchild,block,tr,everything())
+d_chd2 <- full_join(d_easq2, d_cdi2, by = c("dataid","childid","clusterid","block","tchild","tr","sex")) %>%
+  dplyr::select(dataid,childid,clusterid,tchild,block,tr,agey,sex,everything())
+
+## child development data has not previosly been made public
+## replace internal IDs with public IDs
+d_pubids <- read_csv(here(Box_data_directory,"untouched/public-ids.csv"))
+d_chd3 <- left_join(d_chd2, d_pubids, join_by(block,clusterid,dataid)) %>%
+  mutate(sex = ifelse(sex==0,"female","male")) %>%
+  dplyr::select(-block,-clusterid,-dataid) %>%
+  dplyr::select(block=block_r,clusterid = clusterid_r, tr, dataid = dataid_r,childid,tchild,agey,sex,everything()) 
+
 
 d_diar2 <- d_diar %>%
-  dplyr::select(dataid,childid,tchild,clusterid,agey=ageyrs,svy,diar7d) %>%
+  dplyr::select(dataid,childid,tchild,clusterid,agey=ageyrs,sex,svy,diar7d) %>%
   left_join(d_tr, by = "clusterid") %>%
   filter(svy > 0) %>%
   mutate(tr = factor(tr, levels = c("Control","Water","Sanitation","Handwashing","WSH","Nutrition","Nutrition + WSH"))
@@ -113,14 +123,14 @@ d_diar2 <- d_diar %>%
   
 
 d_prot2 <- d_prot %>%
-  dplyr::select(dataid,clusterid,personid,block,tr,giar=posgi, delta_prot) %>%
+  dplyr::select(dataid,clusterid,personid,block,tr,sex, giar=posgi, delta_prot) %>%
   # exclude missing values
   filter(delta_prot == "Observed") %>%
   mutate(tr = factor(tr, levels = c("Control","Water","Sanitation","Handwashing","WSH","Nutrition","Nutrition + WSH"))
   )
 
 d_sth2 <- d_sth %>%
-  dplyr::select(dataid,clusterid,personid,block,tr,agey,al,tt,hw,sth) %>%
+  dplyr::select(dataid,clusterid,personid,block,tr,agey,sex,al,tt,hw,sth) %>%
   # exclude missing values
   filter(!is.na(al)) %>%
   mutate(tr = factor(tr, levels = c("Control","Water","Sanitation","Handwashing","WSH","Nutrition","Nutrition + WSH"))
@@ -132,7 +142,9 @@ d_sth2 <- d_sth %>%
 # these 5 children w/ giardia but not STH will have missing age
 # in the composite dataset
 d_parasite <- d_sth2 %>%
-  full_join(d_prot2,by=c("dataid","clusterid","personid","block","tr"))
+  full_join(d_prot2,by=c("dataid","clusterid","personid","block","tr","sex")) %>%
+  dplyr::select(block,clusterid,tr,dataid,personid,agey,sex,al,tt,hw,sth,giar)
+
 
 #----------------------------------
 # save analysis files
@@ -140,8 +152,8 @@ d_parasite <- d_sth2 %>%
 write_rds(d_anth2,file = paste0(Box_data_directory,"final/bangl_analysis_anthro.rds"))
 write_csv(d_anth2,file = paste0(Box_data_directory,"final/bangl_analysis_anthro.csv"))
 
-write_rds(d_chd2, file = paste0(Box_data_directory,"final/bangl_analysis_chdev.rds"))
-write_csv(d_chd2, file = paste0(Box_data_directory,"final/bangl_analysis_chdev.csv"))
+write_rds(d_chd3, file = paste0(Box_data_directory,"final/bangl_analysis_chdev.rds"))
+write_csv(d_chd3, file = paste0(Box_data_directory,"final/bangl_analysis_chdev.csv"))
 
 write_rds(d_diar2,file = paste0(Box_data_directory,"final/bangl_analysis_diar.rds"))
 write_csv(d_diar2,file = paste0(Box_data_directory,"final/bangl_analysis_diar.csv"))
@@ -173,29 +185,26 @@ dk_diar <- read_csv(file=paste0(Box_data_directory,"untouched/washb-kenya-diar-p
 # documented as other data
 # use the replication script as
 # documentation: https://osf.io/fpxms/
-dk_para <- haven::read_dta(file=paste0(Box_data_directory,"untouched/parasites_kenya_public_ca20201202.dta"))
+dk_para <- haven::read_dta(file=paste0(Box_data_directory,"untouched/parasites_kenya_public_ca20230105.dta"))
 
 #----------------------------------
-# filter to the control and 
-# nutrition-containing intervention
-# arms
-# 
 # limit to relevant variables
 #----------------------------------
 dk_anth2 <- dk_anth %>%
   # drop children who were not in the birth cohort
   filter(targetchild==1) %>%
-  dplyr::select(clusterid, compoundid, hhid, childid, block, tr, targetchild, agey, laz=haz, waz, whz, hcz, haz_who, waz_who, whz_who)
+  dplyr::select(block, clusterid, tr, compoundid, hhid, childid, agey, sex,  laz=haz, waz, whz, hcz)
 
 dk_chd2 <- dk_chd %>%
-  dplyr::select(childidr2, hhidr2, clusteridr2, block, tr, childage_dev, z_easq_com = comtotz, z_easq_motor = mottotz, z_easq_pers = pstotz, z_easq_total = globaltotz) %>%
-  mutate(agey=childage_dev/365.25) %>%
-  dplyr::select(-childage_dev)
+  dplyr::select(block, clusteridr2,  tr,  hhidr2, childidr2, agey=childage_dev, sex, z_easq_com = comtotz, z_easq_motor = mottotz, z_easq_pers = pstotz, z_easq_total = globaltotz) %>%
+  mutate(agey=agey/365.25,
+         sex = ifelse(sex==1,"Male","Female")
+         )
 
 dk_diar2 <- dk_diar %>%
   # drop baseline
   filter(time > 0) %>%
-  dplyr::select(clusterid, compoundid, hhid, childid, block, tr, targetchild, agey, diar7d=diarr7) 
+  dplyr::select(block, clusterid, tr, compoundid, hhid, childid, targetchild, time, agey, sex, diar7d=diarr7) 
 
 dk_para2 <- dk_para %>%
   mutate(tr2 = case_when(
@@ -209,7 +218,10 @@ dk_para2 <- dk_para %>%
   ),
   tr2 = factor(tr2, levels = c("Control","Water","Sanitation","Handwashing","WSH","Nutrition","Nutrition + WSH"))
          ) %>%
-  dplyr::select(childidr2, hhidr2, clusteridr2, block,tr=tr2, giar = giardia_yn, al = ascaris_yn, tt = trichuris_yn, hw = hook_yn, sth = sth_yn)
+  dplyr::select(block, clusteridr2, tr=tr2, hhidr2, childidr2, agey=childage_sth, sex, giar = giardia_yn, al = ascaris_yn, tt = trichuris_yn, hw = hook_yn, sth = sth_yn) %>%
+  mutate(agey=agey/365.25,
+         sex = ifelse(sex==1,"Male","Female")
+         )
 
 #----------------------------------
 # save analysis files
