@@ -80,7 +80,8 @@ dcl <- d2 %>%
 # for a spatial join
 dcl_sf <- dcl  %>% 
   st_as_sf(coords = c("lon","lat")) %>%
-  st_set_crs(4326)
+  st_set_crs("+proj=longlat +datum=WGS84 +no_defs")
+
 
 # join to administrative polygons
 # subset to relevant labels
@@ -95,6 +96,7 @@ dcl3 <- as.data.frame(dcl2) %>%
          lat=coords_b[,2])
 
 #----------------------------------
+# NOT USED
 # for a public dataset,
 # shift the study clusters out
 # to the middle of the indian ocean
@@ -115,21 +117,21 @@ dclpub <- dcl %>%
 #   na.color = "transparent",
 # )
 # 
-trpal <- colorFactor(cbpal, dclpub$tr)
-xlon <- mean(dclpub$lon)
-ylat <- mean(dclpub$lat)
-map_points <- leaflet(width = "100%") %>%
-  addProviderTiles("CartoDB.Positron",options=providerTileOptions(opacity=1)) %>%
-  setView(lng = xlon, lat = ylat, zoom = 2) %>%
-  addCircleMarkers(data = dclpub,
-                   lng = ~ lon, lat = ~ lat,
-                   # color = ~pointpal(block), 
-                   color = ~trpal(tr),
-                   weight=1,fillOpacity = 0.8,
-                   radius=4
-  ) 
-
-map_points
+# trpal <- colorFactor(cbpal, dclpub$tr)
+# xlon <- mean(dclpub$lon)
+# ylat <- mean(dclpub$lat)
+# map_points <- leaflet(width = "100%") %>%
+#   addProviderTiles("CartoDB.Positron",options=providerTileOptions(opacity=1)) %>%
+#   setView(lng = xlon, lat = ylat, zoom = 2) %>%
+#   addCircleMarkers(data = dclpub,
+#                    lng = ~ lon, lat = ~ lat,
+#                    # color = ~pointpal(block), 
+#                    color = ~trpal(tr),
+#                    weight=1,fillOpacity = 0.8,
+#                    radius=4
+#   ) 
+# 
+# map_points
 
 #----------------------------------
 # create a distance matrix between
@@ -162,13 +164,25 @@ ddist3 <- ddist2 %>%
   mutate(block = dclpubsf_control$block) %>%
   dplyr::select(block, everything())
 
+#----------------------------------
+# create a public version of the
+# dataset that includes the clusters
+# joined to the administrative shapefiles
+#----------------------------------
+dcl4 <- dcl3 %>%
+  dplyr::select(-lat,-lon)
 
 #----------------------------------
 # save analysis files
 #----------------------------------
+# internal datasets
 write_rds(dcl3,file=paste0(Box_data_directory,"final/bangl_analysis_gps.rds"))
-write_rds(dclpub,file=paste0(Box_data_directory,"final/bangl_analysis_gps_public.rds"))
 write_rds(ddist3,file=paste0(Box_data_directory,"final/bangl_analysis_block_dists.rds"))
+
+# public dataset, with just the administrative codes joined to cluster
+skimr::skim(dcl4)
+write_csv(dcl4,file=paste0(Box_data_directory,"final/bangl_analysis_gadm.csv"))
+write_rds(dcl4,file=paste0(Box_data_directory,"final/bangl_analysis_gadm.rds"))
 
 
 #----------------------------------
@@ -235,7 +249,7 @@ dcl <- d %>%
 # for a spatial join
 dcl_sf <- dcl  %>% 
   st_as_sf(coords = c("lon","lat")) %>%
-  st_set_crs(4326)
+  st_set_crs("+proj=longlat +datum=WGS84 +no_defs")
 
 # this is a patch: there is one feature in the Kenya admin
 # data with invalid spherical geometry, triggering this error
@@ -260,6 +274,7 @@ dcl3 <- as.data.frame(dcl2) %>%
 
 
 #----------------------------------
+# NOT USED
 # for public dataset:
 # shift the study clusters out
 # to the middle of the indian ocean
@@ -272,21 +287,21 @@ dclpub <- dcl %>%
 #----------------------------------
 # view shifted points
 #----------------------------------
-trpal <- colorFactor(cbpal, dclpub$tr)
-xlon <- mean(dclpub$lon)
-ylat <- mean(dclpub$lat)
-map_points_kenya <- leaflet(width = "100%") %>%
-  addProviderTiles("CartoDB.Positron",options=providerTileOptions(opacity=1)) %>%
-  setView(lng = xlon, lat = ylat, zoom = 2) %>%
-  addCircleMarkers(data = dclpub,
-                   lng = ~ lon, lat = ~ lat,
-                   # color = ~pointpal(block), 
-                   color = ~trpal(tr),
-                   weight=1,fillOpacity = 0.8,
-                   radius=4
-  ) 
-
-map_points_kenya
+# trpal <- colorFactor(cbpal, dclpub$tr)
+# xlon <- mean(dclpub$lon)
+# ylat <- mean(dclpub$lat)
+# map_points_kenya <- leaflet(width = "100%") %>%
+#   addProviderTiles("CartoDB.Positron",options=providerTileOptions(opacity=1)) %>%
+#   setView(lng = xlon, lat = ylat, zoom = 2) %>%
+#   addCircleMarkers(data = dclpub,
+#                    lng = ~ lon, lat = ~ lat,
+#                    # color = ~pointpal(block), 
+#                    color = ~trpal(tr),
+#                    weight=1,fillOpacity = 0.8,
+#                    radius=4
+#   ) 
+# 
+# map_points_kenya
 
 
 #----------------------------------
@@ -320,12 +335,23 @@ ddist3 <- ddist2 %>%
   mutate(block = dclpubsf_control$block) %>%
   dplyr::select(block, everything())
 
+#----------------------------------
+# create a public version of the
+# dataset that includes the clusters
+# joined to the administrative shapefiles
+#----------------------------------
+dcl4 <- dcl3 %>%
+  dplyr::select(-lat,-lon)
 
 #----------------------------------
 # save analysis files
 #----------------------------------
+# internal datasets
 write_rds(dcl3,file=paste0(Box_data_directory,"final/kenya_analysis_gps.rds"))
-write_rds(dclpub,file=paste0(Box_data_directory,"final/kenya_analysis_gps_public.rds"))
 write_rds(ddist3,file=paste0(Box_data_directory,"final/kenya_analysis_block_dists.rds"))
 
+# public dataset, with just the administrative codes joined to cluster
+skimr::skim(dcl4)
+write_csv(dcl4,file=paste0(Box_data_directory,"final/kenya_analysis_gadm.csv"))
+write_rds(dcl4,file=paste0(Box_data_directory,"final/kenya_analysis_gadm.rds"))
 
