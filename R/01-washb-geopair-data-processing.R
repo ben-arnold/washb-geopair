@@ -119,7 +119,7 @@ d_diar2 <- d_diar %>%
   filter(svy > 0) %>%
   mutate(tr = factor(tr, levels = c("Control","Water","Sanitation","Handwashing","WSH","Nutrition","Nutrition + WSH"))
   ) %>%
-  dplyr::select(-svy)
+  dplyr::select(block,clusterid,tr,dataid,childid,tchild,svy,agey,sex,diar7d)
   
 
 d_prot2 <- d_prot %>%
@@ -149,15 +149,19 @@ d_parasite <- d_sth2 %>%
 #----------------------------------
 # save analysis files
 #----------------------------------
+skimr::skim(d_anth2)
 write_rds(d_anth2,file = paste0(Box_data_directory,"final/bangl_analysis_anthro.rds"))
 write_csv(d_anth2,file = paste0(Box_data_directory,"final/bangl_analysis_anthro.csv"))
 
+skimr::skim(d_chd3)
 write_rds(d_chd3, file = paste0(Box_data_directory,"final/bangl_analysis_chdev.rds"))
 write_csv(d_chd3, file = paste0(Box_data_directory,"final/bangl_analysis_chdev.csv"))
 
+skimr::skim(d_diar2)
 write_rds(d_diar2,file = paste0(Box_data_directory,"final/bangl_analysis_diar.rds"))
 write_csv(d_diar2,file = paste0(Box_data_directory,"final/bangl_analysis_diar.csv"))
 
+skimr::skim(d_parasite)
 write_rds(d_parasite,file = paste0(Box_data_directory,"final/bangl_analysis_parasite.rds"))
 write_csv(d_parasite,file = paste0(Box_data_directory,"final/bangl_analysis_parasite.csv"))
 
@@ -196,6 +200,8 @@ dk_anth2 <- dk_anth %>%
   dplyr::select(block, clusterid, tr, compoundid, hhid, childid, agey, sex,  laz=haz, waz, whz, hcz)
 
 dk_chd2 <- dk_chd %>%
+  # filter to children who had child development measurements
+  filter(!is.na(comtotz)) %>%
   dplyr::select(block, clusteridr2,  tr,  hhidr2, childidr2, agey=childage_dev, sex, z_easq_com = comtotz, z_easq_motor = mottotz, z_easq_pers = pstotz, z_easq_total = globaltotz) %>%
   mutate(agey=agey/365.25,
          sex = ifelse(sex==1,"Male","Female")
@@ -218,7 +224,7 @@ dk_para2 <- dk_para %>%
   ),
   tr2 = factor(tr2, levels = c("Control","Water","Sanitation","Handwashing","WSH","Nutrition","Nutrition + WSH"))
          ) %>%
-  dplyr::select(block, clusteridr2, tr=tr2, hhidr2, childidr2, agey=childage_sth, sex, giar = giardia_yn, al = ascaris_yn, tt = trichuris_yn, hw = hook_yn, sth = sth_yn) %>%
+  dplyr::select(block, clusteridr2, tr=tr2, hhidr2, childidr2, targetchild=target_child, agey=childage_sth, sex, giar = giardia_yn, al = ascaris_yn, tt = trichuris_yn, hw = hook_yn, sth = sth_yn) %>%
   mutate(agey=agey/365.25,
          sex = ifelse(sex==1,"Male","Female")
          )
@@ -226,15 +232,19 @@ dk_para2 <- dk_para %>%
 #----------------------------------
 # save analysis files
 #----------------------------------
+skimr::skim(dk_anth2)
 write_rds(dk_anth2,file = paste0(Box_data_directory,"final/kenya_analysis_anthro.rds"))
 write_csv(dk_anth2,file = paste0(Box_data_directory,"final/kenya_analysis_anthro.csv"))
 
+skimr::skim(dk_chd2)
 write_rds(dk_chd2, file = paste0(Box_data_directory,"final/kenya_analysis_chdev.rds"))
 write_csv(dk_chd2, file = paste0(Box_data_directory,"final/kenya_analysis_chdev.csv"))
 
+skimr::skim(dk_diar2)
 write_rds(dk_diar2,file = paste0(Box_data_directory,"final/kenya_analysis_diar.rds"))
 write_csv(dk_diar2,file = paste0(Box_data_directory,"final/kenya_analysis_diar.csv"))
 
+skimr::skim(dk_para2)
 write_rds(dk_para2,file = paste0(Box_data_directory,"final/kenya_analysis_parasite.rds"))
 write_csv(dk_para2,file = paste0(Box_data_directory,"final/kenya_analysis_parasite.csv"))
 

@@ -18,6 +18,7 @@ library(tidyverse)
 library(lubridate)
 library(haven)
 library(renv)
+library(skimr)
 
 #----------------------------
 # display packages
