@@ -44,6 +44,12 @@ bang_chd <- osf_retrieve_file("2rje9") %>%
 bang_para <- osf_retrieve_file("yu784") %>%
   osf_download(path=here("data"), conflicts = "overwrite", progress = TRUE)
 
+# GADM administrative info
+# https://osf.io/vyz4s
+bang_gadm <- osf_retrieve_file("vyz4s") %>%
+  osf_download(path=here("data"), conflicts = "overwrite", progress = TRUE)
+
+
 
 #----------------------------------
 # Kenya datasets
@@ -67,6 +73,11 @@ kenya_chd <- osf_retrieve_file("qvgsu") %>%
 # parasite dataset
 # https://osf.io/6vrpn
 kenya_para <- osf_retrieve_file("6vrpn") %>%
+  osf_download(path=here("data"), conflicts = "overwrite", progress = TRUE)
+
+# GADM administrative info
+# https://osf.io/78ruy
+kenya_gadm <- osf_retrieve_file("78ruy") %>%
   osf_download(path=here("data"), conflicts = "overwrite", progress = TRUE)
 
 

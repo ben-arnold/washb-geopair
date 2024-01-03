@@ -44,10 +44,6 @@ detach("package:raster", unload = TRUE)
 # source the base functions
 #----------------------------
 source(here("R","washb-geopair-Functions.R"))
-
-# file path to the Box data directory
-Box_data_directory <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/"
-
 ```
 
 
@@ -67,22 +63,22 @@ Box_data_directory <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/"
 # limit to control and nutrition arms
 #-------------------------------
 # anthropometry data
-danth <- read_rds(here(Box_data_directory,"final/bangl_analysis_anthro.rds")) %>%
+danth <- read_rds(here("data","bangl_analysis_anthro.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr=="Control",0,1)) 
   
 # child development data
-dchdev <- read_rds(here(Box_data_directory,"final/bangl_analysis_chdev.rds")) %>%
+dchdev <- read_rds(here("data","bangl_analysis_chdev.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr=="Control",0,1))
 
 # diarrhea data
-ddiar <- read_rds(here(Box_data_directory,"final/bangl_analysis_diar.rds")) %>%
+ddiar <- read_rds(here("data","bangl_analysis_diar.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr=="Control",0,1))
 
 # parasite data
-dpara <- read_rds(here(Box_data_directory,"final/bangl_analysis_parasite.rds")) %>%
+dpara <- read_rds(here("data","bangl_analysis_parasite.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr=="Control",0,1))
 
@@ -94,26 +90,26 @@ dpara <- read_rds(here(Box_data_directory,"final/bangl_analysis_parasite.rds")) 
 # limit to complete blocks by these two treatments
 #-------------------------------
 # anthropometry data
-dkanth <- read_rds(here(Box_data_directory,"final/kenya_analysis_anthro.rds")) %>%
+dkanth <- read_rds(here("data","kenya_analysis_anthro.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr %in% c("Control","Passive Control"),0,1)) %>%
   filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 
 # child development data
-dkchdev <- read_rds(here(Box_data_directory,"final/kenya_analysis_chdev.rds")) %>%
+dkchdev <- read_rds(here("data","kenya_analysis_chdev.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   filter(!is.na(z_easq_com)) %>%
   mutate(tr01 = ifelse(tr %in% c("Control"),0,1)) %>%
   filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 
 # diarrhea data
-dkdiar <- read_rds(here(Box_data_directory,"final/kenya_analysis_diar.rds")) %>%
+dkdiar <- read_rds(here("data","kenya_analysis_diar.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr %in% c("Control"),0,1)) %>%
   filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 
 # parasite data
-dkpara <- read_rds(here(Box_data_directory,"final/kenya_analysis_parasite.rds")) %>%
+dkpara <- read_rds(here("data","kenya_analysis_parasite.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr %in% c("Control"),0,1)) %>%
   filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
@@ -129,7 +125,7 @@ dkpara <- read_rds(here(Box_data_directory,"final/kenya_analysis_parasite.rds"))
 #
 # matched pair-level data
 #-------------------------------
-dcl <- read_rds(file = here("data","washb_pair_level_summary_estimates.rds"))
+dcl <- read_rds(file = here("output","washb_pair_level_summary_estimates.rds"))
 
 #-------------------------------
 # load previous estimates of
@@ -138,20 +134,20 @@ dcl <- read_rds(file = here("data","washb_pair_level_summary_estimates.rds"))
 # 
 # outcome-level data
 #-------------------------------
-ate_res <- read_rds(file = here("data","washb_ATE_releff_estimates.rds"))
+ate_res <- read_rds(file = here("output","washb_ATE_releff_estimates.rds"))
 
 #-------------------------------
 # load empirical estimates of
 # Moran's I for outcomes
 #-------------------------------
-morani_res <- read_rds(file = here("data","washb-geopair-morans-I-estimates.rds")) %>%
+morani_res <- read_rds(file = here("output","washb-geopair-morans-I-estimates.rds")) %>%
   select(country,outcome_lab,morani_observed)
 
 #-------------------------------
 # load empirical estimates of
 # the ICC for outcomes
 #-------------------------------
-icc_res <- read_rds(file = here("data","washb-geopair-icc-estimates.rds")) %>%
+icc_res <- read_rds(file = here("output","washb-geopair-icc-estimates.rds")) %>%
   rename(outcome_lab = outcome)
 ```
 
@@ -465,7 +461,7 @@ plot_cluster_sizes_growth_b <- ggplot(data=dcl_long %>% filter(country=="Banglad
   # aesthetics
   scale_fill_manual(values=pcols) +
   scale_color_manual(values=pcols) +
-  labs(x="",y="number of children per matched pair",tag="a") +
+  labs(x="",y="Number of children per matched pair",tag="a") +
   scale_y_continuous(breaks=seq(8,16,by=2)) +
   coord_cartesian(ylim=c(8,16)) +
   theme_minimal() +
@@ -491,7 +487,7 @@ plot_cluster_sizes_chdev_b <- ggplot(data=dcl_long %>% filter(country=="Banglade
   # aesthetics
   scale_fill_manual(values=pcols) +
   scale_color_manual(values=pcols) +
-  labs(x="",y="number of children per matched pair",tag="b") +
+  labs(x="",y="Number of children per matched pair",tag="b") +
   scale_y_continuous(breaks=seq(6,16,by=2)) +
   coord_cartesian(ylim=c(6,16)) +
   theme_minimal() +
@@ -517,7 +513,7 @@ plot_cluster_sizes_infd_b <- ggplot(data=dcl_long %>% filter(country=="Banglades
   # aesthetics
   scale_fill_manual(values=pcols) +
   scale_color_manual(values=pcols) +
-  labs(x="",y="number of children per matched pair",tag="c") +
+  labs(x="",y="Number of children per matched pair",tag="c") +
   scale_y_continuous(breaks=seq(0,70,by=10)) +
   coord_cartesian(ylim=c(0,70)) +
   theme_minimal() +
@@ -543,7 +539,7 @@ plot_cluster_diff_growth_b <- ggplot(data=dcl2 %>% filter(country=="Bangladesh" 
   scale_y_continuous(breaks=seq(0,16,by=4))+
   scale_x_continuous(breaks=seq(-6,6,by=2))+
   coord_flip(xlim=c(-6,6),ylim=c(0,18))+
-  labs(y="number of pairs",x = "diff in sample size (nutrition - control)",tag="d")+
+  labs(y="Number of pairs",x = "Diff in sample size (nutrition - control)",tag="d")+
   theme_minimal() +
   theme(
     legend.position = "none",
@@ -567,7 +563,7 @@ plot_cluster_diff_chdev_b <- ggplot(data=dcl2 %>% filter(country=="Bangladesh" &
   scale_y_continuous(breaks=seq(0,24,by=6))+
   scale_x_continuous(breaks=seq(-10,6,by=2))+
   coord_flip(xlim=c(-10,6),ylim=c(0,24))+
-  labs(y="number of pairs",x = "diff in sample size (nutrition - control)",tag="e")+
+  labs(y="Number of pairs",x = "Diff in sample size (nutrition - control)",tag="e")+
   theme_minimal() +
   theme(
     legend.position = "none",
@@ -591,7 +587,7 @@ plot_cluster_diff_infd_b <- ggplot(data=dcl2 %>% filter(country=="Bangladesh" & 
   scale_y_continuous(breaks=seq(0,24,by=8))+
   scale_x_continuous(breaks=seq(-30,30,by=6))+
   coord_flip(xlim=c(-30,30),ylim=c(0,24))+
-  labs(y="number of pairs",x = "diff in sample size (nutrition - control)",tag="f")+
+  labs(y="Number of pairs",x = "Diff in sample size (nutrition - control)",tag="f")+
   theme_minimal() +
   theme(
     legend.position = "none",
@@ -638,7 +634,7 @@ plot_cluster_sizes_growth_k <- ggplot(data=dcl_long %>% filter(country=="Kenya" 
   # aesthetics
   scale_fill_manual(values=pcols) +
   scale_color_manual(values=pcols) +
-  labs(x="",y="number of children per matched pair",tag="a") +
+  labs(x="",y="Number of children per matched pair",tag="a") +
   scale_y_continuous(breaks=seq(0,30,by=5)) +
   coord_cartesian(ylim=c(3,33)) +
   theme_minimal() +
@@ -666,7 +662,7 @@ plot_cluster_sizes_chdev_k <- ggplot(data=dcl_long %>% filter(country=="Kenya" &
   # aesthetics
   scale_fill_manual(values=pcols) +
   scale_color_manual(values=pcols) +
-  labs(x="",y="number of children per matched pair",tag="b") +
+  labs(x="",y="Number of children per matched pair",tag="b") +
   scale_y_continuous(breaks=seq(0,30,by=5)) +
   coord_cartesian(ylim=c(3,30)) +
   theme_minimal() +
@@ -692,7 +688,7 @@ plot_cluster_sizes_infd_k <- ggplot(data=dcl_long %>% filter(country=="Kenya" & 
   # aesthetics
   scale_fill_manual(values=pcols) +
   scale_color_manual(values=pcols) +
-  labs(x="",y="number of children per matched pair",tag="c") +
+  labs(x="",y="Number of children per matched pair",tag="c") +
   scale_y_continuous(breaks=seq(0,60,by=10)) +
   coord_cartesian(ylim=c(0,65)) +
   theme_minimal() +
@@ -718,7 +714,7 @@ plot_cluster_diff_growth_k <- ggplot(data=dcl2 %>% filter(country=="Kenya" & out
   scale_y_continuous(breaks=seq(0,16,by=4))+
   scale_x_continuous(breaks=seq(-12,14,by=4))+
   coord_flip(xlim=c(-12,14),ylim=c(0,16))+
-  labs(y="number of pairs",x = "diff in sample size (nutrition - control)",tag="d")+
+  labs(y="Number of pairs",x = "Diff in sample size (nutrition - control)",tag="d")+
   theme_minimal() +
   theme(
     legend.position = "none",
@@ -741,7 +737,7 @@ plot_cluster_diff_chdev_k <- ggplot(data=dcl2 %>% filter(country=="Kenya" & outc
   scale_y_continuous(breaks=seq(0,16,by=4))+
   scale_x_continuous(breaks=seq(-12,14,by=4))+
   coord_flip(xlim=c(-12,14),ylim=c(0,16))+
-  labs(y="number of pairs",x = "diff in sample size (nutrition - control)",tag="e")+
+  labs(y="Number of pairs",x = "Diff in sample size (nutrition - control)",tag="e")+
   theme_minimal() +
   theme(
     legend.position = "none",
@@ -766,7 +762,7 @@ plot_cluster_diff_infd_k <- ggplot(data=dcl2 %>% filter(country=="Kenya" & outco
   scale_y_continuous(breaks=seq(0,16,by=4))+
   scale_x_continuous(breaks=seq(-18,30,by=6))+
   coord_flip(xlim=c(-21,33),ylim=c(0,16))+
-  labs(y="number of pairs",x = "diff in sample size (nutrition - control)",tag="f")+
+  labs(y="Number of pairs",x = "Diff in sample size (nutrition - control)",tag="f")+
   theme_minimal() +
   theme(
     legend.position = "none",

@@ -91,7 +91,7 @@ admin3_b_study <- admin3_b %>%
 # join gps coordinates to 
 # block-level means
 #-------------------------------
-dcl_b <- read_rds(here("data","washb_pair_level_summary_estimates.rds")) %>%
+dcl_b <- read_rds(here("output","washb_pair_level_summary_estimates.rds")) %>%
   filter(country=="Bangladesh") %>%
   left_join(dgps_block, by=c("country","block"))
 
@@ -324,7 +324,7 @@ ggsave(filename=here("output","washb-geopair-diar-dist-dhaka.png"),
 # join gps coordinates to 
 # block-level means
 #-------------------------------
-dcl_k <- read_rds(here("data","washb_pair_level_summary_estimates.rds")) %>%
+dcl_k <- read_rds(here("output","washb_pair_level_summary_estimates.rds")) %>%
   filter(country=="Kenya")
 
 #-------------------------------
@@ -337,7 +337,7 @@ dcl_k <- read_rds(here("data","washb_pair_level_summary_estimates.rds")) %>%
 #-------------------------------
 
 # Cluster-level GPS locations (centroids of compounds in each cluster)
-dkgps <- read_rds(file=here("data","kenya_analysis_gps.rds")) %>%
+dkgps <- read_rds(file=here(Box_data_directory,"kenya_analysis_gps.rds")) %>%
   # filter out blocks that were not complete for control,N, N+WSH
   filter(block %in% unique(dcl_k$block[dcl_k$outcome_lab=="Ascaris sp."])) %>%
   mutate(block = as.character(block),

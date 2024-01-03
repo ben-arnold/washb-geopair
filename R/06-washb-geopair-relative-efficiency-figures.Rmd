@@ -55,26 +55,26 @@ source(here("R","washb-geopair-Functions.R"))
 # predicted relative efficiency
 # based on pair-level correlation
 #-------------------------------
-ate_res <- read_rds(file = here("data","washb_ATE_releff_estimates.rds"))
+ate_res <- read_rds(file = here("output","washb_ATE_releff_estimates.rds"))
 
 #-------------------------------
 # load empirical estimates of
 # relative efficiency for pair matched
 # and sub-district adjusted estimators
 #-------------------------------
-estcomp_res <- read_rds(file = here("data","washb_geopair_estimator_comparison.rds"))
+estcomp_res <- read_rds(file = here("output","washb_geopair_estimator_comparison.rds"))
 
 #-------------------------------
 # load empirical estimates of
 # Moran's I for outcomes
 #-------------------------------
-morani_res <- read_rds(file = here("data","washb-geopair-morans-I-estimates.rds"))
+morani_res <- read_rds(file = here("output","washb-geopair-morans-I-estimates.rds"))
 
 #-------------------------------
 # load empirical estimates of
 # the ICC for outcomes
 #-------------------------------
-icc_res <- read_rds(file = here("data","washb-geopair-icc-estimates.rds"))
+icc_res <- read_rds(file = here("output","washb-geopair-icc-estimates.rds"))
 ```
 
 
@@ -479,7 +479,7 @@ d_reff_morani <- estcomp_res %>%
             by = c("country","outcome_lab")) 
 
 d_reff_prev <- estcomp_res %>%
-  left_join(ate_res %>% select(country,outcome_lab,Y0bar),
+  left_join(ate_res %>% dplyr::select(country,outcome_lab,Y0bar),
             by = c("country","outcome_lab")) 
   
 
@@ -642,7 +642,7 @@ estcomp_plot_b <-   ggplot(estcomp_res2 %>% filter(country=="Bangladesh")) +
   geom_point(aes(x = outcome_lab, y = reff_mpcr), pch=21,
              size = 4, alpha = 1, fill = "black") +
   geom_point(aes(x = outcome_lab, y = reff_subdreg), pch=21,
-             size = 4, alpha = 0.9, fill = nytpal2[5]) +
+  size = 4, alpha = 0.9, fill = nytpal2[5]) +
   scale_y_continuous(breaks = seq(1,3.4,by=0.4)) +
   annotate("text",label="Pair matched",y=3.3,x=15, color="black") +
   annotate("text",label="Subdistrict stratified",y=2.1,x=15, color="black") +
@@ -680,7 +680,7 @@ estcomp_plot_k <-   ggplot(estcomp_res2 %>% filter(country=="Kenya")) +
   geom_point(aes(x = outcome_lab, y = reff_mpcr), pch=21,
              size = 4, alpha = 1, fill = "black") +
   geom_point(aes(x = outcome_lab, y = reff_subdreg), pch=21,
-             size = 4, alpha = 0.9, fill = nytpal[5]) +
+             size = 4, alpha = 0.9, fill = nytpal2[5]) +
   scale_y_continuous(breaks = seq(1,3.4,by=0.4)) +
   annotate("text",label="Pair matched",y=3.5,x=13, hjust=1, color="black") +
   annotate("text",label="Subdistrict stratified",y=1.9,x=13, hjust=0.5, color="black") +

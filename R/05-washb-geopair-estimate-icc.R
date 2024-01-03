@@ -21,11 +21,6 @@ here()
 source(here("R","washb-geopair-Config.R"))
 
 #----------------------------
-# Box data directory
-#----------------------------
-Box_data_directory <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/"
-
-#----------------------------
 # Set the seed and 
 # the number of bootstrap
 # replicates
@@ -44,19 +39,19 @@ nbootreps <- 1000
 #-------------------------------
 
 # anthropometry data
-danth <- read_rds(here(Box_data_directory,"final/bangl_analysis_anthro.rds")) %>%
+danth <- read_rds(here("data","bangl_analysis_anthro.rds")) %>%
   mutate(blockf = factor(block))
 
 # child development data
-dchdev <- read_rds(here(Box_data_directory,"final/bangl_analysis_chdev.rds")) %>%
+dchdev <- read_rds(here("data","bangl_analysis_chdev.rds")) %>%
   mutate(blockf = factor(block))
 
 # diarrhea data
-ddiar <- read_rds(here(Box_data_directory,"final/bangl_analysis_diar.rds")) %>%
+ddiar <- read_rds(here("data","bangl_analysis_diar.rds")) %>%
   mutate(blockf = factor(block))
 
-# giardia data
-dpara <- read_rds(here(Box_data_directory,"final/bangl_analysis_parasite.rds")) %>%
+# parasite data
+dpara <- read_rds(here("data","bangl_analysis_parasite.rds")) %>%
   mutate(blockf = factor(block))
 
 #-------------------------------
@@ -147,23 +142,22 @@ icc_tab <- data.frame(
 #-------------------------------
 
 # anthropometry data
-dkanth <- read_rds(here(Box_data_directory,"final/kenya_analysis_anthro.rds")) %>%
+dkanth <- read_rds(here("data","kenya_analysis_anthro.rds")) %>%
   mutate(blockf = factor(block)) %>%
   filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 
 # child development data
-dkchdev <- read_rds(here(Box_data_directory,"final/kenya_analysis_chdev.rds")) %>%
+dkchdev <- read_rds(here("data","kenya_analysis_chdev.rds")) %>%
   mutate(blockf = factor(block)) %>%
   filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
-
 
 # diarrhea data
-dkdiar <- read_rds(here(Box_data_directory,"final/kenya_analysis_diar.rds")) %>%
+dkdiar <- read_rds(here("data","kenya_analysis_diar.rds")) %>%
   mutate(blockf = factor(block)) %>%
   filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 
-# giardia data
-dkpara <- read_rds(here(Box_data_directory,"final/kenya_analysis_parasite.rds")) %>%
+# parasite data
+dkpara <- read_rds(here("data","kenya_analysis_parasite.rds")) %>%
   mutate(blockf = factor(block)) %>%
   filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 
@@ -193,7 +187,6 @@ dkchdev_control <- dkchdev %>%
 kicc_easqcom <- rptGaussian(z_easq_com ~ 1 + (1|blockf), grname = "blockf", data = dkchdev_control, nboot = nbootreps)
 kicc_easqmot <- rptGaussian(z_easq_motor ~ 1 + (1|blockf), grname = "blockf", data = dkchdev_control, nboot = nbootreps)
 kicc_easqps <- rptGaussian(z_easq_pers ~ 1 + (1|blockf), grname = "blockf", data = dkchdev_control, nboot = nbootreps)
-
 
 #-------------------------------
 # Block-level ICC
@@ -248,8 +241,8 @@ icc_tab_all <- icc_tab %>%
   mutate(country = ifelse(is.na(country),"Kenya",country)) %>%
   dplyr::select(country, everything())
 
-write_csv(icc_tab_all, file = here("data","washb-geopair-icc-estimates.csv") )
-write_rds(icc_tab_all, file = here("data","washb-geopair-icc-estimates.rds") )
+write_csv(icc_tab_all, file = here("output","washb-geopair-icc-estimates.csv") )
+write_rds(icc_tab_all, file = here("output","washb-geopair-icc-estimates.rds") )
 
 
 print(icc_tab_all)

@@ -37,10 +37,6 @@ source(here("R","washb-geopair-Config.R"))
 #----------------------------
 source(here("R","washb-geopair-Functions.R"))
 
-#----------------------------
-# Box data filepath
-#----------------------------
-Box_data_directory <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/final/"
 ```
 
 # Data prep
@@ -50,19 +46,17 @@ Box_data_directory <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/final/"
 # load the formatted gps
 # data created by
 # washb-geopair-gps-data-processing.R
+#
+# note: only includes GADM (not GPS) data
 #-------------------------------
 
 ## Bangladesh -----
-# Cluster-level GPS locations (centroids of compounds in each cluster)
-# NOT PUBLICLY AVAILABLE -- NEED TO USE ACCURATE LON/LAT FOR MAPPING
-dbgps <- read_rds(paste0(Box_data_directory,"bangl_analysis_gps.rds")) %>%
+dbgps <- read_rds(here("data","bangl_analysis_gadm.rds")) %>%
   mutate(block = as.character(block),
          blockf = factor(block))
 
 ## Kenya -----
-# Cluster-level GPS locations (centroids of compounds in each cluster)
-# NOT PUBLICLY AVAILABLE -- NEED TO USE ACCURATE LON/LAT FOR MAPPING
-dkgps <- read_rds(paste0(Box_data_directory,"kenya_analysis_gps.rds")) %>%
+dkgps <- read_rds(here("data","kenya_analysis_gadm.rds")) %>%
   mutate(block = as.character(block),
          blockf = factor(block))
 ```
@@ -73,9 +67,9 @@ dkgps <- read_rds(paste0(Box_data_directory,"kenya_analysis_gps.rds")) %>%
 # these were estimated in the file
 # washb-geopair-relative-efficiency.Rmd
 #-------------------------------
-dcl <- read_rds(here("data", "washb_pair_level_summary_estimates.rds")) 
+dcl <- read_rds(here("output", "washb_pair_level_summary_estimates.rds")) 
 
-ate_res <- read_rds(here("data", "washb_ATE_releff_estimates.rds"))
+ate_res <- read_rds(here("output", "washb_ATE_releff_estimates.rds"))
 ```
 
 ```{r outcome labels}
@@ -361,8 +355,8 @@ plot_grid(wt_eff_fig,
 # Save results
 
 ```{r save results}
-write_csv(all_results,file=here("data","washb_geopair_estimator_comparison.csv"))
-write_rds(all_results,file=here("data","washb_geopair_estimator_comparison.rds"))
+write_csv(all_results,file=here("output","washb_geopair_estimator_comparison.csv"))
+write_rds(all_results,file=here("output","washb_geopair_estimator_comparison.rds"))
 
 
 ```

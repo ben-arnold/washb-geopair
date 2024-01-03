@@ -46,9 +46,9 @@ These data are generated as part of the WASH Benefits analysis of the efficiency
 # Load Bangladesh + Kenya GPS data
 # and cluster-level means
 #----------------------------------
-gps_b <- read_rds(file=here("data","bangl_analysis_gps.rds"))
-gps_k <- read_rds(file=here("data","kenya_analysis_gps.rds"))
-dcl <- read_rds(file=here("data","washb_pair_level_summary_estimates.rds"))
+gps_b <- read_rds(file=here(Box_data_directory,"bangl_analysis_gps.rds"))
+gps_k <- read_rds(file=here(Box_data_directory,"kenya_analysis_gps.rds"))
+dcl <- read_rds(file=here("output","washb_pair_level_summary_estimates.rds"))
 
 
 #----------------------------------

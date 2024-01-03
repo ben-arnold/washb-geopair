@@ -57,7 +57,7 @@ Box_data_directory <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/"
 # estimates, created by
 # washb-geopair-relative-efficiency.R
 #-------------------------------
-dcl <- read_rds(here("data","washb_pair_level_summary_estimates.rds"))
+dcl <- read_rds(here("output","washb_pair_level_summary_estimates.rds"))
 
 #-------------------------------
 # load the distance matrix
@@ -916,8 +916,8 @@ dreleff <- dreleff_b %>%
   bind_rows(dreleff_k) %>%
   mutate(country = ifelse(is.na(country),"Kenya",country))
 
-write_rds(dreleff, file = here("data","washb_releff_ests_by_number_of_pairs.rds"))
-write_csv(dreleff, file = here("data","washb_releff_ests_by_number_of_pairs.csv"))
+write_rds(dreleff, file = here("output","washb_releff_ests_by_number_of_pairs.rds"))
+write_csv(dreleff, file = here("output","washb_releff_ests_by_number_of_pairs.csv"))
 
 
 ```

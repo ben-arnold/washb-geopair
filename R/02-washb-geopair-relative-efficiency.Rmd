@@ -41,12 +41,6 @@ detach("package:raster", unload = TRUE)
 #----------------------------
 source(here("R","washb-geopair-Functions.R"))
 
-#----------------------------
-# Box data directory
-#----------------------------
-Box_data_directory <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/"
-
-
 ```
 
 
@@ -63,23 +57,23 @@ Box_data_directory <- "~/Library/CloudStorage/Box-Box/washb-geopair/data/"
 #-------------------------------
 
 # anthropometry data
-danth <- read_rds(here(Box_data_directory,"final/bangl_analysis_anthro.rds")) %>%
+danth <- read_rds(here("data","bangl_analysis_anthro.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr=="Control",0,1)) 
   
 
 # child development data
-dchdev <- read_rds(here(Box_data_directory,"final/bangl_analysis_chdev.rds")) %>%
+dchdev <- read_rds(here("data","bangl_analysis_chdev.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr=="Control",0,1))
 
 # diarrhea data
-ddiar <- read_rds(here(Box_data_directory,"final/bangl_analysis_diar.rds")) %>%
+ddiar <- read_rds(here("data","bangl_analysis_diar.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr=="Control",0,1))
 
 # giardia data
-dpara <- read_rds(here(Box_data_directory,"final/bangl_analysis_parasite.rds")) %>%
+dpara <- read_rds(here("data","bangl_analysis_parasite.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr=="Control",0,1))
 
@@ -241,7 +235,7 @@ ate_res <- ate_res %>%
 # leaving 72 complete blocks of
 # 4 clusters (2 control, 2 nutrition)
 #-------------------------------
-kcl <- read_rds(here(Box_data_directory,"final/kenya_analysis_anthro.rds")) 
+kcl <- read_rds(here("data","kenya_analysis_anthro.rds")) 
 
 kcl2 <- kcl %>%
   dplyr::select(block,tr,clusterid) %>%
@@ -278,26 +272,26 @@ k_incomplete$block
 #-------------------------------
 
 # anthropometry data
-dkanth <- read_rds(here(Box_data_directory,"final/kenya_analysis_anthro.rds")) %>%
+dkanth <- read_rds(here("data","kenya_analysis_anthro.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr %in% c("Control","Passive Control"),0,1)) %>%
   filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 
 
 # diarrhea data
-dkdiar <- read_rds(here(Box_data_directory,"final/kenya_analysis_diar.rds")) %>%
+dkdiar <- read_rds(here("data","kenya_analysis_diar.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr %in% c("Control"),0,1)) %>%
   filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 
 # parasite data
-dkpara <- read_rds(here(Box_data_directory,"final/kenya_analysis_parasite.rds")) %>%
+dkpara <- read_rds(here("data","kenya_analysis_parasite.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr %in% c("Control"),0,1)) %>%
   filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
 
 # child development data
-dkchdev <- read_rds(here(Box_data_directory,"final/kenya_analysis_chdev.rds")) %>%
+dkchdev <- read_rds(here("data","kenya_analysis_chdev.rds")) %>%
   filter(tr %in% c("Control","Nutrition","Nutrition + WSH")) %>%
   mutate(tr01 = ifelse(tr %in% c("Control"),0,1)) %>%
   filter(!block %in% c(11,13,20,23,30,33,37,40,49,51,54,56,65,72,80,84,85))
@@ -475,8 +469,8 @@ dcl <- bind_rows(dcl_b,dcl_k) %>%
   select(country,outcome_lab,block,everything()) %>%
   arrange(country,outcome_lab,block)
 
-write_rds(dcl, file = here("data","washb_pair_level_summary_estimates.rds"))
-write_csv(dcl, file = here("data","washb_pair_level_summary_estimates.csv"))
+write_rds(dcl, file = here("output","washb_pair_level_summary_estimates.rds"))
+write_csv(dcl, file = here("output","washb_pair_level_summary_estimates.csv"))
 
 
 ```
@@ -626,8 +620,8 @@ ate_res3 <- ate_res2 %>%
   left_join(dcl_means, by = c("country","outcome_lab")) %>%
   select(country, outcome_lab, Y0bar, Y1bar, everything())
 
-write_rds(ate_res3, file = here("data","washb_ATE_releff_estimates.rds"))
-write_csv(ate_res3, file = here("data","washb_ATE_releff_estimates.csv"))
+write_rds(ate_res3, file = here("output","washb_ATE_releff_estimates.rds"))
+write_csv(ate_res3, file = here("output","washb_ATE_releff_estimates.csv"))
 
 ```
 

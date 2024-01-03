@@ -66,9 +66,9 @@ dkgps <- read_rds(paste0(Box_data_directory,"kenya_analysis_gps.rds")) %>%
 # these were estimated in the file
 # washb-geopair-relative-efficiency.Rmd
 #-------------------------------
-dcl <- read_rds(here("data", "washb_pair_level_summary_estimates.rds")) 
+dcl <- read_rds(here("output", "washb_pair_level_summary_estimates.rds")) 
 
-ate_res <- read_rds(here("data", "washb_ATE_releff_estimates.rds"))
+ate_res <- read_rds(here("output", "washb_ATE_releff_estimates.rds"))
 ```
 
 ```{r make spatial data}
@@ -129,7 +129,7 @@ dcl_Y0bar_wide <- dcl %>%
             by = c("country", "block"))
 ```
 
-```{r morani estimation}
+```{r morani estimation, warning=FALSE, message=FALSE}
 ## `get_moran`: wrapper around ape::Moran.I -----
 ## inputs:
 # - input_df: dataframe containing coordinates ("lon", "lat") and variable of interest
@@ -216,8 +216,8 @@ morani_res %>%
 Save Moran's I estimates for composite plots or tables
 
 ```{r save results}
-write_csv(morani_res,file=here("data","washb-geopair-morans-I-estimates.csv"))
-write_rds(morani_res,file=here("data","washb-geopair-morans-I-estimates.rds"))
+write_csv(morani_res,file=here("output","washb-geopair-morans-I-estimates.csv"))
+write_rds(morani_res,file=here("output","washb-geopair-morans-I-estimates.rds"))
 
 ```
 
