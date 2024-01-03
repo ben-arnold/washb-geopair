@@ -24,6 +24,8 @@ library(osfr)
 #----------------------------
 # display packages
 #----------------------------
+library(rmarkdown)
+library(yaml)
 library(table1)
 library(kableExtra)
 library(gridExtra)
