@@ -237,13 +237,14 @@ plot_prev_dist_dhaka <- ggplot(data=dcl_diar, aes(x = mins_to_dhaka,color = mins
   scale_y_continuous(breaks=seq(0,24,by=4)) +
   coord_cartesian(xlim=c(40,145)) +
   labs(x = "Modeled travel time to Dhaka (mins)", 
-       y = "Diarrhea prevalence in control clusters (%)",
+       y = "Diarrhea prevalence,\ncontrol clusters (%)",
        tag = "b") +
   theme_minimal() +
   theme(
     legend.position = "none",
     panel.grid.minor.x = element_blank(),
-    plot.tag = element_text(face="bold",size=16)
+    plot.tag = element_text(face="bold",size=16),
+    axis.title = element_text(size=10)
   )
               
 
@@ -275,13 +276,14 @@ plot_ate_dist_dhaka <- ggplot(data=dcl_diar, aes(x = mins_to_dhaka,color = mins_
   scale_x_continuous(breaks=seq(0,140,by=20)) +
   coord_cartesian(xlim=c(40,145),ylim=c(-20,15)) +
   labs(x = "Modeled travel time to Dhaka (mins)", 
-       y = "Matched pair difference, diarrhea prevalence (%)",
+       y = "Matched pair difference,\ndiarrhea prevalence (%)",
        tag = "c") +
   theme_minimal() +
   theme(
     legend.position = "none",
     panel.grid.minor.x = element_blank(),
-    plot.tag = element_text(face="bold",size=16)
+    plot.tag = element_text(face="bold",size=16),
+    axis.title = element_text(size=10)
   )
               
 
@@ -300,13 +302,13 @@ dist_map_composite <- grid.arrange(
   plot_prev_dist_dhaka,
   plot_ate_dist_dhaka,
   nrow=2,ncol=2,
-  layout_matrix = cbind(c(1,1),c(2,3)), 
-  heights=c(1,1), widths = c(0.6,0.4)
+  layout_matrix = cbind(c(1,1),c(2,3)),
+  heights=c(1,1), widths = c(0.55,0.45)
   )
 
-ggsave(filename=here("output","washb-geopair-diar-dist-dhaka.png"),
-       plot = dist_map_composite,device="png",
-       width=12.6,height=11)
+ggsave(filename=here("output","washb-geopair-diar-dist-dhaka.pdf"),
+       plot = dist_map_composite,device = cairo_pdf,
+       width=180,height=160, units="mm")
 ```
 
 
