@@ -34,7 +34,7 @@ All analyses were run using R software version 4.3.2 on Mac OSX Monterey using t
 
 `Running under: macOS Monterey 12.6`
 
-In this repository we have created a Docker container and have used the `renv` package to archive the package versions so that you and reproduce the exact compute environment on an instance of R Studio Server, should you wish to do so. 
+In this repository we have used the `renv` package to archive the package versions so that you and reproduce the exact compute environment, should you wish to do so. 
 
 ### Installation Guide and Instructions for Use (Desktop)
 
@@ -61,10 +61,6 @@ You can do this by opening the R project file ([washb-geopair.Rproj](https://git
 3. Download the public data from the OSF repository by running the script [`01-washb-geopair-download-public-data.R`](https://github.com/ben-arnold/washb-geopair/blob/main/R/01-washb-geopair-download-public-data.R).
   
 4. All of the analysis scripts should run smoothly (scripts `02-xx.Rmd` to `08-xx.Rmd`).  Note that scripts `09-13` and script `04` rely on geographic coordinates of study clusters that constitute personally identifiable information. Therefore, those scripts will not run (GPS data not publicly available), but the scripts have been provided for transparency.
-
-### Installation Guide and Instructions for Use (Docker / RStudio Server)
-
-TBD
 
 ### Additional details
 
