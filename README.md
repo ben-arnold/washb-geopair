@@ -6,6 +6,7 @@
 This repository includes R code to run all of the analysis for the paper:
 
 Arnold BF, Rerolle F, Tedijanto C et al. **Geographic pair matching in large-scale cluster randomized trials**. _Nature Communications_ 15, 1069 (2024). https://doi.org/10.1038/s41467-024-45152-y
+
 This work was funded by the National Institute of Allery and Infectious Diseases (R01-AI166671) and the Bill & Melinda Gates Foundation (OPPGD759).
 
 If you have any questions about the files in this repository, please contact Ben Arnold at UCSF (ben.arnold@ucsf.edu).
